@@ -10,7 +10,16 @@
   /* ---------- 상태 ---------- */
   var S = { profile: null, miles: 0, mi: {}, combo: 0, flags: {}, wear: {}, badges: {}, pos: {}, seen: {}, done: {}, stamps: {}, ans: {}, data: {}, lines: {}, lab: {}, chain: {}, booths: [], exam: null };
   try { var raw = localStorage.getItem(KEY); if (raw) { var o = JSON.parse(raw); for (var k in o) S[k] = o[k]; } } catch (e) { }
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
+  var stTimer = null;
+  function save() {
+    if (isG()) return;
+    try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { }
+    if (CFG.API_URL && S.profile && !isT()) { clearTimeout(stTimer); stTimer = setTimeout(function () { post({ key: 'state', val: S }); }, 5000); }
+  }
+  function post(o) {
+    o.cls = S.profile.cls; o.num = S.profile.num; o.name = S.profile.name;
+    return fetch(CFG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(o) }).then(function (r) { return r.json(); });
+  }
 
   /* ---------- 서버 연동 (선택) ---------- */
   var timers = {};
@@ -30,7 +39,8 @@
 
   /* ---------- 도장 ---------- */
   function stampCount() { var n = 0; for (var s in S.stamps) for (var k in S.stamps[s]) n++; return n; }
-  function isT() { return !!sessionStorage.getItem('gastrip.pin'); }
+  function isG() { return !!sessionStorage.getItem('gastrip.guest'); }
+  function isT() { return !!sessionStorage.getItem('gastrip.pin') || isG(); }
   function rankIdx() { var n = stampCount(), ix = 0; for (var j = 1; j < T.ranks.length; j++) { if (S.miles >= T.ranks[j].min && n >= (T.ranks[j].st || 0)) ix = j; else break; } return ix; }
   function rank() { return T.ranks[rankIdx()]; }
   /* ---------- 마일 · 배지 ---------- */
@@ -113,7 +123,7 @@
     if (sim) { sim.stop(); sim = null; }
     MCQ = {};
     var h = location.hash.replace(/^#/, '').split('/');
-    if (!S.profile && isT()) { S.profile = { cls: '0', num: '0', name: '선생님' }; save(); }
+    if (!S.profile && isT()) { S.profile = { cls: '0', num: '0', name: isG() ? '참관 선생님' : '선생님' }; save(); }
     if (!S.profile && h[0] !== 'teacher') return viewRegister();
     if (h[0] === 'd' && DEST[h[1]]) return viewDest(DEST[h[1]], h[2] == null ? -1 : Math.max(0, parseInt(h[2], 10) || 0));
     cur = { dest: null };
@@ -124,14 +134,37 @@
 
   /* ---------- 등록 ---------- */
   function viewRegister() {
-    app.innerHTML = '<main class="reg"><div class="cover"><div class="emblem">' + mascot(96, 1) + '</div><p class="cv1">GAS SAFE TRAVEL</p><h1>입자 여권</h1><p class="cv2">기체 안전 여행사</p></div>' +
-      '<form class="card regform" id="regform"><h2>여권 발급</h2><p class="sub">기체 안전 여행사의 가이드가 되어 여행지를 돌며 도장을 모아요.</p>' +
-      '<div class="row3"><label>반<input name="cls" inputmode="numeric" required maxlength="2" autocomplete="off"></label><label>번호<input name="num" inputmode="numeric" required maxlength="2" autocomplete="off"></label><label>이름<input name="name" required maxlength="10" autocomplete="off"></label></div>' +
-      '<button class="btn pri wide" type="submit">여권 발급받기</button><p class="tiny">입력한 정보와 활동 기록은 이 기기에 저장돼요.' + (CFG.API_URL ? ' 선생님 화면에도 전달돼요.' : '') + '</p></form>' +
-      '<p class="tlink"><a href="#teacher">선생님 화면</a></p></main>';
-    $('#regform').addEventListener('submit', function (e) {
-      e.preventDefault(); var f = e.target;
-      S.profile = { cls: f.cls.value.trim(), num: f.num.value.trim(), name: f.name.value.trim() }; save(); syncProgress(); route();
+    var api = !!CFG.API_URL;
+    app.innerHTML = '<main class="gate"><div class="gatebox"><p class="comms">GAS SAFE TRAVEL · PARTICLE PASSPORT</p><div class="emblem">' + mascot(84, 1) + '</div><h1>입자 여권</h1><p class="sub">기체 안전 여행사 · 가이드 신분을 확인합니다.</p>' +
+      '<form id="regform"><div class="row2"><label>반<input name="cls" inputmode="numeric" maxlength="2" autocomplete="off" placeholder="예) 3"></label><label>번호<input name="num" inputmode="numeric" maxlength="2" autocomplete="off" placeholder="예) 12"></label></div>' +
+      '<label>이름<input name="name" maxlength="10" autocomplete="off" placeholder="이름"></label>' +
+      '<div class="idcard" id="idcard" aria-live="polite"><div class="av">🧳</div><div class="small">반, 번호, 이름을 쓰면 여권이 만들어져요</div></div>' +
+      (api ? '<label>여권 암호 <span class="small">나만의 비밀번호예요. 처음이면 지금 정하세요 (2~8자)</span><span class="pw"><input name="code" type="password" maxlength="8" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="예) 풍선, 블루문"><button type="button" class="btn sm" data-act="eye">보기</button></span></label>' : '') +
+      '<button class="btn pri wide go" type="submit">여행사 입장</button></form>' +
+      '<p class="small" id="gmsg2" role="status">' + (api ? '기록은 선생님의 구글 시트에 자동으로 저장돼요. 다른 기기에서도 같은 암호로 이어서 할 수 있어요.' : '⚠ 서버가 연결되지 않아 기록이 이 기기에만 저장돼요.') + '</p>' +
+      '<button class="btn wide" data-act="gteach">선생님으로 입장</button><div id="gtbox" hidden class="gtbox"><label>교사 비밀번호<input id="gpin" type="password" inputmode="numeric" autocomplete="off"></label><button class="btn pri" data-act="gtgo">들어가기</button></div>' +
+      '<button class="linkbtn wide" data-act="gguest">🎩 참관 오셨나요? 둘러보기</button>' +
+      '<div id="ggbox" hidden class="gtbox col"><p class="small"><b>둘러보기 전용</b> 입장입니다. 모든 여행지의 화면을 잠금 없이 넘겨 보실 수 있고, 해 보신 활동은 저장되지 않습니다.</p><button class="btn pri" data-act="ggo">둘러보기 시작</button></div></div></main>';
+    var f = $('#regform'), card = $('#idcard');
+    f.addEventListener('input', function () {
+      var c = f.cls.value.trim(), n = f.num.value.trim(), nm = f.name.value.trim();
+      card.innerHTML = c && n && nm ? '<div class="av">' + mascot(46, 1) + '</div><div><div class="nm">' + esc(nm) + '</div><div class="small">' + esc(c) + '반 ' + esc(n) + '번 · ' + T.ranks[0].name + '</div></div>' : '<div class="av">🧳</div><div class="small">반, 번호, 이름을 쓰면 여권이 만들어져요</div>';
+    });
+    f.addEventListener('submit', function (e) {
+      e.preventDefault(); var m = $('#gmsg2'), btn = f.querySelector('.go');
+      var c = f.cls.value.trim(), n = f.num.value.trim(), nm = f.name.value.trim(), code = api ? f.code.value.trim() : '';
+      if (!c || !n || !nm) { m.innerHTML = '<b class="warn">반, 번호, 이름을 모두 입력하세요.</b>'; return; }
+      if (api && (code.length < 2 || code.length > 8)) { m.innerHTML = '<b class="warn">여권 암호는 2~8자로 정하세요.</b>'; return; }
+      function enter(state) {
+        if (state && (state.miles || 0) >= (S.miles || 0)) { for (var k in state) S[k] = state[k]; }
+        S.profile = { cls: c, num: n, name: nm }; save(); syncProgress(); route(); toast('<div class="rkup">🧳</div><p>환영합니다, <b>' + esc(nm) + '</b> ' + rank().name + '님!</p>');
+      }
+      if (!api) return enter(null);
+      btn.disabled = true; btn.textContent = '확인 중…';
+      fetch(CFG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ action: 'login', cls: c, num: n, name: nm, code: code }) }).then(function (r) { return r.json(); }).then(function (r) {
+        if (r.error) { btn.disabled = false; btn.textContent = '여행사 입장'; m.innerHTML = '<b class="warn">' + esc(r.error) + '</b>'; return; }
+        enter(r.state || null);
+      }).catch(function () { m.innerHTML = '<b class="warn">서버에 연결하지 못해 이 기기에만 저장해요.</b>'; enter(null); });
     });
   }
   var WEAR = {
@@ -159,7 +192,7 @@
     if (next) { var needM = Math.max(0, next.min - S.miles), needS = Math.max(0, (next.st || 0) - n); nx = '<b>' + next.name + '</b>까지 ' + [needM ? needM + ' 마일' : '', needS ? '도장 ' + needS + '개' : ''].filter(Boolean).join(', ') + ' 남았어요'; } else nx = '가장 높은 등급이에요!';
     var lo = r.min, hi = next ? next.min : r.min + 1, pc = next ? Math.min(100, (S.miles - lo) / (hi - lo) * 100) : 100;
     var h = '<header class="top"><div class="who">' + mascot(72) + '<div><p class="rk">Lv.' + (ri + 1) + ' ' + r.name + '</p><h1>' + esc(S.profile.name) + ' <small>' + esc(S.profile.cls) + '반 ' + esc(S.profile.num) + '번</small></h1></div><div class="mbox"><b>' + S.miles + '</b><span>마일</span></div></div>' +
-      '<div class="mbar" role="img" aria-label="다음 등급까지 진행"><i style="width:' + pc.toFixed(0) + '%"></i></div><p class="nx">' + nx + '</p></header><main class="home">' + (isT() ? '<p class="tbar"><b>교사 모드</b> 모든 장을 잠금 없이 넘길 수 있고, 마일과 기록은 쌓이지 않아요. <a href="#teacher">선생님 화면</a> <button class="linkbtn" data-act="tlogout">교사 모드 끄기</button></p>' : '');
+      '<div class="mbar" role="img" aria-label="다음 등급까지 진행"><i style="width:' + pc.toFixed(0) + '%"></i></div><p class="nx">' + nx + '</p></header><main class="home">' + (isG() ? '<p class="tbar"><b>🎩 참관 모드</b> 모든 장을 잠금 없이 둘러보실 수 있고, 해 보신 활동은 저장되지 않습니다. <button class="linkbtn" data-act="tlogout">참관 끝내기</button></p>' : isT() ? '<p class="tbar"><b>교사 모드</b> 모든 장을 잠금 없이 넘길 수 있고, 마일과 기록은 쌓이지 않아요. <a href="#teacher">선생님 화면</a> <button class="linkbtn" data-act="tlogout">교사 모드 끄기</button></p>' : '');
     P.pass += '<section class="card passport"><h2>내 입자 여권 <span class="cnt">도장 ' + n + ' / 9</span></h2><div class="pgrid">';
     ['01', '02', '03'].forEach(function (s) {
       P.pass += '<div class="prow"><div class="pstd"><b>' + T.stds[s].short + '</b><span>' + T.stds[s].code + '</span></div>' + stampHTML(s, 'see') + stampHTML(s, 'meas') + stampHTML(s, 'part') + '</div>';
@@ -181,7 +214,7 @@
     if (S.exam) P.pass += '<section class="card"><h2>자격시험 기록</h2><p>최고 점수 <b>' + S.exam.best + ' / ' + S.exam.total + '</b>' + (S.exam.best >= 14 ? ' · 입자 가이드 자격 취득' : '') + '</p></section>';
     var tabs = [['trip', '🗺️ 여행 일정'], ['pass', '📘 내 여권 ' + n + '/9'], ['bag', '🧳 여행 가방 ' + got + '/' + BADGES.length], ['me', '😀 내 입자']];
     h += '<nav class="htabs" aria-label="메뉴">' + tabs.map(function (t) { return '<a href="#home/' + t[0] + '" class="' + (HTAB === t[0] ? 'on' : '') + '"' + (HTAB === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + '</a>'; }).join('') + '</nav>' + P[HTAB];
-    h += '<p class="tlink"><a href="#teacher">선생님 화면</a> · <button class="linkbtn" data-act="reset">여권 다시 발급</button></p></main>';
+    h += '<p class="tlink">' + (isG() ? '' : '<a href="#teacher">선생님 화면</a> · ') + '<button class="linkbtn" data-act="reset">' + (CFG.API_URL ? '나가기 (다른 사람이 쓰기)' : '여권 다시 발급') + '</button></p></main>';
     app.innerHTML = h;
   }
 
@@ -552,6 +585,11 @@
       check();
     }
     else if (act === 'go') go(+b.dataset.d);
+    else if (act === 'eye') { var pi = b.previousElementSibling; pi.type = pi.type === 'password' ? 'text' : 'password'; b.textContent = pi.type === 'password' ? '보기' : '숨김'; }
+    else if (act === 'gteach') { $('#gtbox').hidden = !$('#gtbox').hidden; if (!$('#gtbox').hidden) $('#gpin').focus(); }
+    else if (act === 'gtgo') { if ($('#gpin').value.trim() === String(CFG.TEACHER_PIN || '0000')) { sessionStorage.setItem('gastrip.pin', $('#gpin').value.trim()); location.hash = '#teacher'; route(); } else $('#gmsg2').innerHTML = '<b class="warn">교사 비밀번호가 달라요.</b>'; }
+    else if (act === 'gguest') { $('#ggbox').hidden = !$('#ggbox').hidden; }
+    else if (act === 'ggo') { sessionStorage.setItem('gastrip.guest', '1'); S.profile = { cls: '0', num: '0', name: '참관 선생님' }; location.hash = '#home'; route(); }
     else if (act === 'bdg') { $('#bdgmsg').innerHTML = '<b>' + b.dataset.n + '</b> — ' + b.dataset.d; }
     else if (act === 'wear') { if (b.dataset.lock) PREV = PREV === b.dataset.id ? null : b.dataset.id; else { PREV = null; S.wear[b.dataset.id] = !S.wear[b.dataset.id]; save(); } var y = window.scrollY; viewHome(); window.scrollTo(0, y); }
     else if (act === 'blank') { b.classList.add('on'); b.removeAttribute('data-act'); if (!document.querySelector('.blank:not(.on)')) { S.seen[pfx(d, i) + cur.sl.j] = 1; save(); mile('c.' + pfx(d, i) + cur.sl.j, 2); } check(); }
@@ -578,7 +616,7 @@
     else if (act === 'exstart') examStart(T.exam, false);
     else if (act === 'exwrong') examStart((EX && EX.i >= EX.ids.length ? EX.wrong : S.exam.wrong), true);
     else if (act === 'exnext') { EX.i++; if (EX.i >= EX.ids.length) examFinish(); drawExam(); window.scrollTo(0, 0); }
-    else if (act === 'reset') { if (confirmBox(b, '지금까지의 기록이 이 기기에서 모두 지워져요. 한 번 더 누르면 지워요.')) { localStorage.removeItem(KEY); location.hash = ''; location.reload(); } }
+    else if (act === 'reset') { if (confirmBox(b, CFG.API_URL ? '이 기기에서 나가요. 같은 암호로 다시 들어오면 이어서 할 수 있어요. 한 번 더 누르면 나가요.' : '지금까지의 기록이 이 기기에서 모두 지워져요. 한 번 더 누르면 지워요.')) { localStorage.removeItem(KEY); location.hash = ''; location.reload(); } }
     else if (TEACH[act]) TEACH[act](b);
   });
   function confirmBox(b, msg) { if (b.dataset.sure) return true; b.dataset.sure = '1'; b.textContent = msg; return false; }
@@ -612,7 +650,7 @@
     app.innerHTML = h + '</main>';
   }
   TEACH.tlogin = function () { var v = $('#tpin').value.trim(); if (v === String(CFG.TEACHER_PIN || '0000')) { sessionStorage.setItem('gastrip.pin', v); viewTeacher(); } else $('#tmsg').innerHTML = '<b class="warn">비밀번호가 달라요.</b>'; };
-  TEACH.tlogout = function () { sessionStorage.removeItem('gastrip.pin'); if (S.profile && S.profile.name === '선생님' && S.profile.cls === '0') { S.profile = null; save(); } route(); };
+  TEACH.tlogout = function () { var g = isG(); sessionStorage.removeItem('gastrip.pin'); sessionStorage.removeItem('gastrip.guest'); if (g) { location.hash = ''; location.reload(); return; } if (S.profile && S.profile.cls === '0') { S.profile = null; save(); } route(); };
   TEACH.ttab = function (b) { TS.tab = b.dataset.t; viewTeacher(); };
   TEACH.tload = function () {
     TS.cls = $('#tcls').value.trim(); if (!TS.cls) return; TS.msg = '불러오는 중…'; viewTeacher();

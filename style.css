@@ -198,3 +198,16 @@ textarea { resize: vertical; line-height: 1.6; }
 .tbar { background: #FFFBEA; border: 3px solid var(--ink); border-radius: 14px; padding: 8px 14px; margin: 12px 0 0; font-size: 15px; } .tbar b { background: var(--ink); color: #fff; border-radius: 8px; padding: 1px 8px; margin-right: 6px; }
 
 .wearme small { display: block; font-weight: 700; font-size: 13px; }
+
+/* ---------- 입장 화면 ---------- */
+.gate { max-width: none; min-height: 100vh; margin: 0; padding: 24px 16px; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 20% 15%, #2F3566 0, var(--ink) 55%); }
+.gatebox { width: min(560px, 100%); background: #fff; border: 3px solid var(--ink); border-radius: 26px; padding: 30px 28px 22px; box-shadow: 0 0 0 6px var(--yel), 0 24px 60px rgba(0,0,0,.45); }
+.gatebox .comms { letter-spacing: .22em; font-size: 12px; font-weight: 700; color: var(--muted); margin: 0 0 6px; text-align: center; }
+.gatebox .emblem { text-align: center; line-height: 0; } .gatebox h1 { font-size: 44px; text-align: center; } .gatebox .sub { text-align: center; color: var(--muted); margin: 2px 0 16px; }
+.gatebox label { margin-top: 10px; } .gatebox .small, .small { font-size: 14px; color: var(--muted); font-weight: 400; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.idcard { display: flex; gap: 12px; align-items: center; min-height: 72px; margin-top: 12px; padding: 10px 14px; border: 2px dashed var(--ink); border-radius: 16px; background: #FFFBEA; } .idcard .av { font-size: 34px; line-height: 0; } .idcard .nm { font-family: var(--ft); font-size: 24px; line-height: 1.2; }
+.pw { display: flex; gap: 6px; } .pw input { flex: 1; } .gatebox .go { margin-top: 16px; min-height: 56px; font-size: 20px; } #gmsg2 { margin: 10px 0 14px; }
+.gtbox { display: flex; gap: 8px; align-items: flex-end; margin-top: 10px; background: #F3F5FB; border-radius: 14px; padding: 12px; } .gtbox label { flex: 1; margin: 0; } .gtbox.col { flex-direction: column; align-items: stretch; } .gtbox[hidden] { display: none; }
+.linkbtn.wide { display: block; width: 100%; text-align: center; margin-top: 6px; }
+@media (max-width: 620px) { .gatebox { padding: 22px 18px 16px; } .gatebox h1 { font-size: 36px; } }
