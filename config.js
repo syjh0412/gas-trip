@@ -1,5 +1,7 @@
 /* 선생님 설정 — 이 파일만 고치면 됩니다. */
 window.TRIP_CONFIG = {
+  // 입장 화면 맨 위에 나오는 영문 이름
+  SCHOOL_EN: "GOCHEON GAS SAFE TRAVEL",
   // 구글 Apps Script 웹앱 주소. 비워 두면 학생 기기에만 저장되고, 반 전체 그래프와 교사 화면의 반 현황은 쓸 수 없습니다.
   API_URL: "https://script.google.com/macros/s/AKfycbxbvXQSs2h9tIhctngXsC4tdaWXCe8lGf3iz2iLqOJQBaazbtuyjCnONKZuI2IJFWVUMg/exec",
   // 교사 화면 비밀번호. API_URL이 비어 있을 때만 쓰입니다.

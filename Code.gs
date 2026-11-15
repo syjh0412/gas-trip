@@ -32,6 +32,20 @@ function users_() {
   return sh;
 }
 
+/** 명단: 'roster' 탭에 반, 번호, 이름을 적어 두면 입장 화면에서 반과 번호를 고를 때 이름이 나옵니다. 비워 두면 학생이 이름을 직접 씁니다. */
+function rosterSheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('roster');
+  if (!sh) { sh = ss.insertSheet('roster'); sh.appendRow(['반', '번호', '이름']); sh.setFrozenRows(1); }
+  return sh;
+}
+
+function rosterRows_() {
+  var v = rosterSheet_().getDataRange().getValues(), out = [];
+  for (var i = 1; i < v.length; i++) if (v[i][0] !== '' && v[i][1] !== '' && v[i][2] !== '') out.push({ cls: String(v[i][0]).trim(), num: String(v[i][1]).trim(), name: String(v[i][2]).trim() });
+  return out;
+}
+
 function find_(sh, id) {
   return sh.getRange('A:A').createTextFinder(id).matchEntireCell(true).findNext();
 }
@@ -39,18 +53,25 @@ function find_(sh, id) {
 /** 입장: 처음이면 여권 암호를 등록하고, 다음부터는 암호가 맞아야 들어온다. 저장된 진행 상황을 돌려준다. */
 function login_(d) {
   var uid = [d.cls, d.num].join('|');
+  var rr = rosterRows_();
+  if (rr.length) {
+    var hit = null;
+    for (var i = 0; i < rr.length; i++) if (rr[i].cls === String(d.cls) && rr[i].num === String(d.num)) hit = rr[i];
+    if (!hit) return { error: '명단에 없는 반·번호예요. 선생님께 말씀드리세요.' };
+    d.name = hit.name;
+  }
   var us = users_();
   var u = find_(us, uid);
   if (!u) {
     us.appendRow([uid, String(d.cls), String(d.num), String(d.name || ''), String(d.code), new Date()]);
-    return { ok: true, first: true };
+    return { ok: true, first: true, name: String(d.name || '') };
   }
   var row = us.getRange(u.getRow(), 1, 1, 5).getValues()[0];
   if (String(row[4]) !== String(d.code)) return { error: '여권 암호가 달라요. 잊었다면 선생님께 말씀드리세요.' };
   var st = find_(sheet_(), [d.cls, d.num, 'state'].join('|'));
   var state = null;
   if (st) { try { state = JSON.parse(sheet_().getRange(st.getRow(), 7).getValue()); } catch (x) {} }
-  return { ok: true, state: state };
+  return { ok: true, state: state, name: String(d.name || row[3] || '') };
 }
 
 function doPost(e) {
@@ -99,6 +120,15 @@ function rows_(cls, key, all) {
 /** 학생용: 반 전체 실험 자료(이름 없음)만 돌려준다. */
 function doGet(e) {
   var p = e.parameter || {};
+  if (p.roster === '1') { // 입장 화면용 명단: 이름은 가운데를 가려서 보낸다
+    var rr = rosterRows_(), set = {}, uv = users_().getDataRange().getValues(), ro = {};
+    for (var u = 1; u < uv.length; u++) set[uv[u][0]] = true;
+    for (var i = 0; i < rr.length; i++) {
+      var n = rr[i].name, m = n.length <= 1 ? n : n.length === 2 ? n.charAt(0) + '*' : n.charAt(0) + new Array(n.length - 1).join('*') + n.charAt(n.length - 1);
+      (ro[rr[i].cls] = ro[rr[i].cls] || []).push({ num: rr[i].num, name: m, set: !!set[rr[i].cls + '|' + rr[i].num] });
+    }
+    return out_({ roster: ro });
+  }
   if (!p.cls) return out_({ error: 'cls required' });
   if (OPEN_KEYS.indexOf(p.key) < 0) return out_({ error: 'not allowed' });
   return out_({ rows: rows_(p.cls, p.key, false) });

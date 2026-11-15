@@ -199,17 +199,30 @@ textarea { resize: vertical; line-height: 1.6; }
 
 .wearme small { display: block; font-weight: 700; font-size: 13px; }
 
-/* ---------- 입장 화면 ---------- */
-.gate { max-width: none; min-height: 100vh; margin: 0; padding: 24px 16px; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 20% 15%, #2F3566 0, var(--ink) 55%); }
-.gatebox { width: min(560px, 100%); background: #fff; border: 3px solid var(--ink); border-radius: 26px; padding: 30px 28px 22px; box-shadow: 0 0 0 6px var(--yel), 0 24px 60px rgba(0,0,0,.45); }
-.gatebox .comms { letter-spacing: .22em; font-size: 12px; font-weight: 700; color: var(--muted); margin: 0 0 6px; text-align: center; }
-.gatebox .emblem { text-align: center; line-height: 0; } .gatebox h1 { font-size: 44px; text-align: center; } .gatebox .sub { text-align: center; color: var(--muted); margin: 2px 0 16px; }
-.gatebox label { margin-top: 10px; } .gatebox .small, .small { font-size: 14px; color: var(--muted); font-weight: 400; }
-.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.idcard { display: flex; gap: 12px; align-items: center; min-height: 72px; margin-top: 12px; padding: 10px 14px; border: 2px dashed var(--ink); border-radius: 16px; background: #FFFBEA; } .idcard .av { font-size: 34px; line-height: 0; } .idcard .nm { font-family: var(--ft); font-size: 24px; line-height: 1.2; }
-.pw { display: flex; gap: 6px; } .pw input { flex: 1; } .gatebox .go { margin-top: 16px; min-height: 56px; font-size: 20px; } #gmsg2 { margin: 10px 0 14px; }
-.gtbox { display: flex; gap: 8px; align-items: flex-end; margin-top: 10px; background: #F3F5FB; border-radius: 14px; padding: 12px; } .gtbox label { flex: 1; margin: 0; } .gtbox.col { flex-direction: column; align-items: stretch; } .gtbox[hidden] { display: none; }
-.linkbtn.wide { display: block; width: 100%; text-align: center; margin-top: 6px; }
-@media (max-width: 620px) { .gatebox { padding: 22px 18px 16px; } .gatebox h1 { font-size: 36px; } }
+/* ---------- 입장 화면 (아라호 방식) ---------- */
+.gate { max-width: none; min-height: 100vh; margin: 0; padding: 24px 16px; display: flex; align-items: center; justify-content: center; color: #fff;
+  background: radial-gradient(circle at 50% 42%, transparent 0 22%, rgba(255,212,59,.05) 22.2% 22.6%, transparent 22.8% 34%, rgba(255,255,255,.04) 34.2% 34.6%, transparent 34.8% 48%, rgba(255,212,59,.04) 48.2% 48.6%, transparent 48.8%), radial-gradient(circle at 20% 10%, #232a5c 0, #0c1030 60%); }
+.gatebox { width: min(620px, 100%); background: rgba(14,19,54,.92); border: 1.5px solid #4a548f; border-radius: 28px; padding: 36px 32px 26px; box-shadow: 0 30px 80px rgba(0,0,0,.55); }
+.gatebox .comms { display: inline-block; letter-spacing: .14em; font-size: 14px; font-weight: 700; color: var(--yel); border: 1.5px solid #6b6a3a; border-radius: 20px; padding: 6px 16px; }
+.gatebox h1 { font-size: clamp(38px, 7vw, 50px); margin: 14px 0 10px; color: #fff; }
+.gatebox .season { display: inline-block; background: linear-gradient(90deg, #FFD43B, #FF9F1C); color: var(--ink); font-weight: 700; letter-spacing: .08em; border-radius: 20px; padding: 4px 16px; font-size: 15px; }
+.gatebox .sub { color: #c9cff2; margin: 12px 0 18px; font-size: 17px; }
+.gatebox label { color: #c9cff2; font-weight: 400; font-size: 15px; margin-top: 14px; gap: 6px; } .gatebox .small { font-size: 14px; color: #aab2e0; font-weight: 400; } .small { font-size: 14px; color: var(--muted); font-weight: 400; }
+.gatebox input, .gatebox select { background: #070a22; color: #fff; border: 1.5px solid #4a548f; border-radius: 16px; min-height: 58px; font-size: 19px; padding: 10px 18px; } .gatebox select:disabled { color: #8088b8; } .gatebox input::placeholder { color: #7f88bd; }
+.gatebox :focus-visible { outline: 3px solid var(--yel); outline-offset: 2px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.idcard { display: flex; gap: 16px; align-items: center; min-height: 92px; margin-top: 14px; padding: 12px 18px; border: 1.5px solid #4a548f; border-radius: 20px; background: linear-gradient(120deg, #1a2152, #10153c); }
+.idcard .av { width: 62px; height: 62px; border-radius: 50%; background: linear-gradient(140deg, #FFD43B, #c98a12); display: flex; align-items: center; justify-content: center; flex: 0 0 auto; } .idcard .nm { font-family: var(--ft); font-size: 26px; line-height: 1.2; color: #fff; } .idcard .first { color: var(--yel); }
+.pw { position: relative; display: block; } .pw input { padding-right: 84px; } .pw .eye { position: absolute; right: 8px; top: 8px; bottom: 8px; padding: 0 14px; border-radius: 12px; border: 1.5px solid #4a548f; background: #10153c; color: #fff; font-weight: 700; font-size: 15px; }
+.gatebox .go { width: 100%; margin-top: 18px; min-height: 58px; border: 0; border-radius: 16px; background: linear-gradient(90deg, #FFB13B, #FF7A1A); color: #1B1F3B; font-weight: 700; font-size: 20px; box-shadow: 0 8px 24px rgba(255,140,30,.35); } .gatebox .go:hover { filter: brightness(1.06); } .gatebox .go:disabled { opacity: .6; }
+#gmsg2 { margin: 12px 0 14px; color: #c9cff2; } .gatebox .warn { color: #ffb4a8; }
+.ghost { width: 100%; min-height: 50px; border-radius: 16px; border: 1.5px solid #4a548f; background: transparent; color: #dfe3ff; font-size: 17px; } .ghost:hover { background: rgba(255,255,255,.06); } .ghost.in { width: auto; padding: 0 20px; background: #1a2152; font-weight: 700; }
+.tlinkb { display: block; width: 100%; min-height: 44px; margin-top: 8px; background: none; border: 0; color: #aab2e0; text-decoration: underline; font-size: 15px; }
+.gtbox { display: flex; gap: 10px; align-items: flex-end; margin-top: 10px; background: rgba(255,255,255,.05); border-radius: 16px; padding: 14px; } .gtbox label { flex: 1; margin: 0; } .gtbox.col { flex-direction: column; align-items: stretch; } .gtbox[hidden], #nmrow[hidden] { display: none; }
+@media (max-width: 620px) { .gatebox { padding: 26px 20px 18px; border-radius: 22px; } .gatebox .comms { font-size: 12px; padding: 5px 12px; } .row2 { gap: 10px; } }
+.tbar { background: #FFFBEA; border: 3px solid var(--ink); border-radius: 14px; padding: 8px 14px; margin: 12px 0 0; font-size: 15px; } .tbar b { background: var(--ink); color: #fff; border-radius: 8px; padding: 1px 8px; margin-right: 6px; }
+
+.wearme small { display: block; font-weight: 700; font-size: 13px; }
+
 
 .who .mbox { margin-left: auto; } .outbtn { background: transparent; color: #fff; border-color: rgba(255,255,255,.7); margin-left: 8px; max-width: 46%; white-space: normal; line-height: 1.25; text-align: left; } .outbtn:hover { background: rgba(255,255,255,.12); }
