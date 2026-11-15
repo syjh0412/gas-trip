@@ -187,3 +187,10 @@ textarea { resize: vertical; line-height: 1.6; }
 .cpn li.on { border: 3px solid var(--ink); background: #FFFBEA; color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { .chip { animation: none; } }
 @media (max-width: 620px) { .wearbox { grid-template-columns: 1fr; } .cpn li { grid-template-columns: 34px 1fr; } .cpn em { grid-column: 2; } .rklist li { grid-template-columns: 48px 1fr; } .rklist .rq { grid-column: 2; } }
+
+/* ---------- 첫 화면 탭 ---------- */
+.htabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 0 0 16px; position: sticky; top: 0; background: var(--bg); padding: 10px 0 8px; z-index: 5; }
+.htabs a { display: flex; align-items: center; justify-content: center; text-align: center; min-height: 52px; padding: 4px 6px; border: 3px solid var(--ink); border-radius: 16px; background: #fff; font-weight: 700; font-size: 16px; text-decoration: none; line-height: 1.25; }
+.htabs a.on { background: var(--ink); color: #fff; } .htabs a:hover:not(.on) { background: #EEF1FF; }
+.home { padding-top: 0; }
+@media (max-width: 620px) { .htabs a { font-size: 13px; min-height: 56px; } }
