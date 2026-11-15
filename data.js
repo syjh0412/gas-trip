@@ -11,10 +11,16 @@ window.TRIP = {
     part: { name: "입자", desc: "입자로 설명했어요", color: "#C2410C" }
   },
   ranks: [
-    { min: 0, name: "수습 가이드" },
-    { min: 3, name: "정식 가이드" },
-    { min: 6, name: "전문 가이드" },
-    { min: 9, name: "수석 가이드" }
+    { min: 0, name: "수습 가이드" }, { min: 25, name: "새내기 가이드" }, { min: 60, name: "동네 가이드" }, { min: 100, name: "국내 가이드" }, { min: 145, name: "해외 가이드" },
+    { min: 190, name: "전문 가이드", st: 6 }, { min: 235, name: "베테랑 가이드", st: 6 }, { min: 280, name: "수석 가이드", st: 9 }, { min: 325, name: "마스터 가이드", st: 9 }, { min: 375, name: "전설의 입자 가이드", st: 9 }
+  ],
+  items: [
+    { id: "hat", name: "여행 모자", at: 1 }, { id: "glasses", name: "선글라스", at: 2 }, { id: "scarf", name: "목도리", at: 3 }, { id: "flag", name: "가이드 깃발", at: 4 }, { id: "headset", name: "안내 헤드셋", at: 6 }, { id: "crown", name: "전설의 왕관", at: 9 }
+  ],
+  coupons: [
+    { id: "c1", name: "첫 여권 완성 쿠폰", cond: "한 성취기준의 도장 3개를 모두 모으기" },
+    { id: "c2", name: "자격증 쿠폰", cond: "가이드 자격시험 14문항 이상 맞히기" },
+    { id: "c3", name: "수석 가이드 쿠폰", cond: "수석 가이드로 승급하기" }
   ],
   dests: [
     {

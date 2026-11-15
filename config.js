@@ -9,5 +9,7 @@ window.TRIP_CONFIG = {
   // 스노클 과제 주소. 여행지별로 넣으면 '여행 안내 한 줄' 단계에 버튼이 생깁니다.
   SNORKL: { T1: "", T2: "", T3: "", T4: "", T5: "", T6: "" },
   // 샤를 법칙 실험의 부피 단위 표시 (예: "mL", "눈금(칸)")
-  CHARLES_UNIT: "mL"
+  CHARLES_UNIT: "mL",
+  // 선생님 쿠폰 표시 여부. 쓰지 않으려면 false로 바꿉니다.
+  COUPONS: true
 };

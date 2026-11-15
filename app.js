@@ -8,7 +8,7 @@
   var DEST = {}; T.dests.forEach(function (d) { DEST[d.id] = d; });
 
   /* ---------- 상태 ---------- */
-  var S = { profile: null, pos: {}, seen: {}, done: {}, stamps: {}, ans: {}, data: {}, lines: {}, lab: {}, chain: {}, booths: [], exam: null };
+  var S = { profile: null, miles: 0, mi: {}, combo: 0, flags: {}, wear: {}, badges: {}, pos: {}, seen: {}, done: {}, stamps: {}, ans: {}, data: {}, lines: {}, lab: {}, chain: {}, booths: [], exam: null };
   try { var raw = localStorage.getItem(KEY); if (raw) { var o = JSON.parse(raw); for (var k in o) S[k] = o[k]; } } catch (e) { }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
 
@@ -26,15 +26,48 @@
     var qs = Object.keys(params).map(function (k) { return k + '=' + encodeURIComponent(params[k]); }).join('&');
     return fetch(CFG.API_URL + '?' + qs).then(function (r) { return r.json(); });
   }
-  function syncProgress() { sync('progress', { stamps: S.stamps, done: S.done, booths: S.booths, exam: S.exam }); }
+  function syncProgress() { sync('progress', { stamps: S.stamps, done: S.done, booths: S.booths, exam: S.exam, miles: S.miles, rank: rank().name, badges: Object.keys(S.badges).length }); }
 
   /* ---------- 도장 ---------- */
   function stampCount() { var n = 0; for (var s in S.stamps) for (var k in S.stamps[s]) n++; return n; }
-  function rank() { var n = stampCount(), r = T.ranks[0]; T.ranks.forEach(function (x) { if (n >= x.min) r = x; }); return r; }
+  function isT() { return !!sessionStorage.getItem('gastrip.pin'); }
+  function rankIdx() { var n = stampCount(), ix = 0; for (var j = 1; j < T.ranks.length; j++) { if (S.miles >= T.ranks[j].min && n >= (T.ranks[j].st || 0)) ix = j; else break; } return ix; }
+  function rank() { return T.ranks[rankIdx()]; }
+  /* ---------- 마일 · 배지 ---------- */
+  function mile(key, n) {
+    if (isT() || !n) return; var had = S.mi[key] || 0; if (n <= had) return;
+    var before = rankIdx(); S.mi[key] = n; S.miles += n - had; save(); chip('+' + (n - had) + ' 마일');
+    var after = rankIdx(); if (after > before) { var it = T.items.filter(function (x) { return x.at > before && x.at <= after; }); setTimeout(function () { toast('<div class="rkup">🎖️</div><p><b>승급!</b> ' + T.ranks[after].name + (it.length ? '<br>새 꾸미기: ' + it.map(function (x) { return x.name; }).join(', ') : '') + '</p>'); }, 900); }
+    badges(); var m = $('#mcount'); if (m) m.textContent = S.miles;
+  }
+  function chip(txt) { var c = document.createElement('div'); c.className = 'chip'; c.textContent = txt; document.body.appendChild(c); setTimeout(function () { c.remove(); }, 1500); }
+  function predictHits() { var n = 0; T.dests.forEach(function (d) { d.steps.forEach(function (st, si) { if (st.type === 'predict') st.items.forEach(function (it, j) { var a = S.ans[d.id + '.' + si + '.' + j]; if (a && a.first === it.a) n++; }); }); }); return n; }
+  function kindCount(k) { var n = 0; for (var s in S.stamps) if (S.stamps[s][k]) n++; return n; }
+  var BADGES = [
+    { id: 'start', ic: '👣', n: '첫 발자국', d: '첫 마일을 모았어요', t: function () { return S.miles > 0; } },
+    { id: 'pred', ic: '🔮', n: '예측왕', d: '예측을 5번 맞혔어요', t: function () { return predictHits() >= 5; } },
+    { id: 'c3', ic: '🔥', n: '3연속 정답', d: '문제를 3번 연속 한 번에 맞혔어요', t: function () { return S.flags.c3; } },
+    { id: 'c5', ic: '⚡', n: '5연속 정답', d: '문제를 5번 연속 한 번에 맞혔어요', t: function () { return S.flags.c5; } },
+    { id: 'blank', ic: '🗝️', n: '빈칸 탐험가', d: '안내 카드 12장의 빈칸을 모두 열었어요', t: function () { return Object.keys(S.seen).length >= 12; } },
+    { id: 'sharp', ic: '🎯', n: '한 번에 콕', d: '내 측정값으로 그래프의 점을 한 번도 틀리지 않고 찍었어요', t: function () { return S.flags.sharp; } },
+    { id: 'see', ic: '👀', n: '눈썰미', d: '‘본 것’ 도장 3개', t: function () { return kindCount('see') >= 3; } },
+    { id: 'meas', ic: '📏', n: '측정 장인', d: '‘잰 것’ 도장 3개', t: function () { return kindCount('meas') >= 3; } },
+    { id: 'part', ic: '⚛️', n: '입자 박사', d: '‘입자’ 도장 3개', t: function () { return kindCount('part') >= 3; } },
+    { id: 'line', ic: '🗣️', n: '친절한 안내', d: '여행 안내 한 줄을 5번 썼어요', t: function () { return Object.keys(S.lines).filter(function (k) { return S.lines[k].length >= 15; }).length >= 5; } },
+    { id: 'booth', ic: '🎪', n: '부스 마니아', d: '부스 6곳을 체험했어요', t: function () { return S.booths.length >= 6; } },
+    { id: 'pass', ic: '🎓', n: '자격 취득', d: '자격시험 14문항 이상', t: function () { return S.exam && S.exam.best >= 14; } },
+    { id: 'retry', ic: '💪', n: '다시 도전', d: '틀린 문제를 다시 풀었어요', t: function () { return S.flags.retry; } },
+    { id: 'full', ic: '💯', n: '만점 가이드', d: '자격시험 만점', t: function () { return S.exam && S.exam.best >= S.exam.total; } }
+  ].concat(T.dests.map(function (d) { return { id: 'd' + d.id, ic: d.icon, n: d.place, d: d.place + ' 여행을 마쳤어요', t: function () { return destProgress(d) >= d.steps.length; }, trip: 1 }; }));
+  function badges() {
+    if (isT()) return;
+    BADGES.forEach(function (b) { if (!S.badges[b.id] && b.t()) { S.badges[b.id] = Date.now(); save(); setTimeout(function () { toast('<div class="rkup">' + b.ic + '</div><p><b>' + (b.trip ? '여행 스티커' : '배지') + ' 획득!</b> ' + b.n + '</p>'); }, b.trip ? 2200 : 1700); } });
+  }
+  function couponOK(id) { if (id === 'c1') return ['01', '02', '03'].some(function (s) { return S.stamps[s] && Object.keys(S.stamps[s]).length >= 3; }); if (id === 'c2') return !!(S.exam && S.exam.best >= 14); return rankIdx() >= 7; }
   function award(std, kind) {
     S.stamps[std] = S.stamps[std] || {};
     if (S.stamps[std][kind]) return;
-    S.stamps[std][kind] = Date.now(); save();
+    S.stamps[std][kind] = Date.now(); save(); mile('st.' + std + kind, 10);
     var k = T.kinds[kind];
     toast('<div class="stamp big" style="--c:' + k.color + '"><b>' + k.name + '</b><small>' + T.stds[std].short + '</small></div><p>여권에 <b>‘' + k.name + '’ 도장</b>이 찍혔어요!</p>');
   }
@@ -90,7 +123,7 @@
 
   /* ---------- 등록 ---------- */
   function viewRegister() {
-    app.innerHTML = '<main class="reg"><div class="cover"><div class="emblem">' + mascot(96) + '</div><p class="cv1">GAS SAFE TRAVEL</p><h1>입자 여권</h1><p class="cv2">기체 안전 여행사</p></div>' +
+    app.innerHTML = '<main class="reg"><div class="cover"><div class="emblem">' + mascot(96, 1) + '</div><p class="cv1">GAS SAFE TRAVEL</p><h1>입자 여권</h1><p class="cv2">기체 안전 여행사</p></div>' +
       '<form class="card regform" id="regform"><h2>여권 발급</h2><p class="sub">기체 안전 여행사의 가이드가 되어 여행지를 돌며 도장을 모아요.</p>' +
       '<div class="row3"><label>반<input name="cls" inputmode="numeric" required maxlength="2" autocomplete="off"></label><label>번호<input name="num" inputmode="numeric" required maxlength="2" autocomplete="off"></label><label>이름<input name="name" required maxlength="10" autocomplete="off"></label></div>' +
       '<button class="btn pri wide" type="submit">여권 발급받기</button><p class="tiny">입력한 정보와 활동 기록은 이 기기에 저장돼요.' + (CFG.API_URL ? ' 선생님 화면에도 전달돼요.' : '') + '</p></form>' +
@@ -100,17 +133,28 @@
       S.profile = { cls: f.cls.value.trim(), num: f.num.value.trim(), name: f.name.value.trim() }; save(); syncProgress(); route();
     });
   }
-  function mascot(sz) {
-    return '<svg width="' + sz + '" height="' + sz + '" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="52" r="34" fill="#FFD43B" stroke="#1B1F3B" stroke-width="5"/><circle cx="39" cy="47" r="5" fill="#1B1F3B"/><circle cx="61" cy="47" r="5" fill="#1B1F3B"/><path d="M38 62q12 11 24 0" fill="none" stroke="#1B1F3B" stroke-width="5" stroke-linecap="round"/><path d="M84 30l10-8M88 44l12-2M80 18l6-10" stroke="#1B1F3B" stroke-width="4" stroke-linecap="round"/></svg>';
+  var WEAR = {
+    scarf: '<path d="M22 74q28 14 56 0l-2 9q-26 12-52 0z" fill="#C2410C" stroke="#1B1F3B" stroke-width="3"/><path d="M62 83l4 13 8-3-3-12z" fill="#C2410C" stroke="#1B1F3B" stroke-width="3"/>',
+    headset: '<path d="M17 52a33 33 0 0 1 66 0" fill="none" stroke="#1B1F3B" stroke-width="5"/><rect x="10" y="48" width="11" height="18" rx="4" fill="#A61E6E" stroke="#1B1F3B" stroke-width="3"/><rect x="79" y="48" width="11" height="18" rx="4" fill="#A61E6E" stroke="#1B1F3B" stroke-width="3"/>',
+    glasses: '<rect x="27" y="40" width="21" height="14" rx="4" fill="#1B1F3B"/><rect x="52" y="40" width="21" height="14" rx="4" fill="#1B1F3B"/><path d="M47 45h6" stroke="#1B1F3B" stroke-width="4"/>',
+    hat: '<path d="M24 30q26-26 52 0z" fill="#2F4BD8" stroke="#1B1F3B" stroke-width="4" stroke-linejoin="round"/><path d="M16 31h62" stroke="#1B1F3B" stroke-width="6" stroke-linecap="round"/>',
+    crown: '<path d="M30 25l5-17 15 12 15-12 5 17z" fill="#FFD43B" stroke="#1B1F3B" stroke-width="4" stroke-linejoin="round"/>',
+    flag: '<path d="M8 70V26" stroke="#1B1F3B" stroke-width="4" stroke-linecap="round"/><path d="M8 26l20 7-20 7z" fill="#0B7A4B" stroke="#1B1F3B" stroke-width="3" stroke-linejoin="round"/>'
+  };
+  function mascot(sz, plain) {
+    var w = plain ? {} : (S.wear || {}), ex = ''; ['scarf', 'headset', 'glasses', 'hat', 'crown', 'flag'].forEach(function (k) { if (w[k]) ex += WEAR[k]; });
+    return '<svg width="' + sz + '" height="' + sz + '" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="52" r="34" fill="#FFD43B" stroke="#1B1F3B" stroke-width="5"/><circle cx="39" cy="47" r="5" fill="#1B1F3B"/><circle cx="61" cy="47" r="5" fill="#1B1F3B"/><path d="M38 62q12 11 24 0" fill="none" stroke="#1B1F3B" stroke-width="5" stroke-linecap="round"/>' + (w.headset ? '' : '<path d="M88 44l10-2M86 30l8-6" stroke="#1B1F3B" stroke-width="4" stroke-linecap="round"/>') + ex + '</svg>';
   }
 
   /* ---------- 홈 ---------- */
   function destProgress(d) { var n = 0; d.steps.forEach(function (s, i) { if (S.done[d.id] && S.done[d.id][i]) n++; }); return n; }
   function viewHome() {
-    var r = rank(), n = stampCount(), next = null;
-    T.ranks.forEach(function (x) { if (!next && x.min > n) next = x; });
-    var h = '<header class="top"><div class="who">' + mascot(52) + '<div><p class="rk">' + r.name + '</p><h1>' + esc(S.profile.name) + ' <small>' + esc(S.profile.cls) + '반 ' + esc(S.profile.num) + '번</small></h1></div></div>' +
-      '<p class="nx">' + (next ? '도장 ' + (next.min - n) + '개를 더 모으면 <b>' + next.name + '</b>' : '모든 도장을 모았어요. 자격시험에 도전해요!') + '</p></header><main class="home">';
+    badges();
+    var ri = rankIdx(), r = T.ranks[ri], n = stampCount(), next = T.ranks[ri + 1], nx = '';
+    if (next) { var needM = Math.max(0, next.min - S.miles), needS = Math.max(0, (next.st || 0) - n); nx = '<b>' + next.name + '</b>까지 ' + [needM ? needM + ' 마일' : '', needS ? '도장 ' + needS + '개' : ''].filter(Boolean).join(', ') + ' 남았어요'; } else nx = '가장 높은 등급이에요!';
+    var lo = r.min, hi = next ? next.min : r.min + 1, pc = next ? Math.min(100, (S.miles - lo) / (hi - lo) * 100) : 100;
+    var h = '<header class="top"><div class="who">' + mascot(72) + '<div><p class="rk">Lv.' + (ri + 1) + ' ' + r.name + '</p><h1>' + esc(S.profile.name) + ' <small>' + esc(S.profile.cls) + '반 ' + esc(S.profile.num) + '번</small></h1></div><div class="mbox"><b>' + S.miles + '</b><span>마일</span></div></div>' +
+      '<div class="mbar" role="img" aria-label="다음 등급까지 진행"><i style="width:' + pc.toFixed(0) + '%"></i></div><p class="nx">' + nx + '</p></header><main class="home">';
     h += '<section class="card passport"><h2>내 입자 여권 <span class="cnt">도장 ' + n + ' / 9</span></h2><div class="pgrid">';
     ['01', '02', '03'].forEach(function (s) {
       h += '<div class="prow"><div class="pstd"><b>' + T.stds[s].short + '</b><span>' + T.stds[s].code + '</span></div>' + stampHTML(s, 'see') + stampHTML(s, 'meas') + stampHTML(s, 'part') + '</div>';
@@ -122,6 +166,13 @@
       h += '<li><a class="dcard' + (fin ? ' fin' : '') + '" href="#d/' + d.id + '" style="--c:' + d.color + '"><span class="dic">' + d.icon + '</span><span class="dtx"><small>' + d.period + ' · ' + d.page + '</small><b>' + d.place + '</b><em>' + d.title + '</em></span><span class="dpg">' + (fin ? '완료' : p + '/' + tot) + '</span></a></li>';
     });
     h += '</ol>';
+    var got = BADGES.filter(function (b) { return S.badges[b.id]; }).length;
+    h += '<section class="card"><h2>여행 가방 <span class="cnt">' + got + ' / ' + BADGES.length + '</span></h2><p class="tiny" style="margin:0 0 10px">여행지를 마치면 스티커를, 특별한 일을 해내면 배지를 얻어요. 눌러서 조건을 볼 수 있어요.</p><div class="bgrid">' +
+      BADGES.map(function (b) { var on = S.badges[b.id]; return '<button class="bdg' + (on ? ' on' : '') + '" data-act="bdg" data-n="' + esc(b.n) + '" data-d="' + esc(b.d) + '" aria-label="' + esc(b.n) + (on ? ' 획득' : ' 아직') + '"><span>' + (on ? b.ic : '❔') + '</span><small>' + b.n + '</small></button>'; }).join('') + '</div><p class="tiny" id="bdgmsg" aria-live="polite"></p></section>';
+    h += '<section class="card"><h2>내 입자 꾸미기</h2><div class="wearbox"><div class="wearme">' + mascot(120) + '</div><div class="wearlist">' +
+      T.items.map(function (it) { var open = ri >= it.at; return '<button class="wr' + (S.wear[it.id] ? ' on' : '') + '" data-act="wear" data-id="' + it.id + '"' + (open ? '' : ' disabled') + ' aria-pressed="' + !!S.wear[it.id] + '">' + (open ? '' : '🔒 ') + it.name + (open ? '' : '<small>Lv.' + (it.at + 1) + '</small>') + '</button>'; }).join('') + '</div></div></section>';
+    h += '<section class="card"><h2>등급 경로</h2><ol class="rklist">' + T.ranks.map(function (x, j) { return '<li class="' + (j === ri ? 'cur' : j < ri ? 'past' : '') + '"><span class="lv">Lv.' + (j + 1) + '</span><b>' + x.name + '</b><span class="rq">' + x.min + ' 마일' + (x.st ? ' · 도장 ' + x.st + '개' : '') + '</span></li>'; }).join('') + '</ol><p class="tiny">마일은 빈칸 열기, 예측, 문제 풀이, 실험 활동, 도장으로 모아요. 높은 등급은 도장도 필요해요.</p></section>';
+    if (CFG.COUPONS !== false) h += '<section class="card"><h2>선생님 쿠폰</h2><ul class="cpn">' + T.coupons.map(function (c) { var ok = couponOK(c.id); return '<li class="' + (ok ? 'on' : '') + '"><span>' + (ok ? '🎟️' : '🔒') + '</span><div><b>' + c.name + '</b><small>' + c.cond + '</small></div><em>' + (ok ? '선생님께 보여 주세요' : '아직') + '</em></li>'; }).join('') + '</ul></section>';
     if (S.exam) h += '<section class="card"><h2>자격시험 기록</h2><p>최고 점수 <b>' + S.exam.best + ' / ' + S.exam.total + '</b>' + (S.exam.best >= 14 ? ' · 입자 가이드 자격 취득' : '') + '</p></section>';
     h += '<p class="tlink"><a href="#teacher">선생님 화면</a> · <button class="linkbtn" data-act="reset">여권 다시 발급</button></p></main>';
     app.innerHTML = h;
@@ -132,11 +183,11 @@
     S.done[d.id] = S.done[d.id] || {};
     if (S.done[d.id][i]) return;
     S.done[d.id][i] = Date.now(); save();
-    var st = d.steps[i]; if (st.stamp && d.std) award(d.std, st.stamp);
+    var st = d.steps[i]; mile('s.' + d.id + '.' + i, { presslab: 6, sim: 6, data: 10, chain: 8, line: 6, booth: 6 }[st.type] || 0);
+    if (st.stamp && d.std) award(d.std, st.stamp);
     syncProgress();
   }
   function isDone(d, i) { return !!(S.done[d.id] && S.done[d.id][i]); }
-  function isT() { return !!sessionStorage.getItem('gastrip.pin'); }
   function buildSlides(d) {
     var a = [{ k: 'hero' }];
     d.steps.forEach(function (st, si) {
@@ -158,7 +209,7 @@
   function viewDest(d, k) {
     S.pos = S.pos || {}; S.seen = S.seen || {};
     var slides = buildSlides(d);
-    if (k < 0) k = S.pos[d.id] || 0;
+    if (k < 0) k = isT() ? 0 : (S.pos[d.id] || 0);
     if (k >= slides.length) k = slides.length - 1;
     S.pos[d.id] = k; save();
     var sl = slides[k], st = sl.si != null ? d.steps[sl.si] : null, body = '', kick = st ? st.title + (sl.n > 1 ? ' ' + (sl.j + 1) + ' / ' + sl.n : '') : '';
@@ -178,7 +229,7 @@
     }
     else body = '<p class="s-kicker">' + kick + '</p>' + (st.stamp && d.std ? '<p class="goal" style="--c:' + T.kinds[st.stamp].color + '">이 활동을 마치면 <b>‘' + T.kinds[st.stamp].name + '’ 도장</b>을 받아요.</p>' : '') + (st.note ? '<p class="note">' + st.note + '</p>' : '') + '<div id="stepbody">' + STEP[st.type](d, st, sl.si) + '</div>';
     app.innerHTML = '<div class="stage" style="--c:' + d.color + '" data-kind="' + sl.k + '" data-type="' + (st ? st.type : '') + '" data-si="' + (sl.si == null ? '' : sl.si) + '" data-j="' + (sl.j == null ? '' : sl.j) + '" data-id="' + (sl.id || '') + '">' +
-      '<div class="stg-top"><a class="btn sm exit" href="#home">✕ 나가기</a><span class="ttl">' + d.icon + ' ' + d.period + ' · ' + d.place + '</span><span class="num">' + (k + 1) + ' / ' + slides.length + '</span></div>' +
+      '<div class="stg-top"><a class="btn sm exit" href="#home">✕ 나가기</a><span class="ttl">' + d.icon + ' ' + d.period + ' · ' + d.place + '</span><span class="mtop" aria-label="모은 마일">🧳 <b id="mcount">' + S.miles + '</b></span><span class="num">' + (k + 1) + ' / ' + slides.length + '</span></div>' +
       '<div class="pbar"><i style="width:' + ((k + 1) / slides.length * 100).toFixed(1) + '%"></i></div>' +
       '<div class="stg-body" id="stgbody"><div class="slide t-' + sl.k + (st ? ' y-' + st.type : '') + '">' + body + '</div></div>' +
       '<div class="stg-nav"><button class="btn prev" data-act="go" data-d="-1"' + (k === 0 ? ' disabled' : '') + '>◀ 이전</button><span class="hintkey" id="hintkey"></span><button class="btn pri next" data-act="go" data-d="1" id="next">' + (k === slides.length - 1 ? '여권으로 🏁' : '다음 ▶') + '</button></div></div>';
@@ -367,8 +418,8 @@
     if (svg && !done) svg.addEventListener('click', function (e) {
       var pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; var q = pt.matrixTransform(svg.getScreenCTM().inverse());
       var vx = ax.x0 + (q.x - ax.L) / ax.pw * (ax.x1 - ax.x0), vy = ax.y0 + (ax.T + ax.ph - q.y) / ax.ph * (ax.y1 - ax.y0), r = rows[D.placed];
-      if (Math.abs(vx - r[xi]) <= (ax.x1 - ax.x0) * 0.045 && Math.abs(vy - r[yi]) <= (ax.y1 - ax.y0) * 0.06) { D.placed++; D.fails = 0; save(); if (D.placed >= rows.length) sync(kind, { group: D.group, unit: D.unit, rows: rows, sample: D.sample }); drawData(d, st, i); check(); }
-      else { D.fails++; save(); drawData(d, st, i); $('#gmsg').innerHTML = '조금 달라요. 가로축에서 <b>' + r[xi] + '</b>을(를) 먼저 찾고, 그 위로 올라가 세로축 <b>' + r[yi] + '</b> 높이를 눌러요.'; }
+      if (Math.abs(vx - r[xi]) <= (ax.x1 - ax.x0) * 0.045 && Math.abs(vy - r[yi]) <= (ax.y1 - ax.y0) * 0.06) { D.placed++; D.fails = 0; if (D.placed >= rows.length && !D.missed && !D.sample) S.flags.sharp = 1; save(); if (D.placed >= rows.length) sync(kind, { group: D.group, unit: D.unit, rows: rows, sample: D.sample }); drawData(d, st, i); check(); }
+      else { D.fails++; D.missed = 1; save(); drawData(d, st, i); $('#gmsg').innerHTML = '조금 달라요. 가로축에서 <b>' + r[xi] + '</b>을(를) 먼저 찾고, 그 위로 올라가 세로축 <b>' + r[yi] + '</b> 높이를 눌러요.'; }
     });
   }
   function nice(lo, hi, n) { var raw = (hi - lo) / n, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p, s = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; return s; }
@@ -467,7 +518,8 @@
   function examStart(ids, retry) { EX = { ids: ids.slice(), i: 0, wrong: [], retry: retry, run: Date.now() % 100000 }; drawExam(); var sb = $('#stgbody'); if (sb) sb.scrollTop = 0; }
   function examFinish() {
     if (!EX.retry) { var ok = EX.ids.length - EX.wrong.length; S.exam = { last: ok, total: EX.ids.length, best: Math.max(ok, S.exam ? S.exam.best : 0), wrong: EX.wrong.slice(), ts: Date.now() }; }
-    else if (S.exam) S.exam.wrong = EX.wrong.slice();
+    else if (S.exam) { S.exam.wrong = EX.wrong.slice(); S.flags.retry = 1; }
+    if (S.exam) mile('exam', S.exam.best * 2);
     Object.keys(S.ans).forEach(function (k) { if (k.indexOf('x.') === 0) delete S.ans[k]; });
     save(); syncProgress(); check();
   }
@@ -480,24 +532,32 @@
     var act = b.dataset.act, d = cur.dest, i = cur.step, st = d && d.steps[i];
     if (act === 'mcq') {
       var key = b.dataset.key, m = MCQ[key], c = +b.dataset.i; if (!m) return;
-      S.ans[key] = { c: c, first: S.ans[key] ? S.ans[key].first : c }; save();
+      var firstTry = !S.ans[key], right = c === m.item.a;
+      S.ans[key] = { c: c, first: firstTry ? c : S.ans[key].first }; save();
+      if (m.mode === 'free') mile('a.' + key, right ? 3 : 2);
+      else {
+        if (firstTry) { S.combo = right ? (S.combo || 0) + 1 : 0; if (S.combo >= 3) S.flags.c3 = 1; if (S.combo >= 5) S.flags.c5 = 1; save(); if (S.combo === 3 || S.combo === 5) mile('combo' + S.combo, S.combo); }
+        if (key.indexOf('x.') !== 0 && (right || m.mode === 'quiz')) mile('a.' + key, right ? (S.ans[key].first === m.item.a ? 3 : 1) : 1);
+      }
       if (EX && key.indexOf('x.') === 0) { if (c !== m.item.a) EX.wrong.push(EX.ids[EX.i]); drawExam(); return; }
       var el = document.getElementById('q-' + key); el.outerHTML = mcq(key, m.item, m.mode, m.no);
       if (st && st.type === 'quiz') { quizSum(st); sync('quiz', quizScores()); }
       check();
     }
     else if (act === 'go') go(+b.dataset.d);
-    else if (act === 'blank') { b.classList.add('on'); b.removeAttribute('data-act'); if (!document.querySelector('.blank:not(.on)')) { S.seen[pfx(d, i) + cur.sl.j] = 1; save(); } check(); }
+    else if (act === 'bdg') { $('#bdgmsg').innerHTML = '<b>' + b.dataset.n + '</b> — ' + b.dataset.d; }
+    else if (act === 'wear') { S.wear[b.dataset.id] = !S.wear[b.dataset.id]; save(); var y = window.scrollY; viewHome(); window.scrollTo(0, y); }
+    else if (act === 'blank') { b.classList.add('on'); b.removeAttribute('data-act'); if (!document.querySelector('.blank:not(.on)')) { S.seen[pfx(d, i) + cur.sl.j] = 1; save(); mile('c.' + pfx(d, i) + cur.sl.j, 2); } check(); }
     else if (act === 'lab') { S.lab.press[b.dataset.k] = b.dataset.v; drawLab(d, st, i); check(); }
     else if (act === 'addrow') { readRows(st.kind); S.data[st.kind].rows.push(['', '']); save(); drawData(d, st, i); }
     else if (act === 'sample') { var K = KIND[st.kind], D = getData(st.kind); D.rows = K.sample.map(function (r) { return [String(r[0]), String(r[1])]; }); D.unit = K.sampleUnit; D.sample = true; save(); drawData(d, st, i); }
     else if (act === 'lock') {
       readRows(st.kind); var D2 = S.data[st.kind], rows = validRows(D2);
       if (rows.length < 4) { $('#dmsg').innerHTML = '<b class="warn">숫자로 된 측정값이 4개 이상 필요해요.</b> 지금은 ' + rows.length + '개예요.'; return; }
-      D2.locked = true; D2.placed = 0; D2.fails = 0; save(); drawData(d, st, i); check();
+      D2.locked = true; D2.placed = 0; D2.fails = 0; D2.missed = 0; save(); drawData(d, st, i); check();
     }
     else if (act === 'unlock') { var D3 = S.data[st.kind]; D3.locked = false; D3.placed = 0; D3.sample = false; save(); drawData(d, st, i); check(); }
-    else if (act === 'autoplace') { var D4 = S.data[st.kind]; D4.placed++; D4.fails = 0; save(); drawData(d, st, i); check(); }
+    else if (act === 'autoplace') { var D4 = S.data[st.kind]; D4.placed++; D4.fails = 0; D4.missed = 1; save(); drawData(d, st, i); check(); }
     else if (act === 'classdata') { classData(st.kind); }
     else if (act === 'chain') { var C = S.chain[d.id]; C.sel[+b.dataset.j] = +b.dataset.k; C.checked = false; save(); $('#stepbody').innerHTML = STEP.chain(d, st, i); }
     else if (act === 'chaincheck') {
@@ -565,10 +625,10 @@
       return h;
     },
     class: function () {
-      var h = '<div class="card scroll"><table class="tbl"><thead><tr><th>번호</th><th>이름</th>' + ['01', '02', '03'].map(function (s) { return '<th>' + T.stds[s].short + '<br><small>본·잰·입자</small></th>'; }).join('') + '<th>부스</th><th>시험</th></tr></thead><tbody>';
+      var h = '<div class="card scroll"><table class="tbl"><thead><tr><th>번호</th><th>이름</th>' + ['01', '02', '03'].map(function (s) { return '<th>' + T.stds[s].short + '<br><small>본·잰·입자</small></th>'; }).join('') + '<th>마일</th><th>등급</th><th>부스</th><th>시험</th></tr></thead><tbody>';
       students().forEach(function (s) {
         var p = s.progress || {}, sp = p.stamps || {};
-        h += '<tr><td>' + esc(s.num) + '</td><td>' + esc(s.name) + '</td>' + ['01', '02', '03'].map(function (x) { return '<td class="dots">' + ['see', 'meas', 'part'].map(function (k) { return '<i class="' + (sp[x] && sp[x][k] ? 'on' : '') + '" style="--c:' + T.kinds[k].color + '"></i>'; }).join('') + '</td>'; }).join('') + '<td>' + ((p.booths || []).length || '') + '</td><td>' + (p.exam ? p.exam.best + '/' + p.exam.total : '') + '</td></tr>';
+        h += '<tr><td>' + esc(s.num) + '</td><td>' + esc(s.name) + '</td>' + ['01', '02', '03'].map(function (x) { return '<td class="dots">' + ['see', 'meas', 'part'].map(function (k) { return '<i class="' + (sp[x] && sp[x][k] ? 'on' : '') + '" style="--c:' + T.kinds[k].color + '"></i>'; }).join('') + '</td>'; }).join('') + '<td>' + (p.miles || 0) + '</td><td>' + esc(p.rank || '') + '</td><td>' + ((p.booths || []).length || '') + '</td><td>' + (p.exam ? p.exam.best + '/' + p.exam.total : '') + '</td></tr>';
       });
       return h + '</tbody></table></div>';
     },
