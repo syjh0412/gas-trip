@@ -8,7 +8,7 @@
   var DEST = {}; T.dests.forEach(function (d) { DEST[d.id] = d; });
 
   /* ---------- 상태 ---------- */
-  var S = { profile: null, done: {}, stamps: {}, ans: {}, data: {}, lines: {}, lab: {}, chain: {}, booths: [], exam: null };
+  var S = { profile: null, pos: {}, seen: {}, done: {}, stamps: {}, ans: {}, data: {}, lines: {}, lab: {}, chain: {}, booths: [], exam: null };
   try { var raw = localStorage.getItem(KEY); if (raw) { var o = JSON.parse(raw); for (var k in o) S[k] = o[k]; } } catch (e) { }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
 
@@ -81,7 +81,8 @@
     MCQ = {};
     var h = location.hash.replace(/^#/, '').split('/');
     if (!S.profile && h[0] !== 'teacher') return viewRegister();
-    if (h[0] === 'd' && DEST[h[1]]) return viewDest(DEST[h[1]], Math.max(0, parseInt(h[2] || '0', 10) || 0));
+    if (h[0] === 'd' && DEST[h[1]]) return viewDest(DEST[h[1]], h[2] == null ? -1 : Math.max(0, parseInt(h[2], 10) || 0));
+    cur = { dest: null };
     if (h[0] === 'teacher') return viewTeacher();
     viewHome();
   }
@@ -135,30 +136,80 @@
     syncProgress();
   }
   function isDone(d, i) { return !!(S.done[d.id] && S.done[d.id][i]); }
-  function viewDest(d, si) {
-    if (si >= d.steps.length) si = d.steps.length - 1;
-    cur = { dest: d, step: si };
-    var st = d.steps[si];
-    var h = '<header class="dtop" style="--c:' + d.color + '"><a class="back" href="#home" aria-label="여권으로 돌아가기">← 여권</a><div class="dhead"><span class="dic">' + d.icon + '</span><div><small>' + d.period + ' · ' + d.page + (d.std ? ' · ' + T.stds[d.std].code : '') + '</small><h1>' + d.place + '</h1><p>' + d.title + '</p></div></div>';
-    h += '<nav class="steps" aria-label="단계">';
-    d.steps.forEach(function (s, i) { h += '<a href="#d/' + d.id + '/' + i + '" class="' + (i === si ? 'on ' : '') + (isDone(d, i) ? 'dn' : '') + '"' + (i === si ? ' aria-current="step"' : '') + '><i>' + (isDone(d, i) ? '✓' : i + 1) + '</i>' + s.title + '</a>'; });
-    h += '</nav></header><main class="dmain">';
-    if (si === 0) h += '<p class="intro">' + d.intro + '</p>';
-    if (st.stamp && d.std) h += '<p class="goal" style="--c:' + T.kinds[st.stamp].color + '">이 단계를 마치면 <b>‘' + T.kinds[st.stamp].name + '’ 도장</b>을 받아요.</p>';
-    if (st.note) h += '<p class="note">' + st.note + '</p>';
-    h += '<div id="stepbody">' + STEP[st.type](d, st, si) + '</div><div id="stepfoot"></div></main>';
-    app.innerHTML = h;
-    if (AFTER[st.type]) AFTER[st.type](d, st, si);
-    check();
-    var on = $('.steps a.on'); if (on && on.scrollIntoView) on.scrollIntoView({ inline: 'center', block: 'nearest' });
+  function isT() { return !!sessionStorage.getItem('gastrip.pin'); }
+  function buildSlides(d) {
+    var a = [{ k: 'hero' }];
+    d.steps.forEach(function (st, si) {
+      if (st.type === 'predict') st.items.forEach(function (it, j) { a.push({ k: 'q', si: si, j: j, n: st.items.length }); });
+      else if (st.type === 'cards') { st.cards.forEach(function (c, j) { a.push({ k: 'card', si: si, j: j, n: st.cards.length }); }); if (st.examples) a.push({ k: 'ex', si: si }); if (st.labs) a.push({ k: 'labs', si: si }); }
+      else if (st.type === 'quiz') st.ids.forEach(function (id, j) { a.push({ k: 'pq', si: si, j: j, id: id, n: st.ids.length }); });
+      else a.push({ k: 'whole', si: si });
+    });
+    a.push({ k: 'clear' }); return a;
   }
+  function slideDone(d, sl) {
+    var st = sl.si != null ? d.steps[sl.si] : null;
+    if (sl.k === 'q') return !!S.ans[pfx(d, sl.si) + sl.j];
+    if (sl.k === 'pq') return !!S.ans['p.' + sl.id];
+    if (sl.k === 'card') return !!S.seen[pfx(d, sl.si) + sl.j];
+    if (sl.k === 'whole') return DONE[st.type](d, st, sl.si);
+    return true;
+  }
+  function viewDest(d, k) {
+    S.pos = S.pos || {}; S.seen = S.seen || {};
+    var slides = buildSlides(d);
+    if (k < 0) k = S.pos[d.id] || 0;
+    if (k >= slides.length) k = slides.length - 1;
+    S.pos[d.id] = k; save();
+    var sl = slides[k], st = sl.si != null ? d.steps[sl.si] : null, body = '', kick = st ? st.title + (sl.n > 1 ? ' ' + (sl.j + 1) + ' / ' + sl.n : '') : '';
+    cur = { dest: d, step: sl.si, slide: k, slides: slides, sl: sl };
+    if (sl.k === 'hero') body = '<div class="hero"><div class="hic">' + d.icon + '</div><p class="s-kicker">' + d.period + ' · ' + d.page + '</p><h1 class="s-title">' + d.place + '</h1><p class="hsub">' + d.title + '</p><p class="hintro">' + d.intro + '</p>' + (d.std ? '<p class="hstd"><b>' + T.stds[d.std].code + '</b> ' + T.stds[d.std].text + '</p>' : '') + '</div>';
+    else if (sl.k === 'q') body = '<p class="s-kicker">' + kick + '</p>' + (st.note ? '<p class="note">' + st.note + '</p>' : '') + mcq(pfx(d, sl.si) + sl.j, st.items[sl.j], 'free', 0);
+    else if (sl.k === 'pq') body = '<p class="s-kicker">' + kick + '</p>' + mcq('p.' + sl.id, T.pool[sl.id], 'quiz', 0);
+    else if (sl.k === 'card') {
+      var c = st.cards[sl.j], seen = S.seen[pfx(d, sl.si) + sl.j];
+      body = '<p class="s-kicker">' + kick + '</p><article class="bigcard"><h2 class="s-title">' + c.h + '</h2><p class="s-body">' + (seen ? c.b : c.b.replace(/<b>/g, '<b class="blank" data-act="blank" role="button" tabindex="0">')) + '</p></article>';
+    }
+    else if (sl.k === 'ex') body = '<p class="s-kicker">' + st.title + ' · 생활 속 예</p>' + exHTML(st);
+    else if (sl.k === 'labs') body = '<p class="s-kicker">' + st.title + ' · 오늘 수업에서 하는 실험</p>' + labsHTML(st);
+    else if (sl.k === 'clear') {
+      var got = d.std ? ['see', 'meas', 'part'].map(function (x) { return stampHTML(d.std, x); }).join('') : '', ni = T.dests.indexOf(d) + 1, nd = T.dests[ni];
+      body = '<div class="hero"><div class="hic">🏁</div><h1 class="s-title">' + d.place + ' 여행 끝!</h1>' + (d.std ? '<p class="hsub">' + T.stds[d.std].short + ' 도장</p><div class="clr">' + got + '</div>' : '') + '<div class="btns ctr">' + (nd ? '<a class="btn yel" href="#d/' + nd.id + '/0">다음 여행지: ' + nd.icon + ' ' + nd.place + '</a>' : '') + '<a class="btn" href="#home">내 여권 보기</a></div></div>';
+    }
+    else body = '<p class="s-kicker">' + kick + '</p>' + (st.stamp && d.std ? '<p class="goal" style="--c:' + T.kinds[st.stamp].color + '">이 활동을 마치면 <b>‘' + T.kinds[st.stamp].name + '’ 도장</b>을 받아요.</p>' : '') + (st.note ? '<p class="note">' + st.note + '</p>' : '') + '<div id="stepbody">' + STEP[st.type](d, st, sl.si) + '</div>';
+    app.innerHTML = '<div class="stage" style="--c:' + d.color + '" data-kind="' + sl.k + '" data-type="' + (st ? st.type : '') + '" data-si="' + (sl.si == null ? '' : sl.si) + '" data-j="' + (sl.j == null ? '' : sl.j) + '" data-id="' + (sl.id || '') + '">' +
+      '<div class="stg-top"><a class="btn sm exit" href="#home">✕ 나가기</a><span class="ttl">' + d.icon + ' ' + d.period + ' · ' + d.place + '</span><span class="num">' + (k + 1) + ' / ' + slides.length + '</span></div>' +
+      '<div class="pbar"><i style="width:' + ((k + 1) / slides.length * 100).toFixed(1) + '%"></i></div>' +
+      '<div class="stg-body" id="stgbody"><div class="slide t-' + sl.k + (st ? ' y-' + st.type : '') + '">' + body + '</div></div>' +
+      '<div class="stg-nav"><button class="btn prev" data-act="go" data-d="-1"' + (k === 0 ? ' disabled' : '') + '>◀ 이전</button><span class="hintkey" id="hintkey"></span><button class="btn pri next" data-act="go" data-d="1" id="next">' + (k === slides.length - 1 ? '여권으로 🏁' : '다음 ▶') + '</button></div></div>';
+    if (sl.k === 'whole' && AFTER[st.type]) AFTER[st.type](d, st, sl.si);
+    var be = $('#stgbody'), tx = null, ty = null;
+    be.addEventListener('touchstart', function (e) { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
+    be.addEventListener('touchend', function (e) { if (tx === null) return; var dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty; if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.6 && !e.target.closest('textarea,input,select,canvas,svg,.tbl')) go(dx < 0 ? 1 : -1); tx = null; }, { passive: true });
+    check();
+  }
+  function go(dir) {
+    var d = cur.dest; if (!d) return;
+    if (dir > 0 && cur.locked) { toast('<p>🔒 ' + cur.why + '</p>'); return; }
+    var ni = cur.slide + dir; if (ni < 0) return;
+    if (ni >= cur.slides.length) { location.hash = '#home'; return; }
+    location.replace('#d/' + d.id + '/' + ni);
+  }
+  document.addEventListener('keydown', function (e) {
+    if (!cur.dest) return;
+    if (e.target.classList && e.target.classList.contains('blank') && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); e.target.click(); return; }
+    if (e.target.closest && e.target.closest('input,textarea,select,button,a')) return;
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); go(1); } else if (e.key === 'ArrowLeft') go(-1);
+  });
   function check() {
-    var d = cur.dest, i = cur.step; if (!d) return;
-    var st = d.steps[i], ok = DONE[st.type](d, st, i);
-    if (ok) { var was = isDone(d, i); markDone(d, i); if (!was) { var a = document.querySelectorAll('.steps a')[i]; if (a) { a.classList.add('dn'); a.querySelector('i').textContent = '✓'; } } }
-    var last = i >= d.steps.length - 1;
-    $('#stepfoot').innerHTML = '<div class="foot">' + (ok ? '<span class="okmsg">✓ 이 단계를 마쳤어요</span>' : '<span class="todo">' + (TODO[st.type] || '') + '</span>') +
-      (last ? '<a class="btn pri" href="#home">여권으로</a>' : '<a class="btn ' + (ok ? 'pri' : '') + '" href="#d/' + d.id + '/' + (i + 1) + '">다음 단계 →</a>') + '</div>';
+    var d = cur.dest; if (!d) return; var sl = cur.sl, st = sl.si != null ? d.steps[sl.si] : null;
+    if (st && DONE[st.type](d, st, sl.si)) markDone(d, sl.si);
+    var ok = slideDone(d, sl), hk = $('#hintkey'), nx = $('#next'); if (!hk) return;
+    cur.locked = !ok && !isT();
+    cur.why = sl.k === 'card' ? '노란 빈칸을 모두 눌러 확인하세요' : (sl.k === 'q' || sl.k === 'pq') ? '질문에 답하면 넘어갈 수 있어요' : (st ? TODO[st.type] : '');
+    nx.classList.toggle('lock', cur.locked); nx.setAttribute('aria-disabled', cur.locked);
+    hk.className = 'hintkey' + (cur.locked ? ' lockmsg' : ok && sl.k !== 'hero' && sl.k !== 'clear' && sl.k !== 'ex' && sl.k !== 'labs' ? ' okmsg' : '');
+    hk.textContent = cur.locked ? '🔒 ' + cur.why : (hk.className.indexOf('okmsg') > 0 ? '✓ 완료 · ' : '') + '← → 키 · 밀어서 넘기기';
   }
   var STEP = {}, AFTER = {}, DONE = {}, TODO = {};
   function pfx(d, i) { return d.id + '.' + i + '.'; }
@@ -170,12 +221,9 @@
   TODO.predict = '질문에 모두 답해 보세요';
 
   // 안내 카드
-  STEP.cards = function (d, st) {
-    var h = '<div class="cards">' + st.cards.map(function (c, j) { return '<article class="ccard"><span class="cn">' + (j + 1) + '</span><h3>' + c.h + '</h3><p>' + c.b + '</p></article>'; }).join('') + '</div>';
-    if (st.examples) h += '<h3 class="sub3">생활 속 예</h3><ul class="exs">' + st.examples.map(function (e) { return '<li><b>' + e[0] + '</b>' + e[1] + '</li>'; }).join('') + '</ul>';
-    if (st.labs) h += '<h3 class="sub3">오늘 수업에서 하는 실험</h3><ul class="labs">' + st.labs.map(function (l) { return '<li><div><b>' + l.name + '</b><span>' + l.note + '</span></div><a class="btn sm" target="_blank" rel="noopener" href="' + boothURL('#slides/' + l.booth) + '">실험 안내 열기</a></li>'; }).join('') + '</ul>';
-    return h;
-  };
+  function exHTML(st) { return '<ul class="exs">' + st.examples.map(function (e) { return '<li><b>' + e[0] + '</b>' + e[1] + '</li>'; }).join('') + '</ul>'; }
+  function labsHTML(st) { return '<ul class="labs">' + st.labs.map(function (l) { return '<li><div><b>' + l.name + '</b><span>' + l.note + '</span></div><a class="btn sm" target="_blank" rel="noopener" href="' + boothURL('#slides/' + l.booth) + '">실험 안내 열기</a></li>'; }).join('') + '</ul>'; }
+  STEP.cards = function () { return ''; };
   DONE.cards = function () { return true; };
   function boothURL(hash) { return (CFG.BOOTH_URL || 'https://syjh0412.github.io/gas-booth/').split('#')[0] + (hash || ''); }
 
@@ -210,7 +258,7 @@
     var ctl = st.mode === 'box' ? '<label class="sl">입자 수 <output id="simo">25개</output><input type="range" id="simr" min="10" max="60" step="5" value="25"></label>'
       : st.mode === 'boyle' ? '<label class="sl">바깥 압력 <output id="simo">1.0기압</output><input type="range" id="simr" min="0.5" max="2" step="0.1" value="1"></label>'
         : '<label class="sl">온도 <output id="simo">20 ℃</output><input type="range" id="simr" min="0" max="80" step="5" value="20"></label>';
-    return '<div class="simbox card"><canvas id="simc" width="640" height="320" role="img" aria-label="입자 모형. 노란 입자들이 용기 안에서 움직이며 벽에 충돌한다."></canvas><div class="simctl">' + ctl + '<p id="simst" class="simst" aria-live="polite"></p></div><div id="simg" class="gauges"></div></div>' + itemsHTML(d, st, i, 'retry');
+    return '<div class="simbox card"><canvas id="simc" width="640" height="320" role="img" aria-label="입자 모형. 노란 입자들이 용기 안에서 움직이며 벽에 충돌한다."></canvas><div class="simctl">' + ctl + '<p id="simst" class="simst" aria-live="polite"></p></div><div id="simg" class="gauges"></div></div><div class="qcol">' + itemsHTML(d, st, i, 'retry') + '</div>';
   };
   AFTER.sim = function (d, st) { sim = new Sim($('#simc'), st.mode); };
   DONE.sim = function (d, st, i) { return allRight(pfx(d, i), st.items); };
@@ -416,7 +464,7 @@
     }
     el.innerHTML = h;
   }
-  function examStart(ids, retry) { EX = { ids: ids.slice(), i: 0, wrong: [], retry: retry, run: Date.now() % 100000 }; drawExam(); window.scrollTo(0, 0); }
+  function examStart(ids, retry) { EX = { ids: ids.slice(), i: 0, wrong: [], retry: retry, run: Date.now() % 100000 }; drawExam(); var sb = $('#stgbody'); if (sb) sb.scrollTop = 0; }
   function examFinish() {
     if (!EX.retry) { var ok = EX.ids.length - EX.wrong.length; S.exam = { last: ok, total: EX.ids.length, best: Math.max(ok, S.exam ? S.exam.best : 0), wrong: EX.wrong.slice(), ts: Date.now() }; }
     else if (S.exam) S.exam.wrong = EX.wrong.slice();
@@ -438,6 +486,8 @@
       if (st && st.type === 'quiz') { quizSum(st); sync('quiz', quizScores()); }
       check();
     }
+    else if (act === 'go') go(+b.dataset.d);
+    else if (act === 'blank') { b.classList.add('on'); b.removeAttribute('data-act'); if (!document.querySelector('.blank:not(.on)')) { S.seen[pfx(d, i) + cur.sl.j] = 1; save(); } check(); }
     else if (act === 'lab') { S.lab.press[b.dataset.k] = b.dataset.v; drawLab(d, st, i); check(); }
     else if (act === 'addrow') { readRows(st.kind); S.data[st.kind].rows.push(['', '']); save(); drawData(d, st, i); }
     else if (act === 'sample') { var K = KIND[st.kind], D = getData(st.kind); D.rows = K.sample.map(function (r) { return [String(r[0]), String(r[1])]; }); D.unit = K.sampleUnit; D.sample = true; save(); drawData(d, st, i); }
@@ -457,7 +507,6 @@
       $('#stepbody').innerHTML = STEP.chain(d, st, i); if (C2.ok) sync('chain', S.chain); check();
     }
     else if (act === 'saveline') { var v = $('#line').value.trim(); S.lines[d.id] = v; save(); sync('lines', S.lines); $('#linemsg').textContent = v.length >= 15 ? '저장했어요.' : '조금 더 자세히 써 보세요. (15자 이상)'; check(); }
-    else if (act === 'requiz') { st.ids.forEach(function (id) { delete S.ans['p.' + id]; }); save(); $('#stepbody').innerHTML = STEP.quiz(d, st, i); window.scrollTo(0, 0); check(); }
     else if (act === 'booth') { var c2 = b.dataset.c, ix = S.booths.indexOf(c2); if (ix >= 0) S.booths.splice(ix, 1); else S.booths.push(c2); save(); $('#stepbody').innerHTML = STEP.booth(); syncProgress(); check(); }
     else if (act === 'exstart') examStart(T.exam, false);
     else if (act === 'exwrong') examStart((EX && EX.i >= EX.ids.length ? EX.wrong : S.exam.wrong), true);
