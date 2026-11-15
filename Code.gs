@@ -58,6 +58,10 @@ function doPost(e) {
   try {
     var d = JSON.parse(e.postData.contents);
     lock.waitLock(10000);
+    if (d.action === 'rows') { // 교사용: 비밀번호가 맞아야 반 전체 기록을 돌려준다
+      if (String(d.pin) !== String(TEACHER_PIN)) return out_({ error: '비밀번호가 다릅니다' });
+      return out_({ rows: d.cls ? rows_(d.cls, null, true) : [] });
+    }
     if (d.action === 'login') {
       if (!d.cls || !d.num || !d.code) return out_({ error: 'bad request' });
       return out_(login_(d));
@@ -77,22 +81,25 @@ function doPost(e) {
   }
 }
 
-function doGet(e) {
-  var p = e.parameter || {};
-  if (!p.cls) return out_({ error: 'cls required' });
-  var all = p.all === '1';
-  if (all && String(p.pin) !== String(TEACHER_PIN)) return out_({ error: '비밀번호가 다릅니다' });
-  if (!all && OPEN_KEYS.indexOf(p.key) < 0) return out_({ error: 'not allowed' });
+function rows_(cls, key, all) {
   var values = sheet_().getDataRange().getValues();
   var rows = [];
   for (var i = 1; i < values.length; i++) {
     var r = values[i];
-    if (String(r[2]) !== String(p.cls)) continue;
-    if (!all && r[5] !== p.key) continue;
+    if (String(r[2]) !== String(cls)) continue;
+    if (!all && r[5] !== key) continue;
     if (r[5] === 'state') continue; // 이어 하기용 전체 기록은 목록에서 뺀다
     var val = null;
     try { val = JSON.parse(r[6]); } catch (x) {}
     rows.push(all ? { cls: r[2], num: Number(r[3]), name: r[4], key: r[5], val: val } : { num: Number(r[3]), key: r[5], val: val });
   }
-  return out_({ rows: rows });
+  return rows;
+}
+
+/** 학생용: 반 전체 실험 자료(이름 없음)만 돌려준다. */
+function doGet(e) {
+  var p = e.parameter || {};
+  if (!p.cls) return out_({ error: 'cls required' });
+  if (OPEN_KEYS.indexOf(p.key) < 0) return out_({ error: 'not allowed' });
+  return out_({ rows: rows_(p.cls, p.key, false) });
 }

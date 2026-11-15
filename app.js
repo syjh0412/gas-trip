@@ -587,7 +587,7 @@
     else if (act === 'go') go(+b.dataset.d);
     else if (act === 'eye') { var pi = b.previousElementSibling; pi.type = pi.type === 'password' ? 'text' : 'password'; b.textContent = pi.type === 'password' ? '보기' : '숨김'; }
     else if (act === 'gteach') { $('#gtbox').hidden = !$('#gtbox').hidden; if (!$('#gtbox').hidden) $('#gpin').focus(); }
-    else if (act === 'gtgo') { if ($('#gpin').value.trim() === String(CFG.TEACHER_PIN || '0000')) { sessionStorage.setItem('gastrip.pin', $('#gpin').value.trim()); location.hash = '#teacher'; route(); } else $('#gmsg2').innerHTML = '<b class="warn">교사 비밀번호가 달라요.</b>'; }
+    else if (act === 'gtgo') { var gv = $('#gpin').value.trim(); $('#gmsg2').textContent = '확인 중…'; checkPin(gv, function () { sessionStorage.setItem('gastrip.pin', gv); location.hash = '#teacher'; route(); }, function (why) { $('#gmsg2').innerHTML = '<b class="warn">' + (why || '교사 비밀번호가 달라요.') + '</b>'; }); }
     else if (act === 'gguest') { $('#ggbox').hidden = !$('#ggbox').hidden; }
     else if (act === 'ggo') { sessionStorage.setItem('gastrip.guest', '1'); S.profile = { cls: '0', num: '0', name: '참관 선생님' }; location.hash = '#home'; route(); }
     else if (act === 'bdg') { $('#bdgmsg').innerHTML = '<b>' + b.dataset.n + '</b> — ' + b.dataset.d; }
@@ -635,12 +635,17 @@
   }
 
   /* ---------- 선생님 화면 ---------- */
+  function tpost(o) { return fetch(CFG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(o) }).then(function (r) { return r.json(); }); }
+  function checkPin(v, ok, bad) {
+    if (!CFG.API_URL) return (v === String(CFG.TEACHER_PIN || '0000') ? ok : bad)();
+    tpost({ action: 'rows', pin: v }).then(function (r) { (r && !r.error ? ok : bad)(); }).catch(function () { bad('서버에 연결하지 못했어요.'); });
+  }
   var TEACH = {}, TS = { tab: 'guide', rows: null, cls: '', msg: '' };
   function viewTeacher() {
     cur = { dest: null, step: 0 };
     var okPin = sessionStorage.getItem('gastrip.pin');
     var h = '<header class="dtop" style="--c:#1B1F3B"><a class="back" href="#home">← 학생 화면</a><div class="dhead"><span class="dic">🧑‍🏫</span><div><h1>선생님 화면</h1><p>기체 안전 여행사 · 입자 여권</p></div></div></header><main class="dmain teacher">';
-    if (!okPin) { app.innerHTML = h + '<div class="card"><h3>비밀번호</h3><div class="row3"><label>교사 비밀번호<input id="tpin" type="password" inputmode="numeric" autocomplete="off"></label></div><button class="btn pri" data-act="tlogin">들어가기</button><p class="tiny" id="tmsg">config.js의 TEACHER_PIN 값이에요. 처음 값은 0000입니다.</p></div></main>'; return; }
+    if (!okPin) { app.innerHTML = h + '<div class="card"><h3>비밀번호</h3><div class="row3"><label>교사 비밀번호<input id="tpin" type="password" inputmode="numeric" autocomplete="off"></label></div><button class="btn pri" data-act="tlogin">들어가기</button><p class="tiny" id="tmsg">' + (CFG.API_URL ? '구글 스크립트(Code.gs)에 정해 둔 교사 비밀번호예요.' : 'config.js의 TEACHER_PIN 값이에요. 처음 값은 0000입니다.') + '</p></div></main>'; return; }
     var tabs = [['guide', '수업 안내'], ['class', '반 현황'], ['data', '실험 자료'], ['lines', '안내 한 줄'], ['snorkl', '스노클 과제'], ['setup', '설정 방법']];
     h += '<nav class="ttabs">' + tabs.map(function (t) { return '<button data-act="ttab" data-t="' + t[0] + '" class="' + (TS.tab === t[0] ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</nav>';
     if (['class', 'data', 'lines'].indexOf(TS.tab) >= 0) {
@@ -649,12 +654,12 @@
     } else h += TVIEW[TS.tab]();
     app.innerHTML = h + '</main>';
   }
-  TEACH.tlogin = function () { var v = $('#tpin').value.trim(); if (v === String(CFG.TEACHER_PIN || '0000')) { sessionStorage.setItem('gastrip.pin', v); viewTeacher(); } else $('#tmsg').innerHTML = '<b class="warn">비밀번호가 달라요.</b>'; };
+  TEACH.tlogin = function () { var v = $('#tpin').value.trim(); $('#tmsg').textContent = '확인 중…'; checkPin(v, function () { sessionStorage.setItem('gastrip.pin', v); viewTeacher(); }, function (why) { $('#tmsg').innerHTML = '<b class="warn">' + (why || '비밀번호가 달라요.') + '</b>'; }); };
   TEACH.tlogout = function () { var g = isG(); sessionStorage.removeItem('gastrip.pin'); sessionStorage.removeItem('gastrip.guest'); if (g) { location.hash = ''; location.reload(); return; } if (S.profile && S.profile.cls === '0') { S.profile = null; save(); } route(); };
   TEACH.ttab = function (b) { TS.tab = b.dataset.t; viewTeacher(); };
   TEACH.tload = function () {
     TS.cls = $('#tcls').value.trim(); if (!TS.cls) return; TS.msg = '불러오는 중…'; viewTeacher();
-    apiGet({ cls: TS.cls, all: 1, pin: sessionStorage.getItem('gastrip.pin') }).then(function (res) { if (res.error) throw new Error(res.error); TS.rows = res.rows || []; TS.msg = TS.rows.length + '건을 불러왔어요.'; viewTeacher(); }).catch(function (e) { TS.msg = '불러오지 못했어요. (' + e.message + ')'; viewTeacher(); });
+    tpost({ action: 'rows', cls: TS.cls, pin: sessionStorage.getItem('gastrip.pin') }).then(function (res) { if (res.error) throw new Error(res.error); TS.rows = res.rows || []; TS.msg = TS.rows.length + '건을 불러왔어요.'; viewTeacher(); }).catch(function (e) { TS.msg = '불러오지 못했어요. (' + e.message + ')'; viewTeacher(); });
   };
   TEACH.tcopy = function (b) { var t = b.previousElementSibling.textContent; if (navigator.clipboard) navigator.clipboard.writeText(t).then(function () { b.textContent = '복사했어요'; }); };
   TEACH.tcsv = function () {

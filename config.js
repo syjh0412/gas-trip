@@ -1,8 +1,9 @@
 /* 선생님 설정 — 이 파일만 고치면 됩니다. */
 window.TRIP_CONFIG = {
   // 구글 Apps Script 웹앱 주소. 비워 두면 학생 기기에만 저장되고, 반 전체 그래프와 교사 화면의 반 현황은 쓸 수 없습니다.
-  API_URL: "",
-  // 교사 화면 비밀번호. API_URL을 쓸 때는 Code.gs의 TEACHER_PIN과 같게 맞춥니다.
+  API_URL: "https://script.google.com/macros/s/AKfycbxbvXQSs2h9tIhctngXsC4tdaWXCe8lGf3iz2iLqOJQBaazbtuyjCnONKZuI2IJFWVUMg/exec",
+  // 교사 화면 비밀번호. API_URL이 비어 있을 때만 쓰입니다.
+  // API_URL을 넣으면 비밀번호는 구글 스크립트(Code.gs)의 TEACHER_PIN으로 확인하므로, 이 파일에 실제 비밀번호를 적지 마세요.
   TEACHER_PIN: "0000",
   // 부스 웹앱 주소. 선택한 구성 링크(…/gas-booth/?s=B2.B3.C1)를 넣으면 그 실험만 열립니다.
   BOOTH_URL: "https://syjh0412.github.io/gas-booth/",
