@@ -211,3 +211,5 @@ textarea { resize: vertical; line-height: 1.6; }
 .gtbox { display: flex; gap: 8px; align-items: flex-end; margin-top: 10px; background: #F3F5FB; border-radius: 14px; padding: 12px; } .gtbox label { flex: 1; margin: 0; } .gtbox.col { flex-direction: column; align-items: stretch; } .gtbox[hidden] { display: none; }
 .linkbtn.wide { display: block; width: 100%; text-align: center; margin-top: 6px; }
 @media (max-width: 620px) { .gatebox { padding: 22px 18px 16px; } .gatebox h1 { font-size: 36px; } }
+
+.who .mbox { margin-left: auto; } .outbtn { background: transparent; color: #fff; border-color: rgba(255,255,255,.7); margin-left: 8px; max-width: 46%; white-space: normal; line-height: 1.25; text-align: left; } .outbtn:hover { background: rgba(255,255,255,.12); }

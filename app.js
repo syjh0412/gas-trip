@@ -124,6 +124,7 @@
     MCQ = {};
     var h = location.hash.replace(/^#/, '').split('/');
     if (!S.profile && isT()) { S.profile = { cls: '0', num: '0', name: isG() ? '참관 선생님' : '선생님' }; save(); }
+    if (CFG.API_URL && S.profile && !S.profile.v && !isT() && h[0] !== 'teacher') return viewRegister(S.profile);
     if (!S.profile && h[0] !== 'teacher') return viewRegister();
     if (h[0] === 'd' && DEST[h[1]]) return viewDest(DEST[h[1]], h[2] == null ? -1 : Math.max(0, parseInt(h[2], 10) || 0));
     cur = { dest: null };
@@ -133,8 +134,8 @@
   window.addEventListener('hashchange', function () { route(); window.scrollTo(0, 0); });
 
   /* ---------- 등록 ---------- */
-  function viewRegister() {
-    var api = !!CFG.API_URL;
+  function viewRegister(old) {
+    var api = !!CFG.API_URL; cur = { dest: null };
     app.innerHTML = '<main class="gate"><div class="gatebox"><p class="comms">GAS SAFE TRAVEL · PARTICLE PASSPORT</p><div class="emblem">' + mascot(84, 1) + '</div><h1>입자 여권</h1><p class="sub">기체 안전 여행사 · 가이드 신분을 확인합니다.</p>' +
       '<form id="regform"><div class="row2"><label>반<input name="cls" inputmode="numeric" maxlength="2" autocomplete="off" placeholder="예) 3"></label><label>번호<input name="num" inputmode="numeric" maxlength="2" autocomplete="off" placeholder="예) 12"></label></div>' +
       '<label>이름<input name="name" maxlength="10" autocomplete="off" placeholder="이름"></label>' +
@@ -146,6 +147,7 @@
       '<button class="linkbtn wide" data-act="gguest">🎩 참관 오셨나요? 둘러보기</button>' +
       '<div id="ggbox" hidden class="gtbox col"><p class="small"><b>둘러보기 전용</b> 입장입니다. 모든 여행지의 화면을 잠금 없이 넘겨 보실 수 있고, 해 보신 활동은 저장되지 않습니다.</p><button class="btn pri" data-act="ggo">둘러보기 시작</button></div></div></main>';
     var f = $('#regform'), card = $('#idcard');
+    if (old) { f.cls.value = old.cls; f.num.value = old.num; f.name.value = old.name; $('#gmsg2').innerHTML = '<b>여권 암호를 정하면 다른 기기에서도 이어서 할 수 있어요.</b> 지금까지의 기록은 그대로 남아요.'; setTimeout(function () { f.dispatchEvent(new Event('input')); }, 0); }
     f.addEventListener('input', function () {
       var c = f.cls.value.trim(), n = f.num.value.trim(), nm = f.name.value.trim();
       card.innerHTML = c && n && nm ? '<div class="av">' + mascot(46, 1) + '</div><div><div class="nm">' + esc(nm) + '</div><div class="small">' + esc(c) + '반 ' + esc(n) + '번 · ' + T.ranks[0].name + '</div></div>' : '<div class="av">🧳</div><div class="small">반, 번호, 이름을 쓰면 여권이 만들어져요</div>';
@@ -157,7 +159,7 @@
       if (api && (code.length < 2 || code.length > 8)) { m.innerHTML = '<b class="warn">여권 암호는 2~8자로 정하세요.</b>'; return; }
       function enter(state) {
         if (state && (state.miles || 0) >= (S.miles || 0)) { for (var k in state) S[k] = state[k]; }
-        S.profile = { cls: c, num: n, name: nm }; save(); syncProgress(); route(); toast('<div class="rkup">🧳</div><p>환영합니다, <b>' + esc(nm) + '</b> ' + rank().name + '님!</p>');
+        S.profile = { cls: c, num: n, name: nm, v: 2 }; save(); syncProgress(); route(); toast('<div class="rkup">🧳</div><p>환영합니다, <b>' + esc(nm) + '</b> ' + rank().name + '님!</p>');
       }
       if (!api) return enter(null);
       btn.disabled = true; btn.textContent = '확인 중…';
@@ -191,7 +193,7 @@
     var ri = rankIdx(), r = T.ranks[ri], n = stampCount(), next = T.ranks[ri + 1], nx = '';
     if (next) { var needM = Math.max(0, next.min - S.miles), needS = Math.max(0, (next.st || 0) - n); nx = '<b>' + next.name + '</b>까지 ' + [needM ? needM + ' 마일' : '', needS ? '도장 ' + needS + '개' : ''].filter(Boolean).join(', ') + ' 남았어요'; } else nx = '가장 높은 등급이에요!';
     var lo = r.min, hi = next ? next.min : r.min + 1, pc = next ? Math.min(100, (S.miles - lo) / (hi - lo) * 100) : 100;
-    var h = '<header class="top"><div class="who">' + mascot(72) + '<div><p class="rk">Lv.' + (ri + 1) + ' ' + r.name + '</p><h1>' + esc(S.profile.name) + ' <small>' + esc(S.profile.cls) + '반 ' + esc(S.profile.num) + '번</small></h1></div><div class="mbox"><b>' + S.miles + '</b><span>마일</span></div></div>' +
+    var h = '<header class="top"><div class="who">' + mascot(72) + '<div><p class="rk">Lv.' + (ri + 1) + ' ' + r.name + '</p><h1>' + esc(S.profile.name) + ' <small>' + esc(S.profile.cls) + '반 ' + esc(S.profile.num) + '번</small></h1></div><div class="mbox"><b>' + S.miles + '</b><span>마일</span></div><button class="btn sm outbtn" data-act="reset">나가기</button></div>' +
       '<div class="mbar" role="img" aria-label="다음 등급까지 진행"><i style="width:' + pc.toFixed(0) + '%"></i></div><p class="nx">' + nx + '</p></header><main class="home">' + (isG() ? '<p class="tbar"><b>🎩 참관 모드</b> 모든 장을 잠금 없이 둘러보실 수 있고, 해 보신 활동은 저장되지 않습니다. <button class="linkbtn" data-act="tlogout">참관 끝내기</button></p>' : isT() ? '<p class="tbar"><b>교사 모드</b> 모든 장을 잠금 없이 넘길 수 있고, 마일과 기록은 쌓이지 않아요. <a href="#teacher">선생님 화면</a> <button class="linkbtn" data-act="tlogout">교사 모드 끄기</button></p>' : '');
     P.pass += '<section class="card passport"><h2>내 입자 여권 <span class="cnt">도장 ' + n + ' / 9</span></h2><div class="pgrid">';
     ['01', '02', '03'].forEach(function (s) {
@@ -616,7 +618,7 @@
     else if (act === 'exstart') examStart(T.exam, false);
     else if (act === 'exwrong') examStart((EX && EX.i >= EX.ids.length ? EX.wrong : S.exam.wrong), true);
     else if (act === 'exnext') { EX.i++; if (EX.i >= EX.ids.length) examFinish(); drawExam(); window.scrollTo(0, 0); }
-    else if (act === 'reset') { if (confirmBox(b, CFG.API_URL ? '이 기기에서 나가요. 같은 암호로 다시 들어오면 이어서 할 수 있어요. 한 번 더 누르면 나가요.' : '지금까지의 기록이 이 기기에서 모두 지워져요. 한 번 더 누르면 지워요.')) { localStorage.removeItem(KEY); location.hash = ''; location.reload(); } }
+    else if (act === 'reset') { if (confirmBox(b, b.classList.contains('outbtn') ? '한 번 더 누르면 나가요' : CFG.API_URL ? '이 기기에서 나가요. 같은 암호로 다시 들어오면 이어서 할 수 있어요. 한 번 더 누르면 나가요.' : '지금까지의 기록이 이 기기에서 모두 지워져요. 한 번 더 누르면 지워요.')) { localStorage.removeItem(KEY); location.hash = ''; location.reload(); } }
     else if (TEACH[act]) TEACH[act](b);
   });
   function confirmBox(b, msg) { if (b.dataset.sure) return true; b.dataset.sure = '1'; b.textContent = msg; return false; }
