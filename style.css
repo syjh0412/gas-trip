@@ -194,3 +194,5 @@ textarea { resize: vertical; line-height: 1.6; }
 .htabs a.on { background: var(--ink); color: #fff; } .htabs a:hover:not(.on) { background: #EEF1FF; }
 .home { padding-top: 0; }
 @media (max-width: 620px) { .htabs a { font-size: 13px; min-height: 56px; } }
+
+.tbar { background: #FFFBEA; border: 3px solid var(--ink); border-radius: 14px; padding: 8px 14px; margin: 12px 0 0; font-size: 15px; } .tbar b { background: var(--ink); color: #fff; border-radius: 8px; padding: 1px 8px; margin-right: 6px; }

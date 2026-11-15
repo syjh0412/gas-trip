@@ -15,7 +15,7 @@
   /* ---------- 서버 연동 (선택) ---------- */
   var timers = {};
   function sync(key, val) {
-    if (!CFG.API_URL || !S.profile) return;
+    if (!CFG.API_URL || !S.profile || isT()) return;
     clearTimeout(timers[key]);
     timers[key] = setTimeout(function () {
       var body = JSON.stringify({ cls: S.profile.cls, num: S.profile.num, name: S.profile.name, key: key, val: val });
@@ -113,6 +113,7 @@
     if (sim) { sim.stop(); sim = null; }
     MCQ = {};
     var h = location.hash.replace(/^#/, '').split('/');
+    if (!S.profile && isT()) { S.profile = { cls: '0', num: '0', name: '선생님' }; save(); }
     if (!S.profile && h[0] !== 'teacher') return viewRegister();
     if (h[0] === 'd' && DEST[h[1]]) return viewDest(DEST[h[1]], h[2] == null ? -1 : Math.max(0, parseInt(h[2], 10) || 0));
     cur = { dest: null };
@@ -157,7 +158,7 @@
     if (next) { var needM = Math.max(0, next.min - S.miles), needS = Math.max(0, (next.st || 0) - n); nx = '<b>' + next.name + '</b>까지 ' + [needM ? needM + ' 마일' : '', needS ? '도장 ' + needS + '개' : ''].filter(Boolean).join(', ') + ' 남았어요'; } else nx = '가장 높은 등급이에요!';
     var lo = r.min, hi = next ? next.min : r.min + 1, pc = next ? Math.min(100, (S.miles - lo) / (hi - lo) * 100) : 100;
     var h = '<header class="top"><div class="who">' + mascot(72) + '<div><p class="rk">Lv.' + (ri + 1) + ' ' + r.name + '</p><h1>' + esc(S.profile.name) + ' <small>' + esc(S.profile.cls) + '반 ' + esc(S.profile.num) + '번</small></h1></div><div class="mbox"><b>' + S.miles + '</b><span>마일</span></div></div>' +
-      '<div class="mbar" role="img" aria-label="다음 등급까지 진행"><i style="width:' + pc.toFixed(0) + '%"></i></div><p class="nx">' + nx + '</p></header><main class="home">';
+      '<div class="mbar" role="img" aria-label="다음 등급까지 진행"><i style="width:' + pc.toFixed(0) + '%"></i></div><p class="nx">' + nx + '</p></header><main class="home">' + (isT() ? '<p class="tbar"><b>교사 모드</b> 모든 장을 잠금 없이 넘길 수 있고, 마일과 기록은 쌓이지 않아요. <a href="#teacher">선생님 화면</a> <button class="linkbtn" data-act="tlogout">교사 모드 끄기</button></p>' : '');
     P.pass += '<section class="card passport"><h2>내 입자 여권 <span class="cnt">도장 ' + n + ' / 9</span></h2><div class="pgrid">';
     ['01', '02', '03'].forEach(function (s) {
       P.pass += '<div class="prow"><div class="pstd"><b>' + T.stds[s].short + '</b><span>' + T.stds[s].code + '</span></div>' + stampHTML(s, 'see') + stampHTML(s, 'meas') + stampHTML(s, 'part') + '</div>';
@@ -173,7 +174,7 @@
     P.bag += '<section class="card"><h2>여행 가방 <span class="cnt">' + got + ' / ' + BADGES.length + '</span></h2><p class="tiny" style="margin:0 0 10px">여행지를 마치면 스티커를, 특별한 일을 해내면 배지를 얻어요. 눌러서 조건을 볼 수 있어요.</p><div class="bgrid">' +
       BADGES.map(function (b) { var on = S.badges[b.id]; return '<button class="bdg' + (on ? ' on' : '') + '" data-act="bdg" data-n="' + esc(b.n) + '" data-d="' + esc(b.d) + '" aria-label="' + esc(b.n) + (on ? ' 획득' : ' 아직') + '"><span>' + (on ? b.ic : '❔') + '</span><small>' + b.n + '</small></button>'; }).join('') + '</div><p class="tiny" id="bdgmsg" aria-live="polite"></p></section>';
     P.me += '<section class="card"><h2>내 입자 꾸미기</h2><div class="wearbox"><div class="wearme">' + mascot(120) + '</div><div class="wearlist">' +
-      T.items.map(function (it) { var open = ri >= it.at; return '<button class="wr' + (S.wear[it.id] ? ' on' : '') + '" data-act="wear" data-id="' + it.id + '"' + (open ? '' : ' disabled') + ' aria-pressed="' + !!S.wear[it.id] + '">' + (open ? '' : '🔒 ') + it.name + (open ? '' : '<small>Lv.' + (it.at + 1) + '</small>') + '</button>'; }).join('') + '</div></div></section>';
+      T.items.map(function (it) { var open = ri >= it.at || isT(); return '<button class="wr' + (S.wear[it.id] ? ' on' : '') + '" data-act="wear" data-id="' + it.id + '"' + (open ? '' : ' disabled') + ' aria-pressed="' + !!S.wear[it.id] + '">' + (open ? '' : '🔒 ') + it.name + (open ? '' : '<small>Lv.' + (it.at + 1) + '</small>') + '</button>'; }).join('') + '</div></div></section>';
     P.me += '<section class="card"><h2>등급 경로</h2><ol class="rklist">' + T.ranks.map(function (x, j) { return '<li class="' + (j === ri ? 'cur' : j < ri ? 'past' : '') + '"><span class="lv">Lv.' + (j + 1) + '</span><b>' + x.name + '</b><span class="rq">' + x.min + ' 마일' + (x.st ? ' · 도장 ' + x.st + '개' : '') + '</span></li>'; }).join('') + '</ol><p class="tiny">마일은 빈칸 열기, 예측, 문제 풀이, 실험 활동, 도장으로 모아요. 높은 등급은 도장도 필요해요.</p></section>';
     if (CFG.COUPONS !== false) P.me += '<section class="card"><h2>선생님 쿠폰</h2><ul class="cpn">' + T.coupons.map(function (c) { var ok = couponOK(c.id); return '<li class="' + (ok ? 'on' : '') + '"><span>' + (ok ? '🎟️' : '🔒') + '</span><div><b>' + c.name + '</b><small>' + c.cond + '</small></div><em>' + (ok ? '선생님께 보여 주세요' : '아직') + '</em></li>'; }).join('') + '</ul></section>';
     if (S.exam) P.pass += '<section class="card"><h2>자격시험 기록</h2><p>최고 점수 <b>' + S.exam.best + ' / ' + S.exam.total + '</b>' + (S.exam.best >= 14 ? ' · 입자 가이드 자격 취득' : '') + '</p></section>';
@@ -610,6 +611,7 @@
     app.innerHTML = h + '</main>';
   }
   TEACH.tlogin = function () { var v = $('#tpin').value.trim(); if (v === String(CFG.TEACHER_PIN || '0000')) { sessionStorage.setItem('gastrip.pin', v); viewTeacher(); } else $('#tmsg').innerHTML = '<b class="warn">비밀번호가 달라요.</b>'; };
+  TEACH.tlogout = function () { sessionStorage.removeItem('gastrip.pin'); if (S.profile && S.profile.name === '선생님' && S.profile.cls === '0') { S.profile = null; save(); } route(); };
   TEACH.ttab = function (b) { TS.tab = b.dataset.t; viewTeacher(); };
   TEACH.tload = function () {
     TS.cls = $('#tcls').value.trim(); if (!TS.cls) return; TS.msg = '불러오는 중…'; viewTeacher();
