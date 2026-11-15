@@ -180,7 +180,7 @@ textarea { resize: vertical; line-height: 1.6; }
 .bdg { background: #F3F5FB; border: 2px dashed #9AA0BF; border-radius: 14px; padding: 8px 4px; min-height: 88px; display: flex; flex-direction: column; align-items: center; gap: 2px; } .bdg span { font-size: 32px; line-height: 1.2; filter: grayscale(1); opacity: .5; } .bdg small { font-size: 12px; font-weight: 700; color: var(--muted); line-height: 1.25; }
 .bdg.on { background: #FFFBEA; border: 3px solid var(--ink); } .bdg.on span { filter: none; opacity: 1; } .bdg.on small { color: var(--ink); }
 .wearbox { display: grid; grid-template-columns: 140px 1fr; gap: 14px; align-items: center; } .wearme { background: #E7EAFA; border-radius: 18px; padding: 10px; text-align: center; }
-.wearlist { display: flex; flex-wrap: wrap; gap: 8px; } .wr { min-height: 46px; border: 2px solid var(--ink); border-radius: 23px; background: #fff; padding: 0 14px; font-weight: 700; font-size: 15px; } .wr.on { background: var(--ink); color: #fff; } .wr:disabled { border-style: dashed; color: var(--muted); cursor: not-allowed; } .wr small { margin-left: 6px; font-weight: 400; }
+.wearlist { display: flex; flex-wrap: wrap; gap: 8px; } .wr { min-height: 46px; border: 2px solid var(--ink); border-radius: 23px; background: #fff; padding: 0 14px; font-weight: 700; font-size: 15px; } .wr.on { background: var(--ink); color: #fff; } .wr[data-lock="1"] { border-style: dashed; color: var(--muted); } .wr small { margin-left: 6px; font-weight: 400; }
 .rklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; } .rklist li { display: grid; grid-template-columns: 54px 1fr auto; gap: 8px; align-items: center; border: 2px solid var(--line); border-radius: 12px; padding: 6px 10px; color: var(--muted); } .rklist .lv { font-weight: 700; font-size: 14px; } .rklist b { font-family: var(--ft); font-weight: 400; font-size: 18px; } .rklist .rq { font-size: 13px; }
 .rklist li.past { color: var(--ink); background: #F3F5FB; } .rklist li.cur { color: var(--ink); border: 3px solid var(--ink); background: var(--yel); }
 .cpn { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; } .cpn li { display: grid; grid-template-columns: 40px 1fr auto; gap: 10px; align-items: center; border: 2px dashed #9AA0BF; border-radius: 14px; padding: 8px 12px; color: var(--muted); } .cpn span { font-size: 28px; } .cpn b { display: block; } .cpn small { font-size: 13px; } .cpn em { font-style: normal; font-size: 13px; font-weight: 700; }
@@ -196,3 +196,5 @@ textarea { resize: vertical; line-height: 1.6; }
 @media (max-width: 620px) { .htabs a { font-size: 13px; min-height: 56px; } }
 
 .tbar { background: #FFFBEA; border: 3px solid var(--ink); border-radius: 14px; padding: 8px 14px; margin: 12px 0 0; font-size: 15px; } .tbar b { background: var(--ink); color: #fff; border-radius: 8px; padding: 1px 8px; margin-right: 6px; }
+
+.wearme small { display: block; font-weight: 700; font-size: 13px; }

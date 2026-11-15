@@ -142,8 +142,9 @@
     crown: '<path d="M30 25l5-17 15 12 15-12 5 17z" fill="#FFD43B" stroke="#1B1F3B" stroke-width="4" stroke-linejoin="round"/>',
     flag: '<path d="M8 70V26" stroke="#1B1F3B" stroke-width="4" stroke-linecap="round"/><path d="M8 26l20 7-20 7z" fill="#0B7A4B" stroke="#1B1F3B" stroke-width="3" stroke-linejoin="round"/>'
   };
+  var PREV = null;
   function mascot(sz, plain) {
-    var w = plain ? {} : (S.wear || {}), ex = ''; ['scarf', 'headset', 'glasses', 'hat', 'crown', 'flag'].forEach(function (k) { if (w[k]) ex += WEAR[k]; });
+    var w = plain === 1 ? {} : JSON.parse(JSON.stringify(S.wear || {})), ex = ''; if (plain === 2 && PREV) w[PREV] = true; ['scarf', 'headset', 'glasses', 'hat', 'crown', 'flag'].forEach(function (k) { if (w[k]) ex += WEAR[k]; });
     return '<svg width="' + sz + '" height="' + sz + '" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="52" r="34" fill="#FFD43B" stroke="#1B1F3B" stroke-width="5"/><circle cx="39" cy="47" r="5" fill="#1B1F3B"/><circle cx="61" cy="47" r="5" fill="#1B1F3B"/><path d="M38 62q12 11 24 0" fill="none" stroke="#1B1F3B" stroke-width="5" stroke-linecap="round"/>' + (w.headset ? '' : '<path d="M88 44l10-2M86 30l8-6" stroke="#1B1F3B" stroke-width="4" stroke-linecap="round"/>') + ex + '</svg>';
   }
 
@@ -173,8 +174,8 @@
     var got = BADGES.filter(function (b) { return S.badges[b.id]; }).length;
     P.bag += '<section class="card"><h2>여행 가방 <span class="cnt">' + got + ' / ' + BADGES.length + '</span></h2><p class="tiny" style="margin:0 0 10px">여행지를 마치면 스티커를, 특별한 일을 해내면 배지를 얻어요. 눌러서 조건을 볼 수 있어요.</p><div class="bgrid">' +
       BADGES.map(function (b) { var on = S.badges[b.id]; return '<button class="bdg' + (on ? ' on' : '') + '" data-act="bdg" data-n="' + esc(b.n) + '" data-d="' + esc(b.d) + '" aria-label="' + esc(b.n) + (on ? ' 획득' : ' 아직') + '"><span>' + (on ? b.ic : '❔') + '</span><small>' + b.n + '</small></button>'; }).join('') + '</div><p class="tiny" id="bdgmsg" aria-live="polite"></p></section>';
-    P.me += '<section class="card"><h2>내 입자 꾸미기</h2><div class="wearbox"><div class="wearme">' + mascot(120) + '</div><div class="wearlist">' +
-      T.items.map(function (it) { var open = ri >= it.at || isT(); return '<button class="wr' + (S.wear[it.id] ? ' on' : '') + '" data-act="wear" data-id="' + it.id + '"' + (open ? '' : ' disabled') + ' aria-pressed="' + !!S.wear[it.id] + '">' + (open ? '' : '🔒 ') + it.name + (open ? '' : '<small>Lv.' + (it.at + 1) + '</small>') + '</button>'; }).join('') + '</div></div></section>';
+    P.me += '<section class="card"><h2>내 입자 꾸미기</h2><div class="wearbox"><div class="wearme">' + mascot(120, 2) + (PREV ? '<small>미리 보기</small>' : '') + '</div><div class="wearlist">' +
+      T.items.map(function (it) { var open = ri >= it.at || isT(); return '<button class="wr' + (S.wear[it.id] ? ' on' : '') + '" data-act="wear" data-id="' + it.id + '" data-lock="' + (open ? '' : '1') + '" aria-pressed="' + !!S.wear[it.id] + '">' + (open ? '' : '🔒 ') + it.name + (open ? '' : '<small>Lv.' + (it.at + 1) + '</small>') + '</button>'; }).join('') + '</div></div><p class="tiny">' + (PREV ? '잠긴 아이템을 미리 보고 있어요. 등급이 오르면 쓸 수 있어요.' : '🔒 잠긴 아이템도 누르면 어떤 모습인지 미리 볼 수 있어요.') + '</p></section>';
     P.me += '<section class="card"><h2>등급 경로</h2><ol class="rklist">' + T.ranks.map(function (x, j) { return '<li class="' + (j === ri ? 'cur' : j < ri ? 'past' : '') + '"><span class="lv">Lv.' + (j + 1) + '</span><b>' + x.name + '</b><span class="rq">' + x.min + ' 마일' + (x.st ? ' · 도장 ' + x.st + '개' : '') + '</span></li>'; }).join('') + '</ol><p class="tiny">마일은 빈칸 열기, 예측, 문제 풀이, 실험 활동, 도장으로 모아요. 높은 등급은 도장도 필요해요.</p></section>';
     if (CFG.COUPONS !== false) P.me += '<section class="card"><h2>선생님 쿠폰</h2><ul class="cpn">' + T.coupons.map(function (c) { var ok = couponOK(c.id); return '<li class="' + (ok ? 'on' : '') + '"><span>' + (ok ? '🎟️' : '🔒') + '</span><div><b>' + c.name + '</b><small>' + c.cond + '</small></div><em>' + (ok ? '선생님께 보여 주세요' : '아직') + '</em></li>'; }).join('') + '</ul></section>';
     if (S.exam) P.pass += '<section class="card"><h2>자격시험 기록</h2><p>최고 점수 <b>' + S.exam.best + ' / ' + S.exam.total + '</b>' + (S.exam.best >= 14 ? ' · 입자 가이드 자격 취득' : '') + '</p></section>';
@@ -552,7 +553,7 @@
     }
     else if (act === 'go') go(+b.dataset.d);
     else if (act === 'bdg') { $('#bdgmsg').innerHTML = '<b>' + b.dataset.n + '</b> — ' + b.dataset.d; }
-    else if (act === 'wear') { S.wear[b.dataset.id] = !S.wear[b.dataset.id]; save(); var y = window.scrollY; viewHome(); window.scrollTo(0, y); }
+    else if (act === 'wear') { if (b.dataset.lock) PREV = PREV === b.dataset.id ? null : b.dataset.id; else { PREV = null; S.wear[b.dataset.id] = !S.wear[b.dataset.id]; save(); } var y = window.scrollY; viewHome(); window.scrollTo(0, y); }
     else if (act === 'blank') { b.classList.add('on'); b.removeAttribute('data-act'); if (!document.querySelector('.blank:not(.on)')) { S.seen[pfx(d, i) + cur.sl.j] = 1; save(); mile('c.' + pfx(d, i) + cur.sl.j, 2); } check(); }
     else if (act === 'lab') { S.lab.press[b.dataset.k] = b.dataset.v; drawLab(d, st, i); check(); }
     else if (act === 'addrow') { readRows(st.kind); S.data[st.kind].rows.push(['', '']); save(); drawData(d, st, i); }
