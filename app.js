@@ -569,9 +569,9 @@
     requestAnimationFrame(tick);
   }
   STEP.pumpsim = function (d, st, i) {
-    return '<div class="simbox card"><canvas id="simc" width="640" height="320" role="img" aria-label="감압 용기와 손펌프의 입자 모형. 손잡이를 당기면 용기 속 입자 일부가 펌프 통으로 들어가고, 밀면 바깥으로 나간다."></canvas>' +
+    return '<div class="simbox card pumpbox"><div class="pv"><canvas id="simc" width="640" height="320" role="img" aria-label="감압 용기와 손펌프의 입자 모형. 손잡이를 당기면 용기 속 입자 일부가 펌프 통으로 들어가고, 밀면 바깥으로 나간다."></canvas></div><div class="pc">' +
       '<div class="btns"><button class="btn pri" id="ppull" data-act="ppull">⬅️ 손잡이 당기기</button><button class="btn pri" id="ppush" data-act="ppush" disabled>손잡이 밀기 ➡️</button><button class="btn sm" data-act="pauto">5번 자동으로</button><button class="btn sm" data-act="preset">처음으로</button></div>' +
-      '<p id="simst" class="simst" aria-live="polite"></p><div id="simg" class="gauges"></div><p class="tiny" style="margin:12px 0 4px"><b>펌프질 뒤 용기 속 입자 수</b></p><div id="phist" class="phist"></div></div>' +
+      '<p id="simst" class="simst" aria-live="polite"></p><div id="simg" class="gauges"></div><p class="tiny" style="margin:12px 0 4px"><b>펌프질 뒤 용기 속 입자 수</b></p><div id="phist" class="phist"></div></div></div>' +
       '<div class="qcol">' + ((S.lab.pump && S.lab.pump.n >= 3) || isT() ? itemsHTML(d, st, i, 'retry') : '<p class="hint" id="pumphint">펌프질을 3번 해 보면 질문이 나와요.</p>') + '</div>';
   };
   AFTER.pumpsim = function (d, st) { sim = new Pump($('#simc')); };
@@ -644,7 +644,7 @@
   }
   function sensorCard(D) {
     if (!navigator.bluetooth && !isT()) return '';
-    var vols = []; for (var v = 20; v >= 2; v -= 2) vols.push(v);
+    var vols = []; for (var v = 20; v >= 7; v -= 1) vols.push(v);
     return '<div class="card sens"><h3>📡 무선 압력 센서로 재기</h3><p class="tiny" style="margin:0 0 8px">사이언스샵 앱은 꺼 두세요. 센서를 켜고 연결한 뒤, 피스톤을 눈금에 맞추고 <b>숫자가 멈추면</b> 그 부피를 눌러요. 압력이 표에 들어가요.</p>' +
       '<div class="slive"><span id="slive">–</span><small>기압</small></div><p class="tiny" id="sstat" aria-live="polite"></p>' + (isT() ? '<p class="tiny" id="sraw"></p>' : '') +
       '<div class="btns"><button class="btn pri" id="sconn" data-act="sconn">📡 센서 연결</button><button class="btn sm" id="szero" data-act="szero" disabled>다시 1기압 맞추기</button></div><p class="tiny" style="margin:4px 0 0">연결할 때와 ‘다시 1기압 맞추기’를 누를 때는 주사기 피스톤을 건드리지 마세요.</p>' +
@@ -906,7 +906,7 @@
     else if (act === 'lock') {
       readRows(st.kind); var D2 = S.data[st.kind], rows = validRows(D2);
       if (rows.length < 4) { $('#dmsg').innerHTML = '<b class="warn">숫자로 된 측정값이 4개 이상 필요해요.</b> 지금은 ' + rows.length + '개예요.'; return; }
-      D2.locked = true; D2.placed = 0; D2.fails = 0; D2.missed = 0; D2.miss = null; D2.trendOK = 0; D2.trendPick = null; save(); if (!D2.sample && !D2.avg) sync(st.kind, { group: D2.group, unit: D2.unit, rows: rows, sample: false }); drawData(d, st, i); check();
+      D2.locked = true; D2.placed = 0; D2.fails = 0; D2.missed = 0; D2.miss = null; D2.trendOK = 0; D2.trendPick = null; save(); if (!D2.sample && !D2.avg) sync(st.kind, { group: D2.group, unit: D2.unit, rows: rows, sample: false }); drawData(d, st, i); check(); var gmv = $('#gmsg'); if (gmv && gmv.scrollIntoView) gmv.scrollIntoView({ block: 'start' });
     }
     else if (act === 'unlock') { if (!confirmBox(b, '한 번 더 누르면 표가 비워지고 처음부터 다시 측정해요')) return; var D3 = S.data[st.kind]; D3.locked = false; D3.placed = 0; D3.sample = false; D3.avg = 0; D3.rows = []; D3.gather = null; D3.trendOK = 0; D3.trendPick = null; D3.miss = null; save(); drawData(d, st, i); check(); }
     else if (act === 'trend') { var D5 = S.data[st.kind], rt = st.kind === 'boyle' ? 'inv' : 'upi'; D5.trendPick = b.dataset.v; if (b.dataset.v === rt) { D5.trendOK = 1; mile('trend.' + st.kind, 4); } save(); drawData(d, st, i); check(); var tb = document.querySelector('.trendopts'); if (tb && D5.trendOK) tb.closest('.card').scrollIntoView({ block: 'start' }); }
