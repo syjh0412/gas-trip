@@ -252,3 +252,8 @@ a.rk { text-decoration: none; }
 @media (prefers-reduced-motion: reduce) { .conf i, .celface, .celbox, .celeb { animation: none; } .conf { display: none; } }
 
 @media (max-width: 620px) { .who { flex-wrap: wrap; row-gap: 8px; } .who > div:nth-child(2) { flex: 1 1 150px; min-width: 0; } .who .mbox { margin-left: 0; } .who .mbox b { font-size: 22px; } .outbtn { margin-left: auto; } }
+
+/* ---------- 센서 ---------- */
+.sens { background: #EEF6FF; } .slive { display: flex; align-items: baseline; gap: 8px; font-family: var(--ft); } .slive span { font-size: 56px; line-height: 1.1; } .slive small { font-size: 22px; }
+.svols { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; } .svols .btn { padding: 0 4px; }
+@media (max-width: 620px) { .svols { grid-template-columns: repeat(4, 1fr); } }

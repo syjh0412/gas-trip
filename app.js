@@ -135,6 +135,7 @@
   var cur = { dest: null, step: 0 }, sim = null;
   function route() {
     if (sim) { sim.stop(); sim = null; }
+    if (SENS.dev && !/^#d\/T3\//.test(location.hash)) sDisconnect();
     MCQ = {};
     var h = location.hash.replace(/^#/, '').split('/');
     if (!S.profile && isT()) { S.profile = { cls: '0', num: '0', name: isG() ? '참관 선생님' : '선생님' }; save(); }
@@ -474,17 +475,70 @@
   }
   function validRows(D) { return D.rows.filter(function (r) { return r[0] !== '' && r[1] !== '' && isFinite(+r[0]) && isFinite(+r[1]); }).map(function (r) { return [+r[0], +r[1]]; }); }
   function units(kind, D) { return kind === 'boyle' ? ['mL', D.unit] : ['℃', D.unit]; }
+  /* ---------- 무선 압력 센서 (사이언스큐브 SC:PRES, 투명 직렬 통신) ---------- */
+  var SENS = { dev: null, rx: null, poll: null, recent: [], mode: null, buf: '', busy: false, state: 'off', kpa: null };
+  var SVC = '49535343-fe7d-4ae5-8fa9-9fafd205e455', STX = '49535343-1e4d-4bd9-ba61-23c647249616', SRX = '49535343-8841-43f4-a8d4-ecbe34729bb3';
+  function sFrame(ch) { var b = new Uint8Array(12); b[0] = ch.charCodeAt(0); b[11] = b[0]; var t = ''; for (var i = 0; i < 12; i++) t += String.fromCharCode(b[i]); return '{{' + btoa(t) + '}}'; }
+  function sSend(ch) { if (!SENS.rx || SENS.busy) return Promise.resolve(); SENS.busy = true; return SENS.rx.writeValue(new TextEncoder().encode(sFrame(ch))).catch(function () { }).then(function () { SENS.busy = false; }); }
+  function sToKpa(v) { if (SENS.mode == null) SENS.mode = v > 500 ? 'abs' : 'gauge'; return SENS.mode === 'abs' ? v / 10 : 101.325 + v / 10; }
+  function sNow() { var a = SENS.recent; if (!a.length) return null; return a.reduce(function (t, x) { return t + x[1]; }, 0) / a.length; }
+  function sPaint() {
+    var el = $('#slive'), stt = $('#sstat'); if (stt) stt.textContent = { off: '센서가 연결되지 않았어요.', wait: '센서를 고르는 중…', conn: '연결하는 중…', on: '연결됐어요. 주사기를 움직여 보세요.', err: SENS.err || '연결하지 못했어요.' }[SENS.state];
+    if (el) el.textContent = SENS.kpa == null ? '–' : SENS.kpa.toFixed(1);
+    var c = $('#sconn'); if (c) { c.textContent = SENS.state === 'on' ? '연결 끊기' : '📡 센서 연결'; c.dataset.act = SENS.state === 'on' ? 'sdisc' : 'sconn'; }
+    document.querySelectorAll('[data-act=srec]').forEach(function (b) { b.disabled = SENS.state !== 'on'; });
+  }
+  function sDisconnect() { clearInterval(SENS.poll); SENS.poll = null; try { if (SENS.dev && SENS.dev.gatt.connected) SENS.dev.gatt.disconnect(); } catch (e) { } SENS.dev = null; SENS.rx = null; SENS.state = 'off'; SENS.kpa = null; SENS.recent = []; SENS.mode = null; sPaint(); }
+  function sConnect() {
+    if (!navigator.bluetooth) { SENS.state = 'err'; SENS.err = '이 기기에서는 센서를 연결할 수 없어요. 갤럭시 태블릿의 크롬에서 열어 주세요.'; sPaint(); return; }
+    SENS.state = 'wait'; sPaint();
+    navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'SC:PRES' }, { namePrefix: 'SC:' }], optionalServices: [SVC] }).then(function (dev) {
+      SENS.dev = dev; SENS.state = 'conn'; sPaint();
+      dev.addEventListener('gattserverdisconnected', function () { if (SENS.dev === dev) { clearInterval(SENS.poll); SENS.state = 'err'; SENS.err = '연결이 끊겼어요. 다시 연결해 주세요.'; SENS.dev = null; SENS.rx = null; sPaint(); } });
+      return dev.gatt.connect();
+    }).then(function (g) { return g.getPrimaryService(SVC); }).then(function (svc) {
+      return Promise.all([svc.getCharacteristic(STX), svc.getCharacteristic(SRX)]);
+    }).then(function (cs) {
+      SENS.rx = cs[1];
+      cs[0].addEventListener('characteristicvaluechanged', function (ev) {
+        var dv = ev.target.value, t = ''; for (var i = 0; i < dv.byteLength; i++) t += String.fromCharCode(dv.getUint8(i));
+        SENS.buf += t; var re = /\{\{([A-Za-z0-9+\/=]{16})\}\}/g, m, last = 0;
+        while ((m = re.exec(SENS.buf))) {
+          last = re.lastIndex; var raw = atob(m[1]); if (raw.charAt(0) !== 't') continue;
+          var b = new Uint8Array(12); for (var k = 0; k < 12; k++) b[k] = raw.charCodeAt(k);
+          var v = new DataView(b.buffer).getFloat32(4, true), now = performance.now();
+          SENS.kpa = sToKpa(v); SENS.recent.push([now, SENS.kpa]); while (SENS.recent.length && SENS.recent[0][0] < now - 1000) SENS.recent.shift();
+          if (SENS.state !== 'on') { SENS.state = 'on'; }
+          sPaint();
+        }
+        SENS.buf = SENS.buf.slice(last); if (SENS.buf.length > 400) SENS.buf = SENS.buf.slice(-60);
+      });
+      return cs[0].startNotifications();
+    }).then(function () { return sSend('N'); }).then(function () { return new Promise(function (r) { setTimeout(r, 300); }); }).then(function () { return sSend('V'); }).then(function () {
+      SENS.poll = setInterval(function () { sSend('S'); }, 250);
+      setTimeout(function () { if (SENS.state === 'conn') { SENS.state = 'err'; SENS.err = '센서가 대답하지 않아요. 센서를 껐다 켜고 다시 연결해 보세요.'; sPaint(); } }, 4000);
+    }).catch(function (e) { if (e && e.name === 'NotFoundError') { SENS.state = 'off'; } else { SENS.state = 'err'; SENS.err = '연결하지 못했어요. (' + (e && e.message || e) + ')'; } sPaint(); });
+  }
+  function sensorCard(D) {
+    if (!navigator.bluetooth && !isT()) return '';
+    var vols = []; for (var v = 20; v >= 2; v -= 2) vols.push(v);
+    return '<div class="card sens"><h3>📡 무선 압력 센서로 재기</h3><p class="tiny" style="margin:0 0 8px">사이언스샵 앱은 꺼 두세요. 센서를 켜고 연결한 뒤, 피스톤을 눈금에 맞추고 <b>숫자가 멈추면</b> 그 부피를 눌러요. 압력이 표에 들어가요.</p>' +
+      '<div class="slive"><span id="slive">' + (SENS.kpa == null ? '–' : SENS.kpa.toFixed(1)) + '</span><small>kPa</small></div><p class="tiny" id="sstat" aria-live="polite"></p>' +
+      '<div class="btns"><button class="btn pri" id="sconn" data-act="sconn">📡 센서 연결</button></div>' +
+      '<p class="tiny" style="margin:10px 0 4px"><b>지금 부피를 눌러 기록하기</b></p><div class="svols">' + vols.map(function (x) { return '<button class="btn sm" data-act="srec" data-v="' + x + '"' + (SENS.state === 'on' ? '' : ' disabled') + '>' + x + ' mL</button>'; }).join('') + '</div></div>';
+  }
   STEP.data = function (d, st, i) { return '<div id="databox"></div>'; };
   AFTER.data = function (d, st, i) { drawData(d, st, i); };
   function drawData(d, st, i) {
     var kind = st.kind, K = KIND[kind], D = getData(kind), u = units(kind, D), h = '';
     if (!D.locked) {
+      if (kind === 'boyle') h += sensorCard(D);
       h += '<div class="card"><h3>① 측정값 입력</h3><div class="row3"><label>모둠<input id="dgroup" inputmode="numeric" maxlength="2" value="' + esc(D.group) + '" placeholder="예: 3"></label>' +
         (K.units ? '<label>압력 단위<select id="dunit">' + K.units.map(function (x) { return '<option' + (x === D.unit ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></label>' : '<label>부피 단위<input id="dunit" maxlength="8" value="' + esc(D.unit) + '"></label>') + '</div>' +
         '<table class="tbl in"><thead><tr><th>번호</th><th>' + K.cols[0] + ' (' + u[0] + ')</th><th>' + K.cols[1] + ' (' + u[1] + ')</th></tr></thead><tbody>' +
         D.rows.map(function (r, j) { return '<tr><td>' + (j + 1) + '</td><td><input inputmode="decimal" data-r="' + j + '" data-c="0" value="' + esc(r[0]) + '" aria-label="' + (j + 1) + '번 ' + K.cols[0] + '"></td><td><input inputmode="decimal" data-r="' + j + '" data-c="1" value="' + esc(r[1]) + '" aria-label="' + (j + 1) + '번 ' + K.cols[1] + '"></td></tr>'; }).join('') +
-        '</tbody></table><div class="btns"><button class="btn sm" data-act="addrow">줄 추가</button><button class="btn sm" data-act="sample">예시 자료로 연습</button><button class="btn pri" data-act="lock">표 완성 → 그래프 그리기</button></div><p class="tiny" id="dmsg">측정값을 4개 이상 입력해요. 실험을 못 했다면 예시 자료로 연습할 수 있어요.</p></div>';
-      $('#databox').innerHTML = h; return;
+        '</tbody></table><div class="btns"><button class="btn sm" data-act="addrow">줄 추가</button><button class="btn sm" data-act="sample">예시 자료로 연습</button><button class="btn pri" data-act="lock">표 완성 → 그래프 그리기</button></div><p class="tiny" id="dmsg">측정값을 4개 이상 입력해요.' + (kind === 'boyle' ? ' 센서로 재면 압력이 자동으로 들어가요.' : '') + ' 실험을 못 했다면 예시 자료로 연습할 수 있어요.</p></div>';
+      $('#databox').innerHTML = h; sPaint(); return;
     }
     var rows = validRows(D), xi = K.x, yi = K.y;
     h += '<div class="card"><h3>① 우리 모둠 자료' + (D.sample ? ' <span class="tag">예시 자료</span>' : '') + ' <button class="linkbtn" data-act="unlock">고치기</button></h3><table class="tbl"><thead><tr><th>번호</th><th>' + K.cols[0] + ' (' + u[0] + ')</th><th>' + K.cols[1] + ' (' + u[1] + ')</th>' + (kind === 'boyle' ? '<th>압력 × 부피</th>' : '') + '</tr></thead><tbody>' +
@@ -627,6 +681,16 @@
       check();
     }
     else if (act === 'go') go(+b.dataset.d);
+    else if (act === 'sconn') sConnect();
+    else if (act === 'sdisc') sDisconnect();
+    else if (act === 'srec') {
+      var pk = sNow(); if (pk == null) return; readRows('boyle'); var SD = S.data.boyle, vv = b.dataset.v, put = false;
+      SD.unit = 'kPa'; SD.sample = false;
+      for (var ri = 0; ri < SD.rows.length; ri++) if (SD.rows[ri][0] === vv) { SD.rows[ri][1] = pk.toFixed(1); put = true; break; }
+      if (!put) { for (ri = 0; ri < SD.rows.length; ri++) if (SD.rows[ri][0] === '' && SD.rows[ri][1] === '') { SD.rows[ri] = [vv, pk.toFixed(1)]; put = true; break; } }
+      if (!put) SD.rows.push([vv, pk.toFixed(1)]);
+      save(); drawData(d, st, i); chip(vv + ' mL → ' + pk.toFixed(1) + ' kPa');
+    }
     else if (act === 'celebok') { var ce = $('.celeb'); if (ce) ce.remove(); if (cur && !cur.dest && b.tagName !== 'A') viewHome(); }
     else if (act === 'eye') { var pi = b.previousElementSibling, sh = pi.classList.toggle('show'); b.textContent = sh ? '숨김' : '보기'; }
     else if (act === 'gteach') { $('#gtbox').hidden = !$('#gtbox').hidden; if (!$('#gtbox').hidden) $('#gpin').focus(); }
