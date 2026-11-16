@@ -391,7 +391,7 @@
     var rows = function () { return Object.keys(L.tried).map(function (k2) { var x = LABC[k2]; return '<tr' + (k2 === key ? ' class="cur"' : '') + '><td>' + (x[3] || '') + '</td><td>' + x[0] + '</td><td>' + x[1] + '</td><td><b>' + x[2] + '칸</b></td></tr>'; }).join(''); };
     $('#labview').innerHTML = '<div class="labgrid"><div>' + svg + '<div class="btns" style="justify-content:center"><button class="btn sm" data-act="labreplay">↻ 다시 놓기</button></div></div><table class="tbl"><caption>내 실험 기록</caption><thead><tr><th></th><th>물의 양</th><th>닿는 면</th><th>눌린 깊이</th></tr></thead><tbody id="labrows">' + rows() + '</tbody></table></div>';
     var n0 = Object.keys(L.tried).length;
-    $('#labq').innerHTML = n0 >= 3 ? itemsHTML(d, st, i, 'retry') : '<p class="hint">병을 놓아 보고, 조건을 바꿔 ' + (3 - n0) + '가지를 더 해 보면 질문이 나와요.</p>';
+    $('#labq').innerHTML = n0 >= 4 ? itemsHTML(d, st, i, 'retry') : '<p class="hint">병을 놓아 보고, 조건을 바꿔 ' + (4 - n0) + '가지를 더 해 보면 질문이 나와요.</p>';
     var my = ++labAnim, g = $('#lbot'), dent = $('#ldent'), lab = $('#ldep'), mark = $('#lmark'), D = c[2] * U, t0 = performance.now(), T1 = 450, T2 = 1100;
     var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     function setPos(drop, dep) { g.setAttribute('transform', 'translate(0,' + (10 + drop + dep) + ')'); dent.setAttribute('height', dep); lab.textContent = '눌린 깊이 ' + (Math.round(dep / U * 10) / 10) + '칸'; mark.setAttribute('y1', CY + dep); mark.setAttribute('y2', CY + dep); mark.setAttribute('opacity', dep > 0.5 ? 1 : 0); }
@@ -399,7 +399,7 @@
       setPos(0, D); lab.textContent = '눌린 깊이 ' + c[2] + '칸';
       var first = !L.tried[key]; L.tried[key] = 1; save();
       var tb = $('#labrows'); if (tb) tb.innerHTML = rows();
-      if (first) { var n = Object.keys(L.tried).length; $('#labq').innerHTML = n >= 3 ? itemsHTML(d, st, i, 'retry') : '<p class="hint">조건을 바꿔 ' + (3 - n) + '가지를 더 해 보면 질문이 나와요.</p>'; check(); }
+      if (first) { var n = Object.keys(L.tried).length; $('#labq').innerHTML = n >= 4 ? itemsHTML(d, st, i, 'retry') : '<p class="hint">조건을 바꿔 ' + (4 - n) + '가지를 더 해 보면 질문이 나와요.</p>'; check(); }
     }
     if (reduce) { finish(); return; }
     setPos(-70, 0);
@@ -412,8 +412,8 @@
       requestAnimationFrame(step);
     })(t0);
   }
-  DONE.presslab = function (d, st, i) { return Object.keys((S.lab.press || { tried: {} }).tried).length >= 3 && allRight(pfx(d, i), st.items); };
-  TODO.presslab = '세 가지 이상 실험하고 질문에 답해요';
+  DONE.presslab = function (d, st, i) { return Object.keys((S.lab.press || { tried: {} }).tried).length >= 4 && allRight(pfx(d, i), st.items); };
+  TODO.presslab = '네 가지 조건을 모두 실험하고 질문에 답해요';
 
   // 입자 모형
   STEP.sim = function (d, st, i) {
