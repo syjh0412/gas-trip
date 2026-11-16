@@ -370,21 +370,47 @@
     return '<div class="lab card"><div class="labctl"><div><span class="lb">물의 양 (누르는 힘)</span><div class="seg"><button data-act="lab" data-k="f" data-v="f">가득</button><button data-act="lab" data-k="f" data-v="h">반</button></div></div><div><span class="lb">세우는 방향 (닿는 넓이)</span><div class="seg"><button data-act="lab" data-k="a" data-v="w">넓은 바닥</button><button data-act="lab" data-k="a" data-v="n">좁은 뚜껑</button></div></div></div><div id="labview"></div></div><div id="labq"></div>';
   };
   AFTER.presslab = function (d, st, i) { drawLab(d, st, i); };
-  function drawLab(d, st, i) {
-    var L = S.lab.press, c = LABC[L.f + L.a]; L.tried[L.f + L.a] = 1; save();
+  var labAnim = 0;
+  function drawLab(d, st, i, replay) {
+    var L = S.lab.press, key = L.f + L.a, c = LABC[key];
     document.querySelectorAll('.seg button').forEach(function (b) { b.classList.toggle('on', L[b.dataset.k] === b.dataset.v); });
-    var dep = c[2] * 7, wide = L.a === 'w', full = L.f === 'f';
-    var bw = 70, bx = 160 - bw / 2, foot = wide ? 96 : 26, top = 40 + dep, bodyH = 120;
-    var svg = '<svg viewBox="0 0 320 250" class="labsvg" role="img" aria-label="점토 위의 페트병. 눌린 깊이 ' + c[2] + '칸"><rect x="30" y="180" width="260" height="56" rx="6" fill="#E9B48A" stroke="#1B1F3B" stroke-width="3"/>' +
-      '<rect x="' + (160 - foot / 2) + '" y="180" width="' + foot + '" height="' + dep + '" fill="#F3F5FB" stroke="#1B1F3B" stroke-width="2"/>' +
-      '<g transform="translate(0,' + dep + ')">' + (wide
-        ? '<rect x="112" y="170" width="96" height="10" fill="#fff" stroke="#1B1F3B" stroke-width="3"/><rect x="' + bx + '" y="50" width="' + bw + '" height="' + bodyH + '" rx="10" fill="#fff" stroke="#1B1F3B" stroke-width="3"/><rect x="' + (bx + 3) + '" y="' + (full ? 58 : 110) + '" width="' + (bw - 6) + '" height="' + (full ? 109 : 57) + '" rx="6" fill="#8EC5FF"/><rect x="147" y="34" width="26" height="18" rx="3" fill="#1B1F3B"/>'
-        : '<rect x="147" y="162" width="26" height="18" rx="3" fill="#1B1F3B"/><rect x="' + bx + '" y="42" width="' + bw + '" height="' + bodyH + '" rx="10" fill="#fff" stroke="#1B1F3B" stroke-width="3"/><rect x="' + (bx + 3) + '" y="' + (full ? 50 : 102) + '" width="' + (bw - 6) + '" height="' + (full ? 109 : 57) + '" rx="6" fill="#8EC5FF"/><rect x="112" y="32" width="96" height="10" fill="#fff" stroke="#1B1F3B" stroke-width="3"/>') + '</g>' +
-      '<text x="306" y="26" font-size="15" text-anchor="end">눌린 깊이 ' + c[2] + '칸</text></svg>';
-    var rows = Object.keys(L.tried).map(function (k) { var x = LABC[k]; return '<tr><td>' + (x[3] || '') + '</td><td>' + x[0] + '</td><td>' + x[1] + '</td><td><b>' + x[2] + '칸</b></td></tr>'; }).join('');
-    $('#labview').innerHTML = '<div class="labgrid">' + svg + '<table class="tbl"><caption>내 실험 기록</caption><thead><tr><th></th><th>물의 양</th><th>닿는 면</th><th>눌린 깊이</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
-    var n = Object.keys(L.tried).length;
-    $('#labq').innerHTML = n >= 3 ? itemsHTML(d, st, i, 'retry') : '<p class="hint">조건을 바꿔 ' + (3 - n) + '가지를 더 해 보면 질문이 나와요.</p>';
+    var U = 16, CY = 190, CX0 = 30, CX1 = 290, wide = L.a === 'w', full = L.f === 'f', foot = wide ? 96 : 26, bw = 70, bx = 160 - bw / 2, bodyH = 120;
+    var bottle = wide
+      ? '<rect x="112" y="170" width="96" height="10" fill="#fff" stroke="#1B1F3B" stroke-width="3"/><rect x="' + bx + '" y="50" width="' + bw + '" height="' + bodyH + '" rx="10" fill="#fff" stroke="#1B1F3B" stroke-width="3"/><rect x="' + (bx + 3) + '" y="' + (full ? 58 : 110) + '" width="' + (bw - 6) + '" height="' + (full ? 109 : 57) + '" rx="6" fill="#8EC5FF"/><rect x="147" y="34" width="26" height="18" rx="3" fill="#1B1F3B"/>'
+      : '<rect x="147" y="162" width="26" height="18" rx="3" fill="#1B1F3B"/><rect x="' + bx + '" y="42" width="' + bw + '" height="' + bodyH + '" rx="10" fill="#fff" stroke="#1B1F3B" stroke-width="3"/><rect x="' + (bx + 3) + '" y="' + (full ? 50 : 102) + '" width="' + (bw - 6) + '" height="' + (full ? 109 : 57) + '" rx="6" fill="#8EC5FF"/><rect x="112" y="32" width="96" height="10" fill="#fff" stroke="#1B1F3B" stroke-width="3"/>';
+    var lines = '', ruler = '';
+    for (var k = 1; k <= 4; k++) lines += '<line x1="' + (CX0 + 3) + '" x2="' + (CX1 - 3) + '" y1="' + (CY + k * U) + '" y2="' + (CY + k * U) + '" stroke="#8A5A3C" stroke-opacity="0.35" stroke-width="1.5" stroke-dasharray="4 4"/>';
+    for (var h = 0; h <= 8; h++) { var yy = CY + h * U / 2, mj = h % 2 === 0; ruler += '<line x1="302" x2="' + (mj ? 318 : 311) + '" y1="' + yy + '" y2="' + yy + '" stroke="#1B1F3B" stroke-width="' + (mj ? 2.2 : 1.4) + '"/>' + (mj ? '<text x="322" y="' + (yy + 5) + '" font-size="15" font-weight="700">' + (h / 2) + '</text>' : ''); }
+    var svg = '<svg viewBox="0 0 360 300" class="labsvg" role="img" aria-label="점토 위에 페트병을 놓는 모습. 눌린 깊이 ' + c[2] + '칸">' +
+      '<rect x="' + CX0 + '" y="' + CY + '" width="' + (CX1 - CX0) + '" height="84" rx="6" fill="#E9B48A" stroke="#1B1F3B" stroke-width="3"/>' +
+      '<rect id="ldent" x="' + (160 - foot / 2) + '" y="' + CY + '" width="' + foot + '" height="0" fill="#F3F5FB" stroke="#1B1F3B" stroke-width="2"/>' + lines +
+      '<line x1="302" x2="302" y1="' + CY + '" y2="' + (CY + 4 * U) + '" stroke="#1B1F3B" stroke-width="2"/>' + ruler + '<text x="300" y="' + (CY - 10) + '" font-size="13" fill="#555">깊이(칸)</text>' +
+      '<line id="lmark" x1="' + (160 + foot / 2) + '" x2="302" y1="' + CY + '" y2="' + CY + '" stroke="#D6336C" stroke-width="2" stroke-dasharray="5 4" opacity="0"/>' +
+      '<g id="lbot">' + bottle + '</g>' +
+      '<text id="ldep" x="350" y="24" font-size="16" font-weight="700" text-anchor="end">눌린 깊이 0칸</text></svg>';
+    var rows = function () { return Object.keys(L.tried).map(function (k2) { var x = LABC[k2]; return '<tr' + (k2 === key ? ' class="cur"' : '') + '><td>' + (x[3] || '') + '</td><td>' + x[0] + '</td><td>' + x[1] + '</td><td><b>' + x[2] + '칸</b></td></tr>'; }).join(''); };
+    $('#labview').innerHTML = '<div class="labgrid"><div>' + svg + '<div class="btns" style="justify-content:center"><button class="btn sm" data-act="labreplay">↻ 다시 놓기</button></div></div><table class="tbl"><caption>내 실험 기록</caption><thead><tr><th></th><th>물의 양</th><th>닿는 면</th><th>눌린 깊이</th></tr></thead><tbody id="labrows">' + rows() + '</tbody></table></div>';
+    var n0 = Object.keys(L.tried).length;
+    $('#labq').innerHTML = n0 >= 3 ? itemsHTML(d, st, i, 'retry') : '<p class="hint">병을 놓아 보고, 조건을 바꿔 ' + (3 - n0) + '가지를 더 해 보면 질문이 나와요.</p>';
+    var my = ++labAnim, g = $('#lbot'), dent = $('#ldent'), lab = $('#ldep'), mark = $('#lmark'), D = c[2] * U, t0 = performance.now(), T1 = 450, T2 = 1100;
+    var reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function setPos(drop, dep) { g.setAttribute('transform', 'translate(0,' + (10 + drop + dep) + ')'); dent.setAttribute('height', dep); lab.textContent = '눌린 깊이 ' + (Math.round(dep / U * 10) / 10) + '칸'; mark.setAttribute('y1', CY + dep); mark.setAttribute('y2', CY + dep); mark.setAttribute('opacity', dep > 0.5 ? 1 : 0); }
+    function finish() {
+      setPos(0, D); lab.textContent = '눌린 깊이 ' + c[2] + '칸';
+      var first = !L.tried[key]; L.tried[key] = 1; save();
+      var tb = $('#labrows'); if (tb) tb.innerHTML = rows();
+      if (first) { var n = Object.keys(L.tried).length; $('#labq').innerHTML = n >= 3 ? itemsHTML(d, st, i, 'retry') : '<p class="hint">조건을 바꿔 ' + (3 - n) + '가지를 더 해 보면 질문이 나와요.</p>'; check(); }
+    }
+    if (reduce) { finish(); return; }
+    setPos(-70, 0);
+    (function step(now) {
+      if (my !== labAnim || !document.body.contains(g)) return;
+      var t = now - t0;
+      if (t < T1) { var q = t / T1; setPos(-70 * (1 - q * q), 0); }
+      else if (t < T1 + T2) { var r = (t - T1) / T2, ez = 1 - Math.pow(1 - r, 3); setPos(0, D * ez); }
+      else { finish(); return; }
+      requestAnimationFrame(step);
+    })(t0);
   }
   DONE.presslab = function (d, st, i) { return Object.keys((S.lab.press || { tried: {} }).tried).length >= 3 && allRight(pfx(d, i), st.items); };
   TODO.presslab = '세 가지 이상 실험하고 질문에 답해요';
@@ -934,6 +960,7 @@
     else if (act === 'wear') { if (b.dataset.lock) PREV = PREV === b.dataset.id ? null : b.dataset.id; else { PREV = null; S.wear[b.dataset.id] = !S.wear[b.dataset.id]; save(); } var y = window.scrollY; viewHome(); window.scrollTo(0, y); }
     else if (act === 'blank') { b.classList.add('on'); b.removeAttribute('data-act'); if (!document.querySelector('.blank:not(.on)')) { S.seen[pfx(d, i) + cur.sl.j] = 1; save(); mile('c.' + pfx(d, i) + cur.sl.j, 2); } check(); }
     else if (act === 'lab') { S.lab.press[b.dataset.k] = b.dataset.v; drawLab(d, st, i); check(); }
+    else if (act === 'labreplay') drawLab(d, st, i);
     else if (act === 'addrow') { readRows(st.kind); S.data[st.kind].rows.push(['', '']); save(); drawData(d, st, i); }
     else if (act === 'sample') { var K = KIND[st.kind], D = getData(st.kind); D.rows = K.sample.map(function (r) { return [String(r[0]), String(r[1])]; }); D.unit = K.sampleUnit; D.sample = true; save(); drawData(d, st, i); }
     else if (act === 'lock') {

@@ -287,3 +287,4 @@ a.rk { text-decoration: none; }
   .slide.y-data .graph { max-height: calc(100vh - 250px); width: auto; max-width: 100%; margin: 0 auto; }
 }
 .turn { background: #EAF6EE; border: 2px solid #2E9E5B; border-radius: 10px; padding: 8px 12px; font-size: 14px; margin: 10px 0 0; }
+.labgrid tr.cur td { background: #FFF6CC; }
