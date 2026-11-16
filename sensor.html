@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>센서 연결 시험 · 입자 여권</title>
+<title>센서 연결 시험 2 · 입자 여권</title>
 <style>
 body { font-family: 'Noto Sans KR', 'Malgun Gothic', sans-serif; margin: 0; padding: 16px; background: #F3F5FB; color: #1B1F3B; line-height: 1.6; font-size: 17px; }
 main { max-width: 760px; margin: 0 auto; }
@@ -21,24 +21,24 @@ small, .small { font-size: 14px; color: #555B80; } ol { padding-left: 22px; marg
 </head>
 <body>
 <main>
-<h1>센서 연결 시험</h1>
-<p class="small">무선 압력 센서가 웹앱과 직접 연결되는지 알아보는 시험 페이지입니다. 갤럭시의 <b>크롬</b>에서 열어 주세요.</p>
+<h1>센서 연결 시험 2</h1>
+<p class="small">사이언스샵 앱이 센서와 주고받는 방식을 알아내서 그대로 흉내 내는 시험 페이지입니다. 갤럭시의 <b>크롬</b>에서 열고, <b>사이언스샵 앱은 꼭 종료</b>한 뒤 하세요.</p>
 
 <div class="card">
   <h2>1. 연결</h2>
-  <ol><li>사이언스샵 소프트웨어와 nRF Connect를 모두 종료합니다.</li><li>센서를 켜고 아래 버튼을 누른 뒤, 목록에서 센서를 고릅니다.</li></ol>
   <div class="btns"><button class="pri" id="connect">센서 연결</button><button id="disconnect" disabled>연결 끊기</button></div>
   <p id="status" role="status">아직 연결하지 않았어요.</p>
   <p class="small" id="info"></p>
 </div>
 
 <div class="card">
-  <h2>2. 값이 들어오는지 보기</h2>
-  <p class="small">연결되면 센서가 보내는 자료가 아래에 쌓입니다. 주사기 피스톤을 움직이기 전에 해당 버튼을 눌러 표시를 남겨 주세요.</p>
-  <p>받은 묶음 수: <b id="count">0</b> · 마지막 자료:</p>
-  <p id="big">–</p>
-  <div class="btns"><button class="yel" data-mark="그대로 둠 (약 1기압)">표시: 그대로 둠</button><button class="yel" data-mark="피스톤을 밀고 있음 (압력 큼)">표시: 밀고 있음</button><button class="yel" data-mark="피스톤을 당기고 있음 (압력 작음)">표시: 당기고 있음</button></div>
-  <label class="small" style="display:block;margin-top:10px">사이언스샵에서 본 실제 압력값을 알면 적고 표시하기 (예: 101.3 kPa)<input id="note" placeholder="예: 150 kPa"></label>
+  <h2>2. 실시간 값</h2>
+  <p class="small">센서가 보내 주는 숫자를 그대로 보여 줍니다. 아직 단위를 몰라서 ‘센서 값’이라고만 표시해요.</p>
+  <p style="font-size:15px;margin:0">센서 값</p>
+  <p id="big" style="font-size:48px;margin:0">–</p>
+  <p class="small">받은 횟수: <b id="count">0</b> · 초당 약 4번 물어봅니다.</p>
+  <div class="btns"><button class="yel" data-mark="그대로 둠 (주사기 30 mL, 약 1기압)">표시: 그대로 둠</button><button class="yel" data-mark="피스톤을 밀고 있음">표시: 밀고 있음</button><button class="yel" data-mark="피스톤을 당기고 있음">표시: 당기고 있음</button></div>
+  <label class="small" style="display:block;margin-top:10px">사이언스샵 앱에서 본 값을 알면 적고 표시하기 (예: 그대로 둘 때 101.3 kPa)<input id="note" placeholder="예: 그대로 101.3 kPa / 20 mL로 밀었을 때 150 kPa"></label>
   <div class="btns"><button data-marknote>적은 값으로 표시</button></div>
 </div>
 
@@ -47,62 +47,72 @@ small, .small { font-size: 14px; color: #555B80; } ol { padding-left: 22px; marg
   <div id="log" aria-label="받은 자료 기록"></div>
   <div class="btns"><button class="pri" id="copy">기록 복사</button><button id="save">파일로 저장</button><button id="clear">지우기</button></div>
   <p class="small" id="copymsg">복사한 내용을 Claude에게 그대로 붙여 넣어 주세요.</p>
-  <details><summary>값이 하나도 안 들어올 때만 (센서에 글자 보내기)</summary>
-    <p class="small">안내를 받은 경우에만 사용하세요. 센서에 시작 명령을 보내 봅니다.</p>
-    <input id="tx" placeholder="보낼 글자 (예: S) 또는 16진수 (예: 0x01 0x0D)">
-    <div class="btns"><button id="send" disabled>보내기</button></div>
-  </details>
 </div>
 </main>
 <script>
 (function () {
   var SVC = '49535343-fe7d-4ae5-8fa9-9fafd205e455', TX = '49535343-1e4d-4bd9-ba61-23c647249616', RX = '49535343-8841-43f4-a8d4-ecbe34729bb3';
-  var $ = function (id) { return document.getElementById(id); }, dev = null, rx = null, lines = [], n = 0, t0 = 0;
-  function log(s) { lines.push(s); if (lines.length > 4000) lines.shift(); var el = $('log'); el.textContent = lines.slice(-300).join('\n'); el.scrollTop = el.scrollHeight; }
+  var $ = function (id) { return document.getElementById(id); }, dev = null, rx = null, lines = [], n = 0, t0 = 0, buf = '', poll = null, tail = '', gotReply = false, busy = false;
+  function log(s) { lines.push(s); if (lines.length > 6000) lines.shift(); var el = $('log'); el.textContent = lines.slice(-300).join('\n'); el.scrollTop = el.scrollHeight; }
   function st(msg, cls) { $('status').textContent = msg; $('status').className = cls || ''; }
-  function hex(dv) { var a = []; for (var i = 0; i < dv.byteLength; i++) a.push(('0' + dv.getUint8(i).toString(16)).slice(-2)); return a.join(' '); }
-  function ascii(dv) { var s = ''; for (var i = 0; i < dv.byteLength; i++) { var c = dv.getUint8(i); s += c >= 32 && c < 127 ? String.fromCharCode(c) : c === 13 ? '\\r' : c === 10 ? '\\n' : '.'; } return s; }
   function ts() { return ((performance.now() - t0) / 1000).toFixed(2).padStart(7, ' '); }
+  function hex(a) { return Array.prototype.map.call(a, function (x) { return ('0' + x.toString(16)).slice(-2); }).join(' '); }
+  /* 명령 한 개 = 12바이트 [글자, 자료 10바이트, 합계] → base64 → "-{{…}}" */
+  function frame(ch, data) {
+    var b = new Uint8Array(12); b[0] = ch.charCodeAt(0); (data || []).forEach(function (v, i) { b[1 + i] = v; });
+    var sum = 0; for (var i = 0; i < 11; i++) sum += b[i]; b[11] = sum & 255;
+    var s = ''; for (var j = 0; j < 12; j++) s += String.fromCharCode(b[j]);
+    return '-{{' + btoa(s) + '}}';
+  }
+  async function send(ch, data, quiet) {
+    if (!rx || busy) return; busy = true;
+    try { await rx.writeValue(new TextEncoder().encode(frame(ch, data) + tail)); if (!quiet) log(ts() + ' >>> ' + ch + (data ? ' ' + hex(data) : '')); }
+    catch (e) { log(ts() + ' 보내기 실패: ' + e.message); }
+    busy = false;
+  }
+  function onFrame(b64) {
+    var raw = atob(b64), b = new Uint8Array(raw.length); for (var i = 0; i < raw.length; i++) b[i] = raw.charCodeAt(i);
+    var sum = 0; for (var k = 0; k < 11; k++) sum += b[k]; var ok = (sum & 255) === b[11];
+    var ch = String.fromCharCode(b[0]), dv = new DataView(b.buffer), txt = ch + ' [' + hex(b) + ']' + (ok ? '' : ' (합계 틀림)');
+    gotReply = true; n++; $('count').textContent = n;
+    if (ch === 't') { var v = dv.getFloat32(4, true); $('big').textContent = v.toFixed(2); txt += '  값=' + v.toFixed(3); }
+    else if (ch === 'm') { var v2 = dv.getFloat32(2, true); $('big').textContent = v2.toFixed(2); txt += '  값=' + v2.toFixed(3); }
+    else if (ch === 'n' || ch === 'v') { var s = ''; for (var q = 2; q < 11; q++) if (b[q]) s += String.fromCharCode(b[q]); txt += '  ' + s; $('info').textContent += (ch === 'n' ? '일련번호 ' : ' · 펌웨어 ') + s; }
+    log(ts() + ' <<< ' + txt);
+  }
   if (!navigator.bluetooth) { st('이 브라우저는 블루투스 연결을 지원하지 않아요. 갤럭시의 크롬에서 열어 주세요.', 'no'); $('connect').disabled = true; }
   $('connect').onclick = async function () {
     try {
       st('센서를 고르는 중…');
-      dev = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [SVC, 'device_information', 'battery_service'] });
-      dev.addEventListener('gattserverdisconnected', function () { st('연결이 끊겼어요.', 'no'); $('disconnect').disabled = true; $('send').disabled = true; log('--- 연결 끊김 ---'); });
+      dev = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'SC:' }], optionalServices: [SVC] }).catch(function () { return navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [SVC] }); });
+      dev.addEventListener('gattserverdisconnected', function () { clearInterval(poll); st('연결이 끊겼어요.', 'no'); $('disconnect').disabled = true; log('--- 연결 끊김 ---'); });
       st('연결하는 중… (' + (dev.name || '이름 없음') + ')');
-      var g = await dev.gatt.connect(); t0 = performance.now();
-      log('=== 기기 이름: ' + (dev.name || '(없음)') + ' / ' + new Date().toLocaleString() + ' / ' + navigator.userAgent + ' ===');
-      try {
-        var di = await g.getPrimaryService('device_information'), cs = await di.getCharacteristics(), info = [];
-        for (var i = 0; i < cs.length; i++) { try { var v = await cs[i].readValue(); info.push(cs[i].uuid.slice(4, 8) + '=' + ascii(v)); } catch (e) { } }
-        log('기기 정보: ' + info.join(' | ')); $('info').textContent = '기기 정보: ' + info.join(' | ');
-      } catch (e) { log('기기 정보 읽기 실패: ' + e.message); }
-      var svc = await g.getPrimaryService(SVC), tx = await svc.getCharacteristic(TX);
-      try { rx = await svc.getCharacteristic(RX); $('send').disabled = false; } catch (e) { log('쓰기 칸 없음'); }
+      var g = await dev.gatt.connect(); t0 = performance.now(); $('info').textContent = (dev.name || '') + ' · ';
+      log('=== 시험 2 / 기기 이름: ' + (dev.name || '(없음)') + ' / ' + new Date().toLocaleString() + ' ===');
+      var svc = await g.getPrimaryService(SVC), tx = await svc.getCharacteristic(TX); rx = await svc.getCharacteristic(RX);
       tx.addEventListener('characteristicvaluechanged', function (ev) {
-        var dv = ev.target.value; n++; $('count').textContent = n;
-        var a = ascii(dv); $('big').textContent = a.replace(/[.\\rn]/g, '').length >= 3 ? a : hex(dv);
-        log(ts() + ' [' + dv.byteLength + '] ' + hex(dv) + '  | ' + a);
+        var dv = ev.target.value, s = ''; for (var i = 0; i < dv.byteLength; i++) s += String.fromCharCode(dv.getUint8(i));
+        buf += s; var m; var re = /\*\{\{([A-Za-z0-9+\/=]+)\}\}/g, last = 0;
+        while ((m = re.exec(buf))) { onFrame(m[1]); last = re.lastIndex; }
+        buf = buf.slice(last); if (buf.length > 400) buf = buf.slice(-100);
       });
-      await tx.startNotifications();
-      st('연결됐어요. 자료를 기다리는 중…', 'ok'); $('disconnect').disabled = false; log('--- 알림 켬 ---');
-      setTimeout(function () { if (!n) { st('연결은 됐지만 5초 동안 자료가 안 왔어요. 이 사실을 알려 주세요.', 'no'); log('--- 5초 동안 자료 없음 ---'); } else st('연결됐고 자료가 들어오고 있어요.', 'ok'); }, 5000);
+      await tx.startNotifications(); log('--- 알림 켬 ---');
+      st('연결됐어요. 센서에 인사하는 중…', 'ok'); $('disconnect').disabled = false;
+      await send('N'); await new Promise(function (r) { setTimeout(r, 400); });
+      if (!gotReply) { tail = '\r\n'; log('--- 대답이 없어 줄바꿈을 붙여 다시 보냄 ---'); await send('N'); await new Promise(function (r) { setTimeout(r, 600); }); }
+      if (!gotReply) { st('센서가 대답하지 않아요. 기록을 복사해서 보내 주세요.', 'no'); return; }
+      await send('V'); await new Promise(function (r) { setTimeout(r, 300); });
+      st('연결됐고 값을 받고 있어요. 주사기를 움직여 보세요.', 'ok');
+      var k = 0; poll = setInterval(function () { send('S', null, k++ > 3); }, 250);
     } catch (e) { st('연결하지 못했어요: ' + e.message, 'no'); log('오류: ' + e.name + ' ' + e.message); }
   };
-  $('disconnect').onclick = function () { if (dev && dev.gatt.connected) dev.gatt.disconnect(); };
+  $('disconnect').onclick = function () { clearInterval(poll); if (dev && dev.gatt.connected) dev.gatt.disconnect(); };
   document.addEventListener('click', function (e) {
-    var b = e.target.closest('[data-mark]'); if (b) log('##### ' + ts() + ' 표시: ' + b.dataset.mark + ' #####');
-    if (e.target.closest('[data-marknote]')) log('##### ' + ts() + ' 실제 값: ' + ($('note').value || '(비어 있음)') + ' #####');
+    var b = e.target.closest('[data-mark]'); if (b) log('##### ' + ts() + ' 표시: ' + b.dataset.mark + ' (화면 값 ' + $('big').textContent + ') #####');
+    if (e.target.closest('[data-marknote]')) log('##### ' + ts() + ' 앱에서 본 값: ' + ($('note').value || '(비어 있음)') + ' (화면 값 ' + $('big').textContent + ') #####');
   });
   $('copy').onclick = function () { var t = lines.join('\n'); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { $('copymsg').textContent = '복사했어요 (' + lines.length + '줄). Claude에게 붙여 넣어 주세요.'; }).catch(function () { $('copymsg').textContent = '복사가 안 되면 ‘파일로 저장’을 눌러 파일을 보내 주세요.'; }); };
-  $('save').onclick = function () { var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/plain' })); a.download = 'sensor-log.txt'; a.click(); };
-  $('clear').onclick = function () { lines = []; n = 0; $('count').textContent = 0; $('log').textContent = ''; $('big').textContent = '–'; };
-  $('send').onclick = async function () {
-    var s = $('tx').value.trim(), bytes; if (!s || !rx) return;
-    if (/^(0x[0-9a-f]{1,2}\s*)+$/i.test(s)) bytes = new Uint8Array(s.split(/\s+/).map(function (x) { return parseInt(x, 16); })); else bytes = new TextEncoder().encode(s.replace(/\\r/g, '\r').replace(/\\n/g, '\n'));
-    try { await rx.writeValue(bytes); log('>>> 보냄: ' + s); } catch (e) { log('보내기 실패: ' + e.message); }
-  };
+  $('save').onclick = function () { var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/plain' })); a.download = 'sensor-log2.txt'; a.click(); };
+  $('clear').onclick = function () { lines = []; n = 0; $('count').textContent = 0; $('log').textContent = ''; };
 })();
 </script>
-</body>
-</html>
