@@ -883,8 +883,17 @@
   var EX = null;
   STEP.exam = function () { return '<div id="exam"></div>'; };
   AFTER.exam = function () { drawExam(); };
+  function examAll() {
+    return '<div class="card"><h3>🧑‍🏫 전체 문항 보기 · 정답과 풀이</h3><p class="tiny">선생님 화면에서만 보여요. 학생은 한 문제씩 풀어요.</p></div>' + T.exam.map(function (id, n) {
+      var it = T.pool[id];
+      return '<div class="mcq"><p class="q"><span class="qn">' + (n + 1) + '</span>' + esc(it.q).replace(/\n/g, '<br>') + ' <span class="tag">' + T.stds[it.std].short + '</span></p><div class="opts' + (it.opts[0].fig ? ' figs' : '') + '">' +
+        it.opts.map(function (o, i) { return '<button class="opt' + (i === it.a ? ' ok' : '') + '" disabled>' + (o.fig ? figSVG(o.fig, it.fx, it.fy) : '<span class="on">' + '①②③④⑤'[i] + '</span>' + esc(o)) + '</button>'; }).join('') +
+        '</div><p class="fb ok"><b>정답 ' + '①②③④⑤'[it.a] + '. </b>' + esc(it.ex) + '</p></div>';
+    }).join('');
+  }
   function drawExam() {
     var el = $('#exam'); if (!el) return; var h = '';
+    if (!EX && isT() && sessionStorage.getItem('gastrip.tpin')) { el.innerHTML = examAll(); return; }
     if (!EX) {
       h = '<div class="card"><h3>시험 안내</h3><ul class="plain"><li>모두 20문항이에요. 한 문제씩 풀고 바로 풀이를 확인해요.</li><li>14문항 이상 맞히면 입자 가이드 자격을 얻어요.</li><li>끝나면 틀린 문제만 다시 풀 수 있어요.</li></ul>' + (S.exam ? '<p>지난 기록: <b>' + S.exam.last + ' / ' + S.exam.total + '</b> (최고 ' + S.exam.best + ')</p>' : '') + '<div class="btns"><button class="btn pri" data-act="exstart">시험 시작</button>' + (S.exam && S.exam.wrong.length ? '<button class="btn" data-act="exwrong">틀린 ' + S.exam.wrong.length + '문제 다시 풀기</button>' : '') + '</div></div>';
     } else if (EX.i < EX.ids.length) {
