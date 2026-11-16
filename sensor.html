@@ -57,12 +57,12 @@ small, .small { font-size: 14px; color: #555B80; } ol { padding-left: 22px; marg
   function st(msg, cls) { $('status').textContent = msg; $('status').className = cls || ''; }
   function ts() { return ((performance.now() - t0) / 1000).toFixed(2).padStart(7, ' '); }
   function hex(a) { return Array.prototype.map.call(a, function (x) { return ('0' + x.toString(16)).slice(-2); }).join(' '); }
-  /* 명령 한 개 = 12바이트 [글자, 자료 10바이트, 합계] → base64 → "-{{…}}" */
+  /* 명령 한 개 = 12바이트 [글자, 자료 10바이트, 합계] → base64 → "{{…}}" (모두 20바이트) */
   function frame(ch, data) {
     var b = new Uint8Array(12); b[0] = ch.charCodeAt(0); (data || []).forEach(function (v, i) { b[1 + i] = v; });
     var sum = 0; for (var i = 0; i < 11; i++) sum += b[i]; b[11] = sum & 255;
     var s = ''; for (var j = 0; j < 12; j++) s += String.fromCharCode(b[j]);
-    return '-{{' + btoa(s) + '}}';
+    return '{{' + btoa(s) + '}}';
   }
   async function send(ch, data, quiet) {
     if (!rx || busy) return; busy = true;
@@ -92,14 +92,14 @@ small, .small { font-size: 14px; color: #555B80; } ol { padding-left: 22px; marg
       var svc = await g.getPrimaryService(SVC), tx = await svc.getCharacteristic(TX); rx = await svc.getCharacteristic(RX);
       tx.addEventListener('characteristicvaluechanged', function (ev) {
         var dv = ev.target.value, s = ''; for (var i = 0; i < dv.byteLength; i++) s += String.fromCharCode(dv.getUint8(i));
-        buf += s; var m; var re = /\*\{\{([A-Za-z0-9+\/=]+)\}\}/g, last = 0;
+        buf += s; var m; var re = /\{\{([A-Za-z0-9+\/=]{16})\}\}/g, last = 0;
         while ((m = re.exec(buf))) { onFrame(m[1]); last = re.lastIndex; }
         buf = buf.slice(last); if (buf.length > 400) buf = buf.slice(-100);
       });
       await tx.startNotifications(); log('--- 알림 켬 ---');
       st('연결됐어요. 센서에 인사하는 중…', 'ok'); $('disconnect').disabled = false;
       await send('N'); await new Promise(function (r) { setTimeout(r, 400); });
-      if (!gotReply) { tail = '\r\n'; log('--- 대답이 없어 줄바꿈을 붙여 다시 보냄 ---'); await send('N'); await new Promise(function (r) { setTimeout(r, 600); }); }
+      if (!gotReply) { tail = ''; log('--- 대답이 없어 줄바꿈을 붙여 다시 보냄 ---'); await send('N'); await new Promise(function (r) { setTimeout(r, 600); }); }
       if (!gotReply) { st('센서가 대답하지 않아요. 기록을 복사해서 보내 주세요.', 'no'); return; }
       await send('V'); await new Promise(function (r) { setTimeout(r, 300); });
       st('연결됐고 값을 받고 있어요. 주사기를 움직여 보세요.', 'ok');
