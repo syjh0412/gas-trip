@@ -306,7 +306,7 @@
       var c = st.cards[sl.j], seen = S.seen[pfx(d, sl.si) + sl.j];
       body = '<p class="s-kicker">' + kick + '</p><article class="bigcard"><h2 class="s-title">' + c.h + '</h2><p class="s-body">' + (seen ? c.b : c.b.replace(/<b>/g, '<b class="blank" data-act="blank" role="button" tabindex="0">')) + '</p></article>';
     }
-    else if (sl.k === 'ex') body = '<p class="s-kicker">' + st.title + ' · 생활 속 예</p>' + exHTML(st);
+    else if (sl.k === 'ex') body = exSimHTML(d, st, sl.si);
     else if (sl.k === 'expa') body = expaHTML(d, st, sl.si);
     else if (sl.k === 'expb') body = expbHTML(d, st, sl.si);
     else if (sl.k === 'labs') body = '<p class="s-kicker">' + st.title + ' · 오늘 수업에서 하는 실험</p>' + labsHTML(st);
@@ -321,6 +321,7 @@
       '<div class="stg-body" id="stgbody"><div class="slide t-' + sl.k + (st ? ' y-' + st.type : '') + '">' + body + '</div></div>' +
       '<div class="stg-nav"><button class="btn prev" data-act="go" data-d="-1"' + (k === 0 ? ' disabled' : '') + '>◀ 이전</button><span class="hintkey" id="hintkey"></span><button class="btn pri next" data-act="go" data-d="1" id="next">' + (k === slides.length - 1 ? '여권으로 🏁' : '다음 ▶') + '</button></div></div>';
     if (sl.k === 'whole' && AFTER[st.type]) AFTER[st.type](d, st, sl.si);
+    if (sl.k === 'ex') exSimInit(d, st, sl.si);
     var be = $('#stgbody'), tx = null, ty = null;
     be.addEventListener('touchstart', function (e) { tx = e.touches[0].clientX; ty = e.touches[0].clientY; }, { passive: true });
     be.addEventListener('touchend', function (e) { if (tx === null) return; var dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty; if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.6 && !e.target.closest('textarea,input,select,canvas,svg,.tbl')) go(dx < 0 ? 1 : -1); tx = null; }, { passive: true });
@@ -363,6 +364,86 @@
   TODO.predict = '질문에 모두 답해 보세요';
 
   // 안내 카드
+
+  // 생활 속 예 시뮬레이션
+  var EXSIM = {
+    '높은 산의 과자 봉지': { v: 'P', lo: 1, hi: 0.7, kind: 'bag', ctl: '오르는 높이', a: '산 아래', b: '산꼭대기', obj: '봉지 속 기체' },
+    '잠수부의 공기 방울': { v: 'P', lo: 3, hi: 1, kind: 'bubble', ctl: '방울의 위치', a: '깊은 물속', b: '수면 근처', obj: '방울 속 기체' },
+    '비행기에서 먹먹한 귀': { v: 'P', lo: 1, hi: 0.8, kind: 'ear', ctl: '비행기 높이', a: '땅', b: '하늘 높이', obj: '고막 안쪽 공기' },
+    '점핑 볼': { v: 'P', lo: 1, hi: 1.6, kind: 'ball', ctl: '올라타 누르는 정도', a: '그냥 둠', b: '꾹 누름', obj: '공 속 기체' },
+    '운동화 공기 주머니': { v: 'P', lo: 1, hi: 2, kind: 'shoe', ctl: '발로 누르는 정도', a: '발을 뗌', b: '땅을 디딤', obj: '주머니 속 기체' },
+    '압축 천연가스(CNG) 버스': { v: 'P', lo: 1, hi: 8, kind: 'cng', ctl: '가하는 압력', a: '보통', b: '아주 큰 압력', obj: '천연가스' },
+    '냉장고 속 페트병': { v: 'T', lo: 25, hi: 3, kind: 'bottle', ctl: '병 속 기체의 온도', a: '실온 25 ℃', b: '냉장고 3 ℃', obj: '병 속 기체' },
+    '찌그러진 탁구공': { v: 'T', lo: 20, hi: 80, kind: 'pong', ctl: '공 속 기체의 온도', a: '20 ℃', b: '뜨거운 물 80 ℃', obj: '공 속 기체' },
+    '햇빛 아래 과자 봉지': { v: 'T', lo: 20, hi: 45, kind: 'sunbag', ctl: '봉지 속 기체의 온도', a: '그늘 20 ℃', b: '햇빛 45 ℃', obj: '봉지 속 기체' },
+    '열기구': { v: 'T', lo: 20, hi: 100, kind: 'hot', ctl: '풍선 속 기체의 온도', a: '20 ℃', b: '버너로 가열 100 ℃', obj: '풍선 속 기체' },
+    '추운 날의 풍선': { v: 'T', lo: 22, hi: -10, kind: 'cold', ctl: '풍선 속 기체의 온도', a: '실내 22 ℃', b: '바깥 -10 ℃', obj: '풍선 속 기체' },
+    '스르르 움직이는 그릇': { v: 'T', lo: 20, hi: 70, kind: 'bowl', ctl: '그릇 밑 기체의 온도', a: '20 ℃', b: '뜨거운 그릇 70 ℃', obj: '그릇 밑 기체' }
+  };
+  function exState(c, x) {
+    var val = c.lo + (c.hi - c.lo) * x, V, Vv, sp = 1, N = 30;
+    if (c.v === 'P') { V = c.lo / val; Vv = V; }
+    else { var tk = val + 273, t0 = c.lo + 273; V = tk / t0; Vv = 1 + 3 * (V - 1); sp = Math.max(0.35, 1 + 2.5 * (V - 1)); }
+    if (c.kind === 'hot') { N = Math.round(30 * (1 - 3 * (1 - 1 / V))); }
+    return { val: val, V: V, Vv: Vv, sp: sp, N: N };
+  }
+  function exScene(c, x, s) {
+    var v = s.Vv, k = c.kind, ink = '#1B1F3B', o = '';
+    var bagPath = function (cx, cy, w, h, b) { return '<path d="M' + (cx - w / 2) + ' ' + (cy - h / 2) + ' Q' + cx + ' ' + (cy - h / 2 - b * 0.6) + ' ' + (cx + w / 2) + ' ' + (cy - h / 2) + ' Q' + (cx + w / 2 + b) + ' ' + cy + ' ' + (cx + w / 2) + ' ' + (cy + h / 2) + ' Q' + cx + ' ' + (cy + h / 2 + b * 0.6) + ' ' + (cx - w / 2) + ' ' + (cy + h / 2) + ' Q' + (cx - w / 2 - b) + ' ' + cy + ' ' + (cx - w / 2) + ' ' + (cy - h / 2) + 'Z" fill="#FFD43B" stroke="' + ink + '" stroke-width="3"/><path d="M' + (cx - w / 2) + ' ' + (cy - h / 2) + 'h' + w + 'M' + (cx - w / 2) + ' ' + (cy + h / 2) + 'h' + w + '" stroke="' + ink + '" stroke-width="5" stroke-dasharray="3 3"/><text x="' + cx + '" y="' + (cy + 6) + '" text-anchor="middle" font-size="16" font-weight="700">과자</text>'; };
+    if (k === 'bag') { o = '<path d="M0 220 L120 60 L200 160 L250 110 L320 220Z" fill="#B5E3DD" stroke="' + ink + '" stroke-width="2"/><circle cx="' + (40 + x * 80) + '" cy="' + (200 - x * 135) + '" r="7" fill="#D6336C"/>' + bagPath(235, 70, 70, 70, (v - 1) * 70); }
+    else if (k === 'sunbag') { o = '<circle cx="50" cy="45" r="' + (18 + x * 14) + '" fill="#FFB020" opacity="' + (0.3 + x * 0.7) + '"/>' + bagPath(180, 125, 110, 110, (v - 1) * 90); }
+    else if (k === 'bubble') { o = '<rect x="0" y="20" width="320" height="200" fill="#BFE3FF"/><path d="M0 20 q20 -8 40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0 t40 0" fill="none" stroke="#2F4BD8" stroke-width="3"/><text x="8" y="214" font-size="13">깊이 ' + Math.round((1 - x) * 20) + ' m</text><circle cx="160" cy="' + (195 - x * 150) + '" r="' + (14 * Math.cbrt(s.V) * 1.4) + '" fill="#fff" fill-opacity="0.7" stroke="' + ink + '" stroke-width="3"/><g transform="translate(70,' + (180 - x * 10) + ')"><ellipse cx="0" cy="0" rx="34" ry="12" fill="#1B1F3B"/><circle cx="30" cy="-4" r="9" fill="#FFD9A8" stroke="' + ink + '" stroke-width="2"/></g>'; }
+    else if (k === 'ear') { var bl = (v - 1) * 120; o = '<text x="10" y="22" font-size="13">✈️ 높이 ' + Math.round(x * 10) + ' km</text><rect x="0" y="80" width="150" height="70" fill="#FFE2C6" stroke="' + ink + '" stroke-width="2"/><text x="20" y="72" font-size="13">바깥쪽(귓구멍)</text><rect x="170" y="70" width="150" height="90" fill="#FFF3E8" stroke="' + ink + '" stroke-width="2"/><text x="190" y="62" font-size="13">고막 안쪽 공기</text><path d="M160 80 Q' + (160 - bl) + ' 115 160 150" fill="none" stroke="#D6336C" stroke-width="5"/><text x="120" y="185" font-size="13" fill="#D6336C">고막</text>'; }
+    else if (k === 'ball') { var ry = 60 * v, rx = 60 / Math.sqrt(v); o = '<rect x="0" y="200" width="320" height="20" fill="#C9CEE8"/><ellipse cx="160" cy="' + (200 - ry) + '" rx="' + rx + '" ry="' + ry + '" fill="#FF8FB1" stroke="' + ink + '" stroke-width="3"/><path d="M160 ' + (200 - 2 * ry - 4) + 'v-14" stroke="' + ink + '" stroke-width="4"/><rect x="' + (160 - 34) + '" y="' + (200 - 2 * ry - 30) + '" width="68" height="14" rx="6" fill="#FFD9A8" stroke="' + ink + '" stroke-width="2"/><text x="160" y="' + (200 - 2 * ry - 38) + '" text-anchor="middle" font-size="13">' + (x > 0.1 ? '⬇ 누르는 힘' : '') + '</text>'; }
+    else if (k === 'shoe') { var hp = 34 * v; o = '<rect x="0" y="200" width="320" height="20" fill="#C9CEE8"/><rect x="60" y="' + (200 - hp - 16) + '" width="200" height="16" rx="6" fill="#fff" stroke="' + ink + '" stroke-width="3"/><rect x="60" y="184" width="200" height="16" rx="6" fill="#fff" stroke="' + ink + '" stroke-width="3"/><rect x="110" y="' + (184 - hp) + '" width="100" height="' + hp + '" rx="10" fill="#8EC5FF" fill-opacity="0.6" stroke="' + ink + '" stroke-width="2"/><path d="M60 ' + (200 - hp - 16) + ' q0 -70 90 -70 h60 q50 0 50 70" fill="#E9ECF5" stroke="' + ink + '" stroke-width="3"/><text x="160" y="' + (184 - hp / 2 + 5) + '" text-anchor="middle" font-size="12">공기 주머니</text><text x="160" y="40" text-anchor="middle" font-size="14">' + (x > 0.1 ? '⬇ 발로 누르는 힘' : '') + '</text>'; }
+    else if (k === 'cng') { var pw = 220 * v; o = '<rect x="40" y="80" width="240" height="80" rx="12" fill="#fff" stroke="' + ink + '" stroke-width="3"/><rect x="50" y="88" width="' + Math.max(8, pw) + '" height="64" rx="8" fill="#8EC5FF" fill-opacity="' + (0.3 + 0.7 * (1 - v)) + '"/><rect x="' + (50 + Math.max(8, pw)) + '" y="84" width="12" height="72" fill="' + ink + '"/><rect x="' + (62 + Math.max(8, pw)) + '" y="115" width="' + (280 - 62 - Math.max(8, pw) + 30) + '" height="10" fill="' + ink + '"/><text x="160" y="190" text-anchor="middle" font-size="14">부피를 줄인 천연가스를 가스통에 저장해요</text><text x="160" y="60" text-anchor="middle" font-size="13">압력 ' + s.val.toFixed(1) + '배</text>'; }
+    else if (k === 'bottle') { var bw = 70 * Math.min(1, v), cr = 1 - Math.min(1, v); o = '<rect x="80" y="20" width="160" height="195" rx="10" fill="#E3F2FF" stroke="' + ink + '" stroke-width="2"/><text x="160" y="40" text-anchor="middle" font-size="13">냉장고</text><path d="M' + (160 - bw / 2) + ' 80 q' + (cr * 30) + ' 40 0 80 q' + (-cr * 30) + ' 30 0 50 h' + bw + ' q' + (cr * 30) + ' -30 0 -50 q' + (-cr * 30) + ' -40 0 -80 z" fill="#fff" stroke="' + ink + '" stroke-width="3"/><rect x="146" y="62" width="28" height="18" rx="3" fill="' + ink + '"/>'; }
+    else if (k === 'pong') { var dep = Math.max(0, 28 * (1 - x)); o = '<rect x="40" y="110" width="240" height="100" rx="10" fill="' + (x > 0.5 ? '#FFC9A8' : '#E3F2FF') + '" stroke="' + ink + '" stroke-width="2"/><text x="160" y="200" text-anchor="middle" font-size="13">' + Math.round(s.val) + ' ℃ 물</text><path d="M110 110 A50 50 0 1 1 210 110 Q160 ' + (110 - dep * 2 + 0) + ' 110 110Z" fill="#fff" stroke="' + ink + '" stroke-width="3"/>'; }
+    else if (k === 'hot') { var up = x * 26, fl = 6 + x * 16; o = '<g transform="translate(0,' + (16 - up) + ')"><path d="M160 30 C90 30 90 120 140 150 L180 150 C230 120 230 30 160 30Z" fill="#FF8FB1" stroke="' + ink + '" stroke-width="3"/><path d="M152 158 q8 ' + (-fl) + ' 16 0" fill="#FFB020" stroke="#D6336C" stroke-width="2"/><rect x="145" y="168" width="30" height="20" fill="#C9A26B" stroke="' + ink + '" stroke-width="2"/><path d="M142 150 L148 168 M178 150 L172 168" stroke="' + ink + '" stroke-width="2"/></g><rect x="0" y="210" width="320" height="10" fill="#B5E3DD"/><text x="300" y="30" text-anchor="end" font-size="13">' + (x > 0.6 ? '⬆ 떠오름' : '') + '</text>'; }
+    else if (k === 'cold') { var r = 50 * Math.cbrt(v); o = '<rect x="0" y="0" width="320" height="220" fill="' + (x > 0.5 ? '#E3F2FF' : '#FFF6E6') + '"/>' + (x > 0.5 ? '<text x="30" y="40" font-size="20">❄️</text><text x="270" y="70" font-size="20">❄️</text>' : '<text x="30" y="40" font-size="14">🏠 실내</text>') + '<circle cx="160" cy="100" r="' + r + '" fill="#FF6B6B" stroke="' + ink + '" stroke-width="3"/><path d="M160 ' + (100 + r) + ' l-6 10 h12z" fill="#FF6B6B" stroke="' + ink + '" stroke-width="2"/><path d="M160 ' + (110 + r) + ' q10 30 0 60" fill="none" stroke="' + ink + '" stroke-width="2"/>'; }
+    else if (k === 'bowl') { var lift = Math.max(0, (v - 1) * 40), sh = x * 30; o = '<rect x="0" y="170" width="320" height="50" fill="#D8C7A0" stroke="' + ink + '" stroke-width="2"/><rect x="0" y="166" width="320" height="4" fill="#8EC5FF"/><g transform="translate(' + sh + ',' + (-lift) + ')"><path d="M90 166 Q90 90 160 90 Q230 90 230 166Z" fill="#fff" stroke="' + ink + '" stroke-width="3"/><text x="160" y="140" text-anchor="middle" font-size="13">그릇 밑 기체</text></g><text x="160" y="40" text-anchor="middle" font-size="13">' + (x > 0.3 ? '그릇이 살짝 들려 스르르' : '') + '</text>'; }
+    return '<svg viewBox="0 0 320 220" class="exscene" role="img" aria-label="' + esc(c.ctl) + '에 따라 변하는 모습">' + o + '</svg>';
+  }
+  function exSimHTML(d, st, si) {
+    var k = pfx(d, si), cur0 = S.seen[k + 'xi'] || 0;
+    return '<p class="s-kicker">' + st.title + ' · 생활 속 예 시뮬레이션</p><div class="extabs">' + st.examples.map(function (e, j) { return '<button class="' + (j === cur0 ? 'on' : '') + '" data-act="extab" data-j="' + j + '">' + (S.seen[k + 'x' + j] ? '✓ ' : '') + esc(e[0]) + '</button>'; }).join('') + '</div><div id="exbox"></div>';
+  }
+  function exSimInit(d, st, si) {
+    var k = pfx(d, si), j = S.seen[k + 'xi'] || 0, e = st.examples[j], c = EXSIM[e[0]], box = $('#exbox'); if (!box) return;
+    if (!c) { box.innerHTML = '<div class="card"><b>' + esc(e[0]) + '</b><p>' + esc(e[1]) + '</p></div>'; return; }
+    var x = 0;
+    box.innerHTML = '<div class="exgrid"><div class="card"><div id="exsc"></div><label class="exctl"><span>' + esc(c.ctl) + '</span><input type="range" id="exr" min="0" max="100" value="0"><span class="exends"><i>' + esc(c.a) + '</i><i>' + esc(c.b) + '</i></span></label></div>' +
+      '<div class="card"><p class="tiny"><b>' + esc(c.obj) + '</b>을 크게 확대한 모습</p><canvas id="exc" width="300" height="200" role="img" aria-label="' + esc(c.obj) + ' 입자 모형"></canvas><div id="exg" class="gauges"></div></div></div>' +
+      '<div class="card exnote"><b>' + esc(e[0]) + '</b> ' + esc(e[1]) + (c.v === 'T' ? '<p class="tiny">눈에 잘 보이도록 변화를 실제보다 크게 그렸어요.</p>' : '') + '</div>';
+    var cv = $('#exc'), ctx = cv.getContext('2d'), dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = 300 * dpr; cv.height = 200 * dpr; ctx.scale(dpr, dpr);
+    var ps = []; for (var n = 0; n < 40; n++) { var an = Math.random() * 6.283; ps.push({ x: 0.1 + Math.random() * 0.8, y: 0.1 + Math.random() * 0.8, vx: Math.cos(an), vy: Math.sin(an) }); }
+    var run = true, s = exState(c, 0), fr = 0;
+    function paint() {
+      $('#exsc').innerHTML = exScene(c, x, s);
+      var vt = c.v === 'P' ? '바깥 압력 ' + s.val.toFixed(2) + ' 기압' : '온도 ' + Math.round(s.val) + ' ℃';
+      var bar = function (nm, pct, t) { return '<div class="g"><span>' + nm + '</span><div class="gb"><i style="width:' + Math.max(3, Math.min(100, pct)) + '%"></i></div><b>' + t + '</b></div>'; };
+      $('#exg').innerHTML = bar(c.v === 'P' ? '바깥 압력' : '온도', c.v === 'P' ? s.val / Math.max(c.lo, c.hi) * 100 : (s.val + 20) / 120 * 100, vt.split(' ').slice(1).join(' ')) +
+        (c.kind === 'hot' ? bar('풍선 속 입자 수', s.N / 30 * 100, s.N + '개') : bar('부피', s.V / Math.max(exState(c, 0).V, exState(c, 1).V) * 100, s.V.toFixed(2) + '배')) +
+        bar('입자의 운동 빠르기', s.sp / 2 * 100, s.sp > 1.05 ? '빨라짐' : s.sp < 0.95 ? '느려짐' : '그대로');
+    }
+    function tick() {
+      if (!run || !document.body.contains(cv)) return;
+      var side = c.kind === 'hot' ? 1 : Math.max(0.3, Math.min(1, Math.sqrt(s.Vv) * 0.62)), W = 280 * side, H = 180 * (c.kind === 'hot' ? 1 : Math.max(0.45, Math.min(1, Math.sqrt(s.Vv) * 0.62))) / 1, x0 = (300 - W) / 2, y0 = (200 - H) / 2, nShow = c.kind === 'hot' ? s.N : 30;
+      ctx.clearRect(0, 0, 300, 200); ctx.fillStyle = '#fff'; ctx.strokeStyle = '#1B1F3B'; ctx.lineWidth = 3; ctx.fillRect(x0, y0, W, H); ctx.strokeRect(x0, y0, W, H);
+      ps.forEach(function (p, i) {
+        p.x += p.vx * 0.006 * s.sp; p.y += p.vy * 0.006 * s.sp;
+        if (p.x < 0.03 || p.x > 0.97) { p.vx *= -1; p.x = Math.max(0.03, Math.min(0.97, p.x)); }
+        if (p.y < 0.03 || p.y > 0.97) { p.vy *= -1; p.y = Math.max(0.03, Math.min(0.97, p.y)); }
+        if (i >= nShow) return;
+        ctx.beginPath(); ctx.arc(x0 + p.x * W, y0 + p.y * H, 6, 0, 6.283); ctx.fillStyle = '#FFD43B'; ctx.fill(); ctx.lineWidth = 2; ctx.stroke();
+      });
+      requestAnimationFrame(tick);
+    }
+    $('#exr').addEventListener('input', function () { x = this.value / 100; s = exState(c, x); paint(); if (x >= 0.95 && !S.seen[k + 'x' + j]) { S.seen[k + 'x' + j] = 1; save(); mile('ex.' + k + j, 1); var tb = document.querySelector('.extabs [data-j="' + j + '"]'); if (tb) tb.textContent = '✓ ' + e[0]; } });
+    sim = { stop: function () { run = false; } };
+    paint(); requestAnimationFrame(tick);
+  }
+
   function exHTML(st) { return '<ul class="exs">' + st.examples.map(function (e) { return '<li><b>' + e[0] + '</b>' + e[1] + '</li>'; }).join('') + '</ul>'; }
   function labsHTML(st) { return '<ul class="labs">' + st.labs.map(function (l) { return '<li><div><b>' + l.name + '</b><span>' + l.note + '</span></div><a class="btn sm" target="_blank" rel="noopener" href="' + boothURL('#slides/' + l.booth) + '">실험 안내 열기</a></li>'; }).join('') + '</ul>'; }
   STEP.cards = function () { return ''; };
@@ -1005,6 +1086,7 @@
     else if (act === 'blank') { b.classList.add('on'); b.removeAttribute('data-act'); if (!document.querySelector('.blank:not(.on)')) { S.seen[pfx(d, i) + cur.sl.j] = 1; save(); mile('c.' + pfx(d, i) + cur.sl.j, 2); } check(); }
     else if (act === 'lab') { S.lab.press[b.dataset.k] = b.dataset.v; drawLab(d, st, i); check(); }
     else if (act === 'labreplay') drawLab(d, st, i);
+    else if (act === 'extab') { S.seen[pfx(d, i) + 'xi'] = +b.dataset.j; save(); if (sim) { sim.stop(); sim = null; } document.querySelectorAll('.extabs button').forEach(function (x2) { x2.classList.toggle('on', x2 === b); }); exSimInit(d, st, i); }
     else if (act === 'expdone') { S.seen[pfx(d, i) + 'ea'] = 1; save(); b.outerHTML = '<span class="tag okt">✓ 실험 완료</span>'; check(); }
     else if (act === 'whynext') { var wk = pfx(d, i) + 'wy'; S.seen[wk] = (S.seen[wk] || 0) + 1; save(); var sb = $('#stgbody'), y = sb ? sb.scrollTop : 0; route(); var sb2 = $('#stgbody'); if (sb2) sb2.scrollTop = y; }
     else if (act === 'eblank') { b.classList.add('on'); b.removeAttribute('data-act'); if (!document.querySelector('.blank[data-act=eblank]')) { S.seen[pfx(d, i) + 'ef'] = 1; save(); mile('f.' + pfx(d, i), 2); } check(); }
