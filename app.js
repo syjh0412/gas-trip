@@ -162,7 +162,7 @@
     var api = !!CFG.API_URL; cur = { dest: null };
     if (api && !ROSTER_TRIED) { ROSTER_TRIED = true; apiGet({ roster: 1 }).then(function (r) { if (r && r.roster && Object.keys(r.roster).length) { ROSTER = r.roster; if ($('#regform')) viewRegister(old); } }).catch(function () { }); }
     var hasR = !!ROSTER, classes = hasR ? Object.keys(ROSTER).sort(function (x, y) { return x - y; }) : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-    app.innerHTML = '<main class="gate">' + SCENE + '<div class="gatebox"><div class="passtop"><span class="comms">' + esc(CFG.SCHOOL_EN || 'GAS SAFE TRAVEL') + ' · BOARDING PASS</span><span class="ptplane" aria-hidden="true">✈</span></div><div class="passbody"><div class="ghead">' + mascot(74, 1) + '<div><h1>입자 여권</h1><span class="season">기체의 성질 · 기체 안전 여행사</span></div></div><p class="sub">가이드 신분을 확인합니다.' + (api ? ' 처음이면 여권 암호를 정하고, 다음부터는 같은 암호로 들어오세요.' : '') + '</p>' +
+    app.innerHTML = '<main class="gate">' + SCENE + '<div class="gatebox"><div class="passtop"><span class="comms">' + esc(CFG.SCHOOL_EN || 'GAS SAFE TRAVEL') + ' · BOARDING PASS</span><span class="ptplane" aria-hidden="true">✈</span></div><div class="passbody"><div class="ghead">' + mascot(74, 1) + '<div><h1>통통 입자 여행</h1><span class="season">기체의 성질 · 기체 안전 여행사</span></div></div><p class="sub">가이드 신분을 확인합니다.' + (api ? ' 처음이면 여권 암호를 정하고, 다음부터는 같은 암호로 들어오세요.' : '') + '</p>' +
       '<form id="regform"><div class="row2"><label>반<select name="cls"><option value="">선택</option>' + classes.map(function (c) { return '<option>' + esc(c) + '</option>'; }).join('') + '</select></label><label>번호<select name="num" disabled><option value="">반 먼저</option></select></label></div>' +
       '<div class="idcard" id="idcard" aria-live="polite"><div class="av">' + mascot(44, 1) + '</div><div class="small">반과 번호를 고르면 ' + (hasR ? '이름이 나와요' : '여권이 만들어져요') + '</div></div>' +
       '<label id="nmrow"' + (hasR ? ' hidden' : '') + '>이름<input name="gname" maxlength="10" autocomplete="off" data-lpignore="true" data-1p-ignore placeholder="이름"></label>' +
@@ -1001,7 +1001,7 @@
   function viewTeacher() {
     cur = { dest: null, step: 0 };
     var okPin = sessionStorage.getItem('gastrip.tpin');
-    var h = '<header class="dtop" style="--c:#1B1F3B"><a class="back" href="#home">← 학생 화면</a><div class="dhead"><span class="dic">🧑‍🏫</span><div><h1>선생님 화면</h1><p>기체 안전 여행사 · 입자 여권</p></div></div></header><main class="dmain teacher">';
+    var h = '<header class="dtop" style="--c:#1B1F3B"><a class="back" href="#home">← 학생 화면</a><div class="dhead"><span class="dic">🧑‍🏫</span><div><h1>선생님 화면</h1><p>통통 입자 여행 · 기체 안전 여행사</p></div></div></header><main class="dmain teacher">';
     if (!okPin) { app.innerHTML = h + '<div class="card"><h3>비밀번호</h3><div class="row3"><label>교사 비밀번호<input id="tpin" type="text" class="secret" inputmode="numeric" autocomplete="off" data-lpignore="true" data-1p-ignore></label></div><button class="btn pri" data-act="tlogin">들어가기</button><p class="tiny" id="tmsg">' + (CFG.API_URL ? '구글 스크립트(Code.gs)에 정해 둔 교사 비밀번호예요.' : 'config.js의 TEACHER_PIN 값이에요. 처음 값은 0000입니다.') + '</p></div></main>'; return; }
     var tabs = [['guide', '수업 안내'], ['class', '반 현황'], ['data', '실험 자료'], ['lines', '안내 한 줄'], ['snorkl', '스노클 과제'], ['setup', '설정 방법']];
     h += '<nav class="ttabs">' + tabs.map(function (t) { return '<button data-act="ttab" data-t="' + t[0] + '" class="' + (TS.tab === t[0] ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</nav>';
