@@ -469,7 +469,7 @@
   STEP.vac = function (d, st, i) {
     var bt = !!navigator.bluetooth || isT();
     return '<div class="card sens"><h3>📡 감압 용기 속 기압 재기</h3><p class="tiny" style="margin:0 0 8px">대기압온도센서를 켜서 풍선과 함께 감압 용기에 넣고 뚜껑을 닫은 뒤 연결해요. <b>펌프질을 한 번(끝까지 당겼다가 끝까지 밀기) 할 때마다</b> 숫자가 멈추면 기록 버튼을 눌러요.</p>' +
-      (bt ? '<div class="slive"><span id="slive">–</span><small>기압</small></div><p class="tiny" id="stemp"></p><p class="tiny" id="sstat" aria-live="polite"></p><div class="btns"><button class="btn pri" id="sconn" data-act="sconn">📡 센서 연결</button><button class="btn yel" data-act="vrec" disabled id="vrecb">기록하기</button></div>' : '<p class="tiny">이 기기에서는 센서를 연결할 수 없어요. 아래에 기압을 직접 써서 기록해요.</p>') +
+      (bt ? '<div class="slive"><span id="slive">–</span><small>기압</small></div><p class="tiny" id="stemp"></p><p class="tiny" id="sstat" aria-live="polite"></p><div class="btns"><button class="btn pri" id="sconn" data-act="sconn">📡 센서 연결</button><button class="btn yel" data-act="vrec" disabled id="vrecb">기록하기</button></div><p class="turn">👥 <b>한 사람씩 차례로</b> 재요. 센서는 한 번에 태블릿 한 대에만 연결돼요. 내 측정이 끝나면 <b>‘내 차례 끝 · 연결 끊기’</b>를 눌러야 다음 친구가 연결할 수 있어요.</p>' : '<p class="tiny">이 기기에서는 센서를 연결할 수 없어요. 아래에 기압을 직접 써서 기록해요.</p>') +
       (CFG.API_URL ? '<div class="vacman"><label>모둠 <input id="vgroup" type="number" min="1" max="12" inputmode="numeric" value="' + esc(String(vacS().group || '')) + '" placeholder="번호"></label><button class="btn sm pri" data-act="vgather">👥 모둠 자료 모으기</button></div><p class="tiny" id="vgmsg" aria-live="polite"></p>' : '') +
       '<div class="vacman"><label>손으로 기록 <input id="vacin" type="number" step="0.01" min="0" max="1.2" inputmode="decimal" placeholder="예: 0.85"> 기압</label><button class="btn sm" data-act="vadd">추가</button></div>' +
       '<div class="btns"><button class="btn sm" data-act="vundo">마지막 기록 지우기</button><button class="btn sm" data-act="vclear">처음부터 다시</button><button class="btn sm" data-act="vsample">예시 자료 보기</button></div></div>' +
@@ -631,7 +631,7 @@
     var sz = $('#szero'); if (sz) sz.disabled = SENS.state !== 'on' || SENS.atm;
     var tp = $('#stemp'); if (tp) tp.textContent = SENS.temp == null ? '' : '온도 ' + SENS.temp.toFixed(1) + ' ℃';
     document.querySelectorAll('[data-act=vrec]').forEach(function (b) { b.disabled = SENS.state !== 'on' || SENS.zero == null; });
-    var c = $('#sconn'); if (c) { c.textContent = SENS.state === 'on' ? '연결 끊기' : '📡 센서 연결'; c.dataset.act = SENS.state === 'on' ? 'sdisc' : 'sconn'; }
+    var c = $('#sconn'); if (c) { c.textContent = SENS.state === 'on' ? '내 차례 끝 · 연결 끊기' : '📡 센서 연결'; c.dataset.act = SENS.state === 'on' ? 'sdisc' : 'sconn'; }
     document.querySelectorAll('[data-act=srec]').forEach(function (b) { b.disabled = SENS.state !== 'on'; });
   }
   function sDisconnect() { clearInterval(SENS.poll); SENS.poll = null; SENS.zero = null; SENS.raws = []; SENS.raw = null; try { if (SENS.dev && SENS.dev.gatt.connected) SENS.dev.gatt.disconnect(); } catch (e) { } SENS.dev = null; SENS.rx = null; SENS.state = 'off'; SENS.kpa = null; SENS.recent = []; SENS.mode = null; SENS.atm = false; SENS.temp = null; sPaint(); }
@@ -674,6 +674,7 @@
     return '<div class="card sens"><h3>📡 무선 압력 센서로 재기</h3><p class="tiny" style="margin:0 0 8px">사이언스샵 앱은 꺼 두세요. 센서를 켜고 연결한 뒤, 피스톤을 눈금에 맞추고 <b>숫자가 멈추면</b> 그 부피를 눌러요. 압력이 표에 들어가요.</p>' +
       '<div class="slive"><span id="slive">–</span><small>기압</small></div><p class="tiny" id="sstat" aria-live="polite"></p>' + (isT() ? '<p class="tiny" id="sraw"></p>' : '') +
       '<div class="btns"><button class="btn pri" id="sconn" data-act="sconn">📡 센서 연결</button><button class="btn sm" id="szero" data-act="szero" disabled>다시 1기압 맞추기</button></div><p class="tiny" style="margin:4px 0 0">연결할 때와 ‘다시 1기압 맞추기’를 누를 때는 주사기 피스톤을 건드리지 마세요.</p>' +
+      '<p class="turn">👥 <b>한 사람씩 차례로</b> 재요. 센서는 한 번에 태블릿 한 대에만 연결돼요. 내 측정이 끝나면 <b>‘내 차례 끝 · 연결 끊기’</b>를 눌러야 다음 친구가 연결할 수 있어요.</p>' +
       '<p class="tiny" style="margin:10px 0 4px"><b>지금 부피를 눌러 기록하기</b></p><div class="svols">' + vols.map(function (x) { return '<button class="btn sm" data-act="srec" data-v="' + x + '"' + (SENS.state === 'on' ? '' : ' disabled') + '>' + x + ' mL</button>'; }).join('') + '</div></div>';
   }
   /* ---------- 모둠 자료 모으기 · 반/학년 그래프 ---------- */
@@ -906,7 +907,7 @@
       for (var ri = 0; ri < SD.rows.length; ri++) if (SD.rows[ri][0] === vv) { SD.rows[ri][1] = pk.toFixed(2); put = true; break; }
       if (!put) { for (ri = 0; ri < SD.rows.length; ri++) if (SD.rows[ri][0] === '' && SD.rows[ri][1] === '') { SD.rows[ri] = [vv, pk.toFixed(2)]; put = true; break; } }
       if (!put) SD.rows.push([vv, pk.toFixed(2)]);
-      save(); drawData(d, st, i); chip(vv + ' mL → ' + pk.toFixed(2) + ' 기압');
+      save(); drawData(d, st, i); chip(vv + ' mL → ' + pk.toFixed(2) + ' 기압'); if (vv === '7') setTimeout(function () { chip('다 쟀어요! 피스톤을 20 mL로 돌리고 ‘내 차례 끝 · 연결 끊기’를 눌러 다음 친구에게 넘겨요'); }, 1600);
     }
     else if (act === 'vrec') { var vk = sNow(); if (vk == null) return; vacPush(vk / 101.325); drawVac(d, st, i); check(); }
     else if (act === 'vadd') { var vi = $('#vacin'), vv2 = parseFloat(vi.value); if (!(vv2 > 0 && vv2 < 1.3)) { chip('0에서 1.3 사이의 기압을 써요'); return; } vacPush(vv2); vi.value = ''; drawVac(d, st, i); check(); }
