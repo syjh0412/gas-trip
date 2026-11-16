@@ -364,7 +364,7 @@
   function boothURL(hash) { return (CFG.BOOTH_URL || 'https://syjh0412.github.io/gas-booth/').split('#')[0] + (hash || ''); }
 
   // 점토 실험실
-  var LABC = { fw: ['가득', '넓은 바닥', 1, '(가)'], fn: ['가득', '좁은 뚜껑', 4, '(나)'], hn: ['반', '좁은 뚜껑', 2, '(다)'], hw: ['반', '넓은 바닥', 0.5, ''] };
+  var LABC = { fw: ['가득', '넓은 바닥', 1, '(가)'], fn: ['가득', '좁은 뚜껑', 4, '(나)'], hn: ['반', '좁은 뚜껑', 2, '(다)'], hw: ['반', '넓은 바닥', 0.5, '(라)'] };
   STEP.presslab = function (d, st, i) {
     var L = S.lab.press = S.lab.press || { f: 'f', a: 'w', tried: {} };
     return '<div class="lab card"><div class="labctl"><div><span class="lb">물의 양 (누르는 힘)</span><div class="seg"><button data-act="lab" data-k="f" data-v="f">가득</button><button data-act="lab" data-k="f" data-v="h">반</button></div></div><div><span class="lb">세우는 방향 (닿는 넓이)</span><div class="seg"><button data-act="lab" data-k="a" data-v="w">넓은 바닥</button><button data-act="lab" data-k="a" data-v="n">좁은 뚜껑</button></div></div></div><div id="labview"></div></div><div id="labq"></div>';
