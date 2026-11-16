@@ -34,14 +34,16 @@ small, .small { font-size: 14px; color: #555B80; } ol { padding-left: 22px; marg
 <div class="card">
   <h2>2. 실시간 값</h2>
   <p class="small">센서가 보내 주는 숫자를 그대로 보여 줍니다. 아직 단위를 몰라서 ‘센서 값’이라고만 표시해요.</p>
-  <p style="font-size:15px;margin:0">센서 값</p>
-  <p id="big" style="font-size:48px;margin:0">–</p>
+  <p style="font-size:15px;margin:0">압력</p>
+  <p id="kpa" style="font-size:56px;font-weight:700;margin:0;line-height:1.2">–</p>
+  <p id="atmv" style="font-size:22px;margin:0">–</p>
+  <p class="small" style="margin:4px 0 0">센서가 보낸 숫자: <span id="big">–</span></p>
   <p class="small">받은 횟수: <b id="count">0</b> · 초당 약 4번 물어봅니다.</p>
   <div style="background:#FFFBEA;border:2px dashed #1B1F3B;border-radius:12px;padding:10px 12px;margin-top:8px">
-    <p style="margin:0"><b>1기압 맞추기</b> <span class="small">— 센서에 아무것도 끼우지 않고(공기 중) 숫자가 멈추면 누르세요.</span></p>
-    <div class="btns"><button class="pri" id="zero">지금을 1기압으로</button></div>
-    <p id="conv" style="font-size:26px;font-weight:700;margin:6px 0 0">–</p>
-    <p class="small" style="margin:0">추정: 센서 숫자가 ‘대기압과의 차이(hPa)’라고 보고 계산한 값입니다. 아래 부피 기록으로 맞는지 확인해요.</p>
+    <p style="margin:0"><b>1기압 맞추기</b> <span class="small">— 연결하고 2초 동안 자동으로 맞춥니다. <b>연결할 때는 센서에 주사기를 끼우지 마세요.</b> 다시 맞추려면 주사기를 빼고 버튼을 누르세요.</span></p>
+    <div class="btns"><button id="zero">다시 1기압 맞추기</button></div>
+    <p class="small" id="conv" style="margin:6px 0 0">아직 맞추지 않았어요.</p>
+    <p class="small" style="margin:0">계산 방법(추정): 센서 숫자를 ‘대기압과의 차이(hPa)’로 보고, 공기 중일 때를 1기압으로 삼습니다. 아래 부피 기록으로 맞는지 확인해요.</p>
   </div>
   <h2 style="margin-top:14px">3. 위치마다 값 기록</h2>
   <p class="small">피스톤을 그 눈금에 맞추고 <b>숫자가 멈출 때까지 2~3초 기다린 뒤</b> 버튼을 누르세요. 최근 1초 값의 평균을 기록합니다.</p>
@@ -85,7 +87,7 @@ small, .small { font-size: 14px; color: #555B80; } ol { padding-left: 22px; marg
     var sum = 0; for (var k = 0; k < 11; k++) sum += b[k]; var ok = (sum & 255) === b[11];
     var ch = String.fromCharCode(b[0]), dv = new DataView(b.buffer), txt = ch + ' [' + hex(b) + ']' + (ok ? '' : ' (합계 틀림)');
     gotReply = true; n++; $('count').textContent = n;
-    if (ch === 't') { var v = dv.getFloat32(4, true); $('big').textContent = v.toFixed(2); if (zero != null) $('conv').textContent = atm(v).toFixed(3) + ' 기압 · ' + (atm(v) * 101.325).toFixed(1) + ' kPa'; txt += '  값=' + v.toFixed(3); recent.push([performance.now(), v]); while (recent.length && recent[0][0] < performance.now() - 1000) recent.shift(); }
+    if (ch === 't') { var v = dv.getFloat32(4, true); $('big').textContent = v.toFixed(1); if (zero != null) { $('kpa').textContent = (atm(v) * 101.325).toFixed(1) + ' kPa'; $('atmv').textContent = atm(v).toFixed(2) + ' 기압'; } txt += '  값=' + v.toFixed(3); recent.push([performance.now(), v]); while (recent.length && recent[0][0] < performance.now() - 1000) recent.shift(); }
     else if (ch === 'm') { var v2 = dv.getFloat32(2, true); $('big').textContent = v2.toFixed(2); txt += '  값=' + v2.toFixed(3); }
     else if (ch === 'n' || ch === 'v') { var s = ''; for (var q = 2; q < 11; q++) if (b[q]) s += String.fromCharCode(b[q]); txt += '  ' + s; $('info').textContent += (ch === 'n' ? '일련번호 ' : ' · 펌웨어 ') + s; }
     log(ts() + ' <<< ' + txt);
@@ -114,6 +116,7 @@ small, .small { font-size: 14px; color: #555B80; } ol { padding-left: 22px; marg
       await send('V'); await new Promise(function (r) { setTimeout(r, 300); });
       st('연결됐고 값을 받고 있어요. 주사기를 움직여 보세요.', 'ok');
       var k = 0; poll = setInterval(function () { send('S', null, k++ > 3); }, 250);
+      $('kpa').textContent = '맞추는 중…'; setTimeout(function () { $('zero').click(); }, 2200);
     } catch (e) { st('연결하지 못했어요: ' + e.message, 'no'); log('오류: ' + e.name + ' ' + e.message); }
   };
   $('disconnect').onclick = function () { clearInterval(poll); if (dev && dev.gatt.connected) dev.gatt.disconnect(); };
@@ -123,7 +126,7 @@ small, .small { font-size: 14px; color: #555B80; } ol { padding-left: 22px; marg
   $('zero').onclick = function () {
     if (!recent.length) { $('conv').textContent = '먼저 센서를 연결하세요.'; return; }
     zero = recent.reduce(function (t, x) { return t + x[1]; }, 0) / recent.length;
-    log('##### ' + ts() + ' 1기압 맞춤: 기준 센서 값 ' + zero.toFixed(2) + ' #####'); $('conv').textContent = '1.000 기압 · 101.3 kPa'; drawTable();
+    log('##### ' + ts() + ' 1기압 맞춤: 기준 센서 값 ' + zero.toFixed(2) + ' #####'); $('conv').textContent = '맞췄어요. 공기 중 센서 숫자 ' + zero.toFixed(1) + '을(를) 1기압(101.3 kPa)으로 삼았어요.'; $('kpa').textContent = '101.3 kPa'; $('atmv').textContent = '1.00 기압'; drawTable();
   };
   document.addEventListener('click', function (e) {
     var vb = e.target.closest('[data-vol]');
