@@ -269,6 +269,18 @@
     if (st.stamp && d.std) award(d.std, st.stamp);
     syncProgress();
   }
+  var ROAD = ['예상', '탐구', '입자', '설명', '문제'];
+  function roadIdx(sl, st) {
+    if (sl.k === 'q') return 0; if (sl.k === 'pq') return 4;
+    if (sl.k === 'card' || sl.k === 'ex' || sl.k === 'labs' || sl.k === 'expa' || sl.k === 'expb') return 1;
+    if (!st) return -1; var t = st.type;
+    if (t === 'presslab' || t === 'data' || t === 'vac') return 1; if (t === 'sim' || t === 'pumpsim' || t === 'chain') return 2; if (t === 'line') return 3; if (t === 'booth') return 1; if (t === 'quiz' || t === 'exam') return 4; return -1;
+  }
+  function roadHTML(sl, st) { var r = roadIdx(sl, st); if (r < 0) return ''; return '<ol class="road" aria-label="오늘의 길">' + ROAD.map(function (n, j) { return '<li class="' + (j < r ? 'past' : j === r ? 'now' : '') + '"' + (j === r ? ' aria-current="step"' : '') + '>' + n + '</li>'; }).join('') + '</ol>'; }
+  function sumHTML(d) {
+    if (!d.sum) return ''; var k = 'sum.' + d.id, done = S.seen[k];
+    return '<article class="bigcard sumcard"><h3>오늘 배운 것</h3><ol>' + d.sum.map(function (l) { return '<li>' + esc(l).replace(/\[([^\]]+)\]/g, function (m, w) { return done ? '<b class="blank on">' + w + '</b>' : '<b class="blank" data-act="sblank" role="button" tabindex="0">' + w + '</b>'; }) + '</li>'; }).join('') + '</ol>' + (done ? '' : '<p class="tiny">노란 칸을 눌러 확인해요.</p>') + '</article>';
+  }
   function isDone(d, i) { return !!(S.done[d.id] && S.done[d.id][i]); }
   function buildSlides(d) {
     var a = [{ k: 'hero' }];
@@ -299,22 +311,23 @@
     S.pos[d.id] = k; save();
     var sl = slides[k], st = sl.si != null ? d.steps[sl.si] : null, body = '', kick = st ? st.title + (sl.n > 1 ? ' ' + (sl.j + 1) + ' / ' + sl.n : '') : '';
     cur = { dest: d, step: sl.si, slide: k, slides: slides, sl: sl };
+    if (sl.k !== 'hero' && sl.k !== 'clear') body = roadHTML(sl, st);
     if (sl.k === 'hero') body = '<div class="hero"><div class="hic">' + d.icon + '</div><p class="s-kicker">' + d.period + ' · ' + d.page + '</p><h1 class="s-title">' + d.place + '</h1><p class="hsub">' + d.title + '</p><p class="hintro">' + d.intro + '</p>' + (d.std ? '<p class="hstd"><b>' + T.stds[d.std].code + '</b> ' + T.stds[d.std].text + '</p>' : '') + '</div>';
-    else if (sl.k === 'q') body = '<p class="s-kicker">' + kick + '</p>' + (st.note ? '<p class="note">' + st.note + '</p>' : '') + mcq(pfx(d, sl.si) + sl.j, st.items[sl.j], 'free', 0);
-    else if (sl.k === 'pq') body = '<p class="s-kicker">' + kick + '</p>' + mcq('p.' + sl.id, T.pool[sl.id], 'quiz', 0);
+    else if (sl.k === 'q') body += '<p class="s-kicker">' + kick + '</p>' + (st.note ? '<p class="note">' + st.note + '</p>' : '') + mcq(pfx(d, sl.si) + sl.j, st.items[sl.j], 'free', 0);
+    else if (sl.k === 'pq') body += '<p class="s-kicker">' + kick + '</p>' + mcq('p.' + sl.id, T.pool[sl.id], 'quiz', 0);
     else if (sl.k === 'card') {
       var c = st.cards[sl.j], seen = S.seen[pfx(d, sl.si) + sl.j];
-      body = '<p class="s-kicker">' + kick + '</p><article class="bigcard"><h2 class="s-title">' + c.h + '</h2><p class="s-body">' + (seen ? c.b : c.b.replace(/<b>/g, '<b class="blank" data-act="blank" role="button" tabindex="0">')) + '</p></article>';
+      body += '<p class="s-kicker">' + kick + '</p><article class="bigcard"><h2 class="s-title">' + c.h + '</h2><p class="s-body">' + (seen ? c.b : c.b.replace(/<b>/g, '<b class="blank" data-act="blank" role="button" tabindex="0">')) + '</p></article>';
     }
-    else if (sl.k === 'ex') body = exSimHTML(d, st, sl.si);
-    else if (sl.k === 'expa') body = expaHTML(d, st, sl.si);
-    else if (sl.k === 'expb') body = expbHTML(d, st, sl.si);
-    else if (sl.k === 'labs') body = '<p class="s-kicker">' + st.title + ' · 오늘 수업에서 하는 실험</p>' + labsHTML(st);
+    else if (sl.k === 'ex') body += exSimHTML(d, st, sl.si);
+    else if (sl.k === 'expa') body += expaHTML(d, st, sl.si);
+    else if (sl.k === 'expb') body += expbHTML(d, st, sl.si);
+    else if (sl.k === 'labs') body += '<p class="s-kicker">' + st.title + ' · 오늘 수업에서 하는 실험</p>' + labsHTML(st);
     else if (sl.k === 'clear') {
       var got = d.std ? ['see', 'meas', 'part'].map(function (x) { return stampHTML(d.std, x); }).join('') : '', ni = T.dests.indexOf(d) + 1, nd = T.dests[ni];
-      body = '<div class="hero"><div class="hic">🏁</div><h1 class="s-title">' + d.place + ' 여행 끝!</h1>' + (d.std ? '<p class="hsub">' + T.stds[d.std].short + ' 도장</p><div class="clr">' + got + '</div>' : '') + '<div class="btns ctr">' + (nd ? '<a class="btn yel" href="#d/' + nd.id + '/0">다음 여행지: ' + nd.icon + ' ' + nd.place + '</a>' : '') + '<a class="btn" href="#home">내 여권 보기</a></div></div>';
+      body = '<div class="hero"><div class="hic">🏁</div><h1 class="s-title">' + d.place + ' 여행 끝!</h1>' + sumHTML(d) + (d.std ? '<p class="hsub">' + T.stds[d.std].short + ' 도장</p><div class="clr">' + got + '</div>' : '') + '<div class="btns ctr">' + (nd ? '<a class="btn yel" href="#d/' + nd.id + '/0">다음 여행지: ' + nd.icon + ' ' + nd.place + '</a>' : '') + '<a class="btn" href="#home">내 여권 보기</a></div></div>';
     }
-    else body = '<p class="s-kicker">' + kick + '</p>' + (st.stamp && d.std ? '<p class="goal" style="--c:' + T.kinds[st.stamp].color + '">이 활동을 마치면 <b>‘' + T.kinds[st.stamp].name + '’ 도장</b>을 받아요.</p>' : '') + (st.note ? '<p class="note">' + st.note + '</p>' : '') + '<div id="stepbody">' + STEP[st.type](d, st, sl.si) + '</div>';
+    else body += '<p class="s-kicker">' + kick + '</p>' + (st.stamp && d.std ? '<p class="goal" style="--c:' + T.kinds[st.stamp].color + '">이 활동을 마치면 <b>‘' + T.kinds[st.stamp].name + '’ 도장</b>을 받아요.</p>' : '') + (st.note ? '<p class="note">' + st.note + '</p>' : '') + '<div id="stepbody">' + STEP[st.type](d, st, sl.si) + '</div>';
     app.innerHTML = '<div class="stage" style="--c:' + d.color + '" data-kind="' + sl.k + '" data-type="' + (st ? st.type : '') + '" data-si="' + (sl.si == null ? '' : sl.si) + '" data-j="' + (sl.j == null ? '' : sl.j) + '" data-id="' + (sl.id || '') + '">' +
       '<div class="stg-top"><a class="btn sm exit" href="#home">✕ 나가기</a><span class="ttl">' + d.icon + ' ' + d.period + ' · ' + d.place + '</span><span class="mtop" aria-label="모은 마일">🧳 <b id="mcount">' + S.miles + '</b></span><span class="num">' + (k + 1) + ' / ' + slides.length + '</span></div>' +
       '<div class="pbar"><i style="width:' + ((k + 1) / slides.length * 100).toFixed(1) + '%"></i></div>' +
@@ -1086,6 +1099,7 @@
     else if (act === 'blank') { b.classList.add('on'); b.removeAttribute('data-act'); if (!document.querySelector('.blank:not(.on)')) { S.seen[pfx(d, i) + cur.sl.j] = 1; save(); mile('c.' + pfx(d, i) + cur.sl.j, 2); } check(); }
     else if (act === 'lab') { S.lab.press[b.dataset.k] = b.dataset.v; drawLab(d, st, i); check(); }
     else if (act === 'labreplay') drawLab(d, st, i);
+    else if (act === 'sblank') { b.classList.add('on'); b.removeAttribute('data-act'); if (!document.querySelector('.blank[data-act=sblank]')) { S.seen['sum.' + d.id] = 1; save(); mile('sum.' + d.id, 2); } }
     else if (act === 'extab') { S.seen[pfx(d, i) + 'xi'] = +b.dataset.j; save(); if (sim) { sim.stop(); sim = null; } document.querySelectorAll('.extabs button').forEach(function (x2) { x2.classList.toggle('on', x2 === b); }); exSimInit(d, st, i); }
     else if (act === 'expdone') { S.seen[pfx(d, i) + 'ea'] = 1; save(); b.outerHTML = '<span class="tag okt">✓ 실험 완료</span>'; check(); }
     else if (act === 'whynext') { var wk = pfx(d, i) + 'wy'; S.seen[wk] = (S.seen[wk] || 0) + 1; save(); var sb = $('#stgbody'), y = sb ? sb.scrollTop : 0; route(); var sb2 = $('#stgbody'); if (sb2) sb2.scrollTop = y; }
