@@ -265,7 +265,7 @@
     S.done[d.id] = S.done[d.id] || {};
     if (S.done[d.id][i]) return;
     S.done[d.id][i] = Date.now(); save();
-    var st = d.steps[i]; mile('s.' + d.id + '.' + i, { presslab: 6, sim: 6, data: 10, chain: 8, line: 6, booth: 6 }[st.type] || 0);
+    var st = d.steps[i]; mile('s.' + d.id + '.' + i, { presslab: 6, sim: 6, data: 10, vac: 10, pumpsim: 6, chain: 8, line: 6, booth: 6 }[st.type] || 0);
     if (st.stamp && d.std) award(d.std, st.stamp);
     syncProgress();
   }
@@ -463,6 +463,121 @@
     requestAnimationFrame(tick);
   }
 
+  // 감압 용기 측정
+  var VACS = [[0, 1.00], [1, 0.84], [2, 0.72], [3, 0.62], [4, 0.54], [5, 0.48], [6, 0.43], [7, 0.39], [8, 0.36]];
+  function vacS() { return S.lab.vac = S.lab.vac || { rows: [], sample: false }; }
+  STEP.vac = function (d, st, i) {
+    var bt = !!navigator.bluetooth || isT();
+    return '<div class="card sens"><h3>📡 감압 용기 속 기압 재기</h3><p class="tiny" style="margin:0 0 8px">대기압온도센서를 켜서 풍선과 함께 감압 용기에 넣고 뚜껑을 닫은 뒤 연결해요. <b>펌프질을 한 번(끝까지 당겼다가 끝까지 밀기) 할 때마다</b> 숫자가 멈추면 기록 버튼을 눌러요.</p>' +
+      (bt ? '<div class="slive"><span id="slive">–</span><small>기압</small></div><p class="tiny" id="stemp"></p><p class="tiny" id="sstat" aria-live="polite"></p><div class="btns"><button class="btn pri" id="sconn" data-act="sconn">📡 센서 연결</button><button class="btn yel" data-act="vrec" disabled id="vrecb">기록하기</button></div>' : '<p class="tiny">이 기기에서는 센서를 연결할 수 없어요. 아래에 기압을 직접 써서 기록해요.</p>') +
+      '<div class="vacman"><label>손으로 기록 <input id="vacin" type="number" step="0.01" min="0" max="1.2" inputmode="decimal" placeholder="예: 0.85"> 기압</label><button class="btn sm" data-act="vadd">추가</button></div>' +
+      '<div class="btns"><button class="btn sm" data-act="vundo">마지막 기록 지우기</button><button class="btn sm" data-act="vclear">처음부터 다시</button><button class="btn sm" data-act="vsample">예시 자료 보기</button></div></div>' +
+      '<div id="vacbox"></div><div id="vacq"></div>';
+  };
+  AFTER.vac = function (d, st, i) { drawVac(d, st, i); sPaint(); };
+  function vacGraph(rows) {
+    var W = 560, H = 300, L = 62, R = 20, Tp = 20, B = 50, xm = Math.max(8, rows.length ? rows[rows.length - 1][0] : 0), ym = 1.1;
+    var X = function (x) { return L + x / xm * (W - L - R); }, Y = function (y) { return H - B - y / ym * (H - Tp - B); }, s = '';
+    for (var g = 0; g <= 22; g++) { var yv = g * 0.05, mj = g % 2 === 0; s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(yv) + '" y2="' + Y(yv) + '" class="' + (mj ? 'gl' : 'gm') + '"/>' + (g % 4 === 0 ? '<text x="' + (L - 8) + '" y="' + (Y(yv) + 5) + '" text-anchor="end" class="gt">' + yv.toFixed(1) + '</text>' : ''); }
+    for (var k = 0; k <= xm; k++) s += '<line y1="' + Y(0) + '" y2="' + Y(ym) + '" x1="' + X(k) + '" x2="' + X(k) + '" class="gl"/><text x="' + X(k) + '" y="' + (H - B + 22) + '" text-anchor="middle" class="gt">' + k + '</text>';
+    s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(0) + '" y2="' + Y(0) + '" class="gax"/><line x1="' + L + '" x2="' + L + '" y1="' + Y(0) + '" y2="' + Y(ym) + '" class="gax"/>';
+    s += '<text x="' + ((L + W - R) / 2) + '" y="' + (H - 6) + '" text-anchor="middle" class="gn">펌프질 횟수 (번)</text><text transform="translate(16,' + ((Tp + H - B) / 2) + ') rotate(-90)" text-anchor="middle" class="gn">용기 속 기압</text>';
+    if (rows.length > 1) s += '<polyline fill="none" stroke="#2F4BD8" stroke-width="3" points="' + rows.map(function (r) { return X(r[0]) + ',' + Y(r[1]); }).join(' ') + '"/>';
+    rows.forEach(function (r) { s += '<circle cx="' + X(r[0]) + '" cy="' + Y(r[1]) + '" r="7" fill="#FFD43B" stroke="#1B1F3B" stroke-width="2.5"/>'; });
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="graph vacg" role="img" aria-label="펌프질 횟수에 따른 용기 속 기압 그래프">' + s + '</svg>';
+  }
+  function drawVac(d, st, i) {
+    var V = vacS(), rows = V.rows, box = $('#vacbox'); if (!box) return;
+    var vb = $('#vrecb'); if (vb) vb.textContent = rows.length ? '펌프질 ' + rows.length + '번 뒤 기압 기록' : '처음 기압 기록 (펌프질 전)';
+    box.innerHTML = '<div class="card">' + (V.sample ? '<p class="tiny"><b>예시 자료</b>예요. 우리 모둠이 잰 값으로 바꾸려면 ‘처음부터 다시’를 눌러요.</p>' : '') + vacGraph(rows) +
+      (rows.length ? '<div class="scroll"><table class="tbl"><thead><tr><th>펌프질 횟수</th><th>용기 속 기압</th><th>한 번에 줄어든 기압</th></tr></thead><tbody>' + rows.map(function (r, k) { return '<tr><td>' + (r[0] ? r[0] + '번' : '처음') + '</td><td>' + r[1].toFixed(2) + '</td><td>' + (k ? (rows[k - 1][1] - r[1]).toFixed(2) : '–') + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<p class="hint">처음 기압부터 기록해요.</p>') + '</div>';
+    $('#vacq').innerHTML = rows.length >= 6 ? itemsHTML(d, st, i, 'retry') : '<p class="hint">펌프질 5번까지 기록하면 질문이 나와요. (지금 ' + Math.max(0, rows.length - 1) + '번)</p>';
+  }
+  function vacPush(p) { var V = vacS(); if (V.sample) { V.rows = []; V.sample = false; } V.rows.push([V.rows.length, Math.round(p * 100) / 100]); save(); sync('vac', { rows: V.rows }); chip((V.rows.length - 1 ? '펌프질 ' + (V.rows.length - 1) + '번' : '처음') + ' → ' + p.toFixed(2) + ' 기압'); }
+  DONE.vac = function (d, st, i) { var V = S.lab.vac; return !!(V && V.rows.length >= 6 && allRight(pfx(d, i), st.items)); };
+  TODO.vac = '펌프질 5번까지 기압을 기록하고 질문에 답해요';
+
+  // 펌프 속 입자 모형
+  function Pump(cv) {
+    var ctx = cv.getContext('2d'), W = 640, H = 320, run = true, dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = W * dpr; cv.height = H * dpr; ctx.scale(dpr, dpr);
+    var CX0 = 24, CX1 = 330, CY0 = 30, CY1 = 300, GA0 = 112, GA1 = 218, PY0 = 96, PY1 = 234, LMIN = 22, LMAX = 236, HB0 = CX1 + 2, HB1 = CX1 + 40, R = 6, V0 = 3.2, N0 = 64;
+    var L = LMIN, tL = LMIN, ph = 'idle', A = false, B = false, ps = [], hist = [N0], strokes = 0, hits = [], frame = 0, pushT = 0, auto = 0, br = 34, bx = 120, by = 196;
+    function inBalloon(x, y) { var dx = x - bx, dy = y - by; return dx * dx + dy * dy < (br + R + 4) * (br + R + 4); }
+    while (ps.length < N0) { var x = CX0 + R + Math.random() * (CX1 - CX0 - 2 * R), y = CY0 + R + Math.random() * (CY1 - CY0 - 2 * R); if (inBalloon(x, y)) continue; var an = Math.random() * 6.283; ps.push({ x: x, y: y, vx: Math.cos(an), vy: Math.sin(an), r: 'c' }); }
+    function nC() { return ps.filter(function (p) { return p.r === 'c'; }).length; }
+    function bar(name, val, txt) { return '<div class="g"><span>' + name + '</span><div class="gb"><i style="width:' + Math.max(3, Math.min(100, val)) + '%"></i></div><b>' + txt + '</b></div>'; }
+    var self = this;
+    this.pull = function () { if (ph !== 'idle') return; ph = 'pull'; A = true; B = false; tL = LMAX; paintBtns(); };
+    this.push = function () { if (ph !== 'pulled') return; ph = 'push'; A = false; B = true; tL = LMIN; pushT = 0; paintBtns(); };
+    this.auto = function () { auto = 5; if (ph === 'idle') self.pull(); else if (ph === 'pulled') self.push(); };
+    this.reset = function () { ps.forEach(function (p) { if (p.r !== 'c') p.r = 'x'; }); ps = ps.filter(function (p) { return p.r === 'c'; }); while (ps.length < N0) { var x = CX0 + R + Math.random() * (CX1 - CX0 - 2 * R), y = CY0 + R + Math.random() * (CY1 - CY0 - 2 * R); if (inBalloon(x, y)) continue; var an = Math.random() * 6.283; ps.push({ x: x, y: y, vx: Math.cos(an), vy: Math.sin(an), r: 'c' }); } hist = [N0]; strokes = 0; ph = 'idle'; A = B = false; L = tL = LMIN; auto = 0; paintBtns(); };
+    function paintBtns() { var a = $('#ppull'), b = $('#ppush'); if (a) a.disabled = ph !== 'idle'; if (b) b.disabled = ph !== 'pulled'; }
+    paintBtns();
+    function tick() {
+      if (!run || !document.body.contains(cv)) return;
+      frame++; var now = performance.now();
+      if (L !== tL) { var st = (LMAX - LMIN) / 55; L = tL > L ? Math.min(tL, L + st) : Math.max(tL, L - st); }
+      else if (ph === 'pull') { ph = 'pulled'; pushT = 0; paintBtns(); }
+      if (ph === 'pulled') { pushT++; if (auto && pushT > 150) self.push(); }
+      if (ph === 'push' && L === tL) { pushT++; if (pushT > 25) { ps.forEach(function (p) { if (p.r === 'p') { p.r = 'o'; p.x = (HB0 + HB1) / 2; p.y = PY0 + 4; p.vx = 0; p.vy = -1; } }); if (pushT > 40) { ph = 'idle'; B = false; strokes++; hist.push(nC()); paintBtns(); var S2 = S.lab.pump = S.lab.pump || { n: 0 }; S2.n++; save(); var ph0 = $('#pumphint'); if (ph0 && S2.n >= 3 && cur.dest) { var sd = cur.dest.steps[cur.sl.si]; ph0.parentNode.innerHTML = itemsHTML(cur.dest, sd, cur.sl.si, 'retry'); } check(); if (auto) { auto--; if (auto) setTimeout(function () { self.pull(); }, 300); } } } }
+      var px = CX1 + L, tb = Math.min(70, 34 * Math.cbrt(N0 / Math.max(6, nC()))); br += (tb - br) * 0.05;
+      ps.forEach(function (p) {
+        p.x += p.vx * V0; p.y += p.vy * V0;
+        if (p.r === 'c') {
+          if (p.x < CX0 + R) { p.x = CX0 + R; p.vx = Math.abs(p.vx); hits.push(now); }
+          if (p.y < CY0 + R) { p.y = CY0 + R; p.vy = Math.abs(p.vy); hits.push(now); }
+          if (p.y > CY1 - R) { p.y = CY1 - R; p.vy = -Math.abs(p.vy); hits.push(now); }
+          if (p.x > CX1 - R) { if (A && p.y > GA0 + R && p.y < GA1 - R && p.vx > 0) { if (p.x > CX1 + R) p.r = 'p'; } else { p.x = CX1 - R; p.vx = -Math.abs(p.vx); hits.push(now); } }
+          var dx = p.x - bx, dy = p.y - by, dd = Math.sqrt(dx * dx + dy * dy), mn = br + R;
+          if (dd < mn && dd > 0) { var nx = dx / dd, ny = dy / dd, dot = p.vx * nx + p.vy * ny; p.x = bx + nx * mn; p.y = by + ny * mn; if (dot < 0) { p.vx -= 2 * dot * nx; p.vy -= 2 * dot * ny; } }
+        } else if (p.r === 'p') {
+          if (p.y < PY0 + R) { if (B && p.x > HB0 + R && p.x < HB1 - R) { if (p.y < PY0 - R) p.r = 'o'; } else { p.y = PY0 + R; p.vy = Math.abs(p.vy); } }
+          if (p.y > PY1 - R) { p.y = PY1 - R; p.vy = -Math.abs(p.vy); }
+          if (p.x > px - R) { p.x = px - R; p.vx = -Math.abs(p.vx); }
+          if (p.x < CX1 + R) { if (A && p.y > GA0 + R && p.y < GA1 - R && p.vx < 0) { if (p.x < CX1 - R) p.r = 'c'; } else { p.x = CX1 + R; p.vx = Math.abs(p.vx); } }
+        } else if (p.r === 'o') { p.vy = -Math.abs(p.vy) - 0.02; if (p.y < -12) p.r = 'x'; }
+      });
+      ps = ps.filter(function (p) { return p.r !== 'x'; });
+      while (hits.length && hits[0] < now - 3000) hits.shift();
+      // draw
+      ctx.clearRect(0, 0, W, H); ctx.lineWidth = 4; ctx.strokeStyle = '#1B1F3B';
+      ctx.fillStyle = '#fff'; ctx.fillRect(CX0, CY0, CX1 - CX0, CY1 - CY0); ctx.fillRect(CX1, PY0, L, PY1 - PY0);
+      ctx.beginPath(); ctx.moveTo(CX1, GA0); ctx.lineTo(CX1, CY0); ctx.lineTo(CX0, CY0); ctx.lineTo(CX0, CY1); ctx.lineTo(CX1, CY1); ctx.lineTo(CX1, GA1); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(CX1, GA0); ctx.lineTo(CX1, PY0); ctx.lineTo(HB0, PY0); ctx.moveTo(HB1, PY0); ctx.lineTo(px, PY0); ctx.moveTo(CX1, GA1); ctx.lineTo(CX1, PY1); ctx.lineTo(px, PY1); ctx.stroke();
+      // valves
+      ctx.lineWidth = 5; ctx.strokeStyle = A ? '#2E9E5B' : '#D6336C'; ctx.beginPath(); if (A) { ctx.moveTo(CX1, GA0); ctx.lineTo(CX1 + 30, GA0 + 10); } else { ctx.moveTo(CX1, GA0); ctx.lineTo(CX1, GA1); } ctx.stroke();
+      ctx.strokeStyle = B ? '#2E9E5B' : '#D6336C'; ctx.beginPath(); if (B) { ctx.moveTo(HB1, PY0); ctx.lineTo(HB1 - 8, PY0 - 30); } else { ctx.moveTo(HB0, PY0); ctx.lineTo(HB1, PY0); } ctx.stroke();
+      // piston + handle
+      ctx.fillStyle = '#1B1F3B'; ctx.fillRect(px, PY0 + 3, 12, PY1 - PY0 - 6); ctx.fillRect(px + 12, (PY0 + PY1) / 2 - 5, 34, 10); ctx.fillRect(px + 46, (PY0 + PY1) / 2 - 34, 14, 68); ctx.font = '700 13px sans-serif'; ctx.fillText('손잡이', Math.min(W - 48, px + 34), (PY0 + PY1) / 2 + 52);
+      // balloon
+      ctx.lineWidth = 3; ctx.strokeStyle = '#1B1F3B'; ctx.fillStyle = '#FF8FB1'; ctx.beginPath(); ctx.arc(bx, by, br, 0, 6.283); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(bx - 6, by + br + 8); ctx.lineTo(bx + 6, by + br + 8); ctx.lineTo(bx, by + br - 1); ctx.closePath(); ctx.fillStyle = '#FF8FB1'; ctx.fill(); ctx.stroke();
+      // particles
+      ctx.lineWidth = 2; ps.forEach(function (p) { ctx.beginPath(); ctx.arc(p.x, p.y, R, 0, 6.283); ctx.fillStyle = p.r === 'c' ? '#FFD43B' : p.r === 'p' ? '#7FD1FF' : '#C9CEE6'; ctx.fill(); ctx.stroke(); });
+      ctx.fillStyle = '#1B1F3B'; ctx.font = '700 15px sans-serif'; ctx.fillText('감압 용기', CX0 + 8, CY0 - 10); ctx.fillText('펌프 통', CX1 + 20, PY1 + 22); ctx.fillText('바깥', HB1 + 6, PY0 - 34);
+      ctx.font = '700 13px sans-serif'; ctx.fillText('밸브 ①', CX1 - 50, GA0 - 8); ctx.fillText('밸브 ②', HB1 + 4, PY0 - 8);
+      if (frame % 10 === 0) {
+        var n = nC();
+        $('#simst').textContent = { idle: strokes ? '펌프질 ' + strokes + '번 끝. 다시 손잡이를 당겨 보세요.' : '손잡이를 당겨 보세요.', pull: '당기는 중: 펌프 통이 넓어지고 밸브 ①이 열려요. 용기 속 입자 일부가 움직이다가 넓어진 펌프 통으로 들어가요.', pulled: '입자가 용기와 펌프 통에 고르게 퍼졌어요. 이제 손잡이를 밀어요.', push: '미는 중: 밸브 ①은 닫히고 밸브 ②가 열려요. 펌프 통에 들어온 입자가 바깥으로 나가요.' }[ph];
+        $('#simg').innerHTML = bar('용기 속 입자 수', n / N0 * 100, n + '개') + bar('용기 속 기압 (처음 1기압)', n / N0 * 100, (n / N0).toFixed(2) + ' 기압') + bar('용기 벽 충돌 횟수 (3초)', hits.length / 4, hits.length + '번') + bar('풍선 크기', br / 70 * 100, br < 40 ? '처음 정도' : br < 52 ? '커짐' : '많이 커짐');
+        var hb = $('#phist'); if (hb) hb.innerHTML = hist.map(function (v, k) { return '<div class="ph"><i style="height:' + Math.max(2, Math.round(v / N0 * 80)) + 'px"></i><b>' + v + '</b><span>' + (k ? k + '번' : '처음') + '</span></div>'; }).join('');
+      }
+      requestAnimationFrame(tick);
+    }
+    this.stop = function () { run = false; };
+    requestAnimationFrame(tick);
+  }
+  STEP.pumpsim = function (d, st, i) {
+    return '<div class="simbox card"><canvas id="simc" width="640" height="320" role="img" aria-label="감압 용기와 손펌프의 입자 모형. 손잡이를 당기면 용기 속 입자 일부가 펌프 통으로 들어가고, 밀면 바깥으로 나간다."></canvas>' +
+      '<div class="btns"><button class="btn pri" id="ppull" data-act="ppull">⬅️ 손잡이 당기기</button><button class="btn pri" id="ppush" data-act="ppush" disabled>손잡이 밀기 ➡️</button><button class="btn sm" data-act="pauto">5번 자동으로</button><button class="btn sm" data-act="preset">처음으로</button></div>' +
+      '<p id="simst" class="simst" aria-live="polite"></p><div id="simg" class="gauges"></div><p class="tiny" style="margin:12px 0 4px"><b>펌프질 뒤 용기 속 입자 수</b></p><div id="phist" class="phist"></div></div>' +
+      '<div class="qcol">' + ((S.lab.pump && S.lab.pump.n >= 3) || isT() ? itemsHTML(d, st, i, 'retry') : '<p class="hint" id="pumphint">펌프질을 3번 해 보면 질문이 나와요.</p>') + '</div>';
+  };
+  AFTER.pumpsim = function (d, st) { sim = new Pump($('#simc')); };
+  DONE.pumpsim = function (d, st, i) { return !!(S.lab.pump && S.lab.pump.n >= 3 && allRight(pfx(d, i), st.items)); };
+  TODO.pumpsim = '펌프질을 3번 해 보고 질문에 답해요';
+
   // 자료 입력과 그래프
   var KIND = {
     boyle: { cols: ['부피', '압력'], unitA: 'mL', units: ['기압', 'kPa', 'hPa'], x: 1, y: 0, n: 7, sample: [[20, 1.0], [18, 1.12], [16, 1.26], [14, 1.44], [12, 1.66], [10, 1.98], [8, 2.45]], sampleUnit: '기압' },
@@ -484,19 +599,21 @@
   function sZero() { SENS.raws = []; SENS.zero = null; SENS.kpa = null; SENS.recent = []; sPaint(); }
   function sNow() { var a = SENS.recent; if (!a.length) return null; return a.reduce(function (t, x) { return t + x[1]; }, 0) / a.length; }
   function sPaint() {
-    var el = $('#slive'), stt = $('#sstat'); if (stt) stt.textContent = { off: '센서가 연결되지 않았어요.', wait: '센서를 고르는 중…', conn: '연결하는 중…', on: SENS.zero == null ? '1기압을 맞추는 중이에요. 피스톤을 건드리지 마세요…' : '연결됐어요. 지금 압력을 1기압으로 맞췄어요.', err: SENS.err || '연결하지 못했어요.' }[SENS.state];
+    var el = $('#slive'), stt = $('#sstat'); if (stt) stt.textContent = { off: '센서가 연결되지 않았어요.', wait: '센서를 고르는 중…', conn: '연결하는 중…', on: SENS.atm ? '연결됐어요. 대기압온도센서는 실제 기압을 그대로 보내요.' : SENS.zero == null ? '1기압을 맞추는 중이에요. 피스톤을 건드리지 마세요…' : '연결됐어요. 지금 압력을 1기압으로 맞췄어요.', err: SENS.err || '연결하지 못했어요.' }[SENS.state];
     if (el) el.textContent = SENS.kpa == null ? (SENS.state === 'on' ? '…' : '–') : (SENS.kpa / 101.325).toFixed(2);
     var rw = $('#sraw'); if (rw) rw.textContent = SENS.raw == null ? '' : '센서 원래 숫자 ' + SENS.raw.toFixed(1) + ' · 기준 ' + (SENS.zero == null ? '맞추는 중' : SENS.zero.toFixed(1));
-    var sz = $('#szero'); if (sz) sz.disabled = SENS.state !== 'on';
+    var sz = $('#szero'); if (sz) sz.disabled = SENS.state !== 'on' || SENS.atm;
+    var tp = $('#stemp'); if (tp) tp.textContent = SENS.temp == null ? '' : '온도 ' + SENS.temp.toFixed(1) + ' ℃';
+    document.querySelectorAll('[data-act=vrec]').forEach(function (b) { b.disabled = SENS.state !== 'on' || SENS.zero == null; });
     var c = $('#sconn'); if (c) { c.textContent = SENS.state === 'on' ? '연결 끊기' : '📡 센서 연결'; c.dataset.act = SENS.state === 'on' ? 'sdisc' : 'sconn'; }
     document.querySelectorAll('[data-act=srec]').forEach(function (b) { b.disabled = SENS.state !== 'on'; });
   }
-  function sDisconnect() { clearInterval(SENS.poll); SENS.poll = null; SENS.zero = null; SENS.raws = []; SENS.raw = null; try { if (SENS.dev && SENS.dev.gatt.connected) SENS.dev.gatt.disconnect(); } catch (e) { } SENS.dev = null; SENS.rx = null; SENS.state = 'off'; SENS.kpa = null; SENS.recent = []; SENS.mode = null; sPaint(); }
+  function sDisconnect() { clearInterval(SENS.poll); SENS.poll = null; SENS.zero = null; SENS.raws = []; SENS.raw = null; try { if (SENS.dev && SENS.dev.gatt.connected) SENS.dev.gatt.disconnect(); } catch (e) { } SENS.dev = null; SENS.rx = null; SENS.state = 'off'; SENS.kpa = null; SENS.recent = []; SENS.mode = null; SENS.atm = false; SENS.temp = null; sPaint(); }
   function sConnect() {
     if (!navigator.bluetooth) { SENS.state = 'err'; SENS.err = '이 기기에서는 센서를 연결할 수 없어요. 갤럭시 태블릿의 크롬에서 열어 주세요.'; sPaint(); return; }
     SENS.state = 'wait'; sPaint();
     navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'SC:PRES' }, { namePrefix: 'SC:' }], optionalServices: [SVC] }).then(function (dev) {
-      SENS.dev = dev; SENS.state = 'conn'; sPaint();
+      SENS.dev = dev; SENS.atm = /ATM/i.test(dev.name || ''); SENS.temp = null; SENS.state = 'conn'; sPaint();
       dev.addEventListener('gattserverdisconnected', function () { if (SENS.dev === dev) { clearInterval(SENS.poll); SENS.state = 'err'; SENS.err = '연결이 끊겼어요. 다시 연결해 주세요.'; SENS.dev = null; SENS.rx = null; sPaint(); } });
       return dev.gatt.connect();
     }).then(function (g) { return g.getPrimaryService(SVC); }).then(function (svc) {
@@ -509,7 +626,9 @@
         while ((m = re.exec(SENS.buf))) {
           last = re.lastIndex; var raw = atob(m[1]); if (raw.charAt(0) !== 't') continue;
           var b = new Uint8Array(12); for (var k = 0; k < 12; k++) b[k] = raw.charCodeAt(k);
-          var v = new DataView(b.buffer).getFloat32(4, true), now = performance.now(); SENS.raw = v;
+          var dvb = new DataView(b.buffer), now = performance.now();
+          if (SENS.atm) { SENS.temp = dvb.getUint16(4, true) / 100; SENS.kpa = dvb.getUint16(6, true) / 100; SENS.zero = 0; SENS.recent.push([now, SENS.kpa]); while (SENS.recent.length && SENS.recent[0][0] < now - 1000) SENS.recent.shift(); SENS.state = 'on'; sPaint(); continue; }
+          var v = dvb.getFloat32(4, true); SENS.raw = v;
           if (SENS.zero == null) { SENS.raws.push(v); if (SENS.state !== 'on') SENS.state = 'on'; if (SENS.raws.length >= 6) { var srt = SENS.raws.slice(1).sort(function (p1, p2) { return p1 - p2; }); SENS.zero = srt[Math.floor(srt.length / 2)]; } sPaint(); continue; }
           SENS.kpa = sToKpa(v); SENS.recent.push([now, SENS.kpa]); while (SENS.recent.length && SENS.recent[0][0] < now - 1000) SENS.recent.shift();
           if (SENS.state !== 'on') { SENS.state = 'on'; }
@@ -763,6 +882,15 @@
       if (!put) SD.rows.push([vv, pk.toFixed(2)]);
       save(); drawData(d, st, i); chip(vv + ' mL → ' + pk.toFixed(2) + ' 기압');
     }
+    else if (act === 'vrec') { var vk = sNow(); if (vk == null) return; vacPush(vk / 101.325); drawVac(d, st, i); check(); }
+    else if (act === 'vadd') { var vi = $('#vacin'), vv2 = parseFloat(vi.value); if (!(vv2 > 0 && vv2 < 1.3)) { chip('0에서 1.3 사이의 기압을 써요'); return; } vacPush(vv2); vi.value = ''; drawVac(d, st, i); check(); }
+    else if (act === 'vundo') { vacS().rows.pop(); save(); drawVac(d, st, i); check(); }
+    else if (act === 'vclear') { if (!confirmBox(b, '한 번 더 누르면 기록이 모두 지워져요')) return; var VV = vacS(); VV.rows = []; VV.sample = false; save(); b.removeAttribute('data-sure'); b.textContent = '처음부터 다시'; drawVac(d, st, i); check(); }
+    else if (act === 'vsample') { var VS = vacS(); VS.rows = VACS.map(function (r) { return r.slice(); }); VS.sample = true; save(); drawVac(d, st, i); check(); }
+    else if (act === 'ppull' && sim && sim.pull) sim.pull();
+    else if (act === 'ppush' && sim && sim.push) sim.push();
+    else if (act === 'pauto' && sim && sim.auto) sim.auto();
+    else if (act === 'preset' && sim && sim.reset) sim.reset();
     else if (act === 'celebok') { var ce = $('.celeb'); if (ce) ce.remove(); if (cur && !cur.dest && b.tagName !== 'A') viewHome(); }
     else if (act === 'eye') { var pi = b.previousElementSibling, sh = pi.classList.toggle('show'); b.textContent = sh ? '숨김' : '보기'; }
     else if (act === 'gteach') { $('#gtbox').hidden = !$('#gtbox').hidden; if (!$('#gtbox').hidden) $('#gpin').focus(); }
