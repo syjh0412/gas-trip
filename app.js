@@ -464,36 +464,62 @@
   }
 
   // 감압 용기 측정
-  var VACS = [[0, 1.00], [1, 0.84], [2, 0.72], [3, 0.62], [4, 0.54], [5, 0.48], [6, 0.43], [7, 0.39], [8, 0.36]];
+  var VACS = [[0, 1.00], [1, 0.84], [2, 0.72], [3, 0.62], [4, 0.54], [5, 0.48], [6, 0.43], [7, 0.39], [8, 0.36], [9, 0.34], [10, 0.32], [11, 0.30], [12, 0.29], [13, 0.28], [14, 0.27], [15, 0.26]];
   function vacS() { return S.lab.vac = S.lab.vac || { rows: [], sample: false }; }
   STEP.vac = function (d, st, i) {
     var bt = !!navigator.bluetooth || isT();
     return '<div class="card sens"><h3>📡 감압 용기 속 기압 재기</h3><p class="tiny" style="margin:0 0 8px">대기압온도센서를 켜서 풍선과 함께 감압 용기에 넣고 뚜껑을 닫은 뒤 연결해요. <b>펌프질을 한 번(끝까지 당겼다가 끝까지 밀기) 할 때마다</b> 숫자가 멈추면 기록 버튼을 눌러요.</p>' +
       (bt ? '<div class="slive"><span id="slive">–</span><small>기압</small></div><p class="tiny" id="stemp"></p><p class="tiny" id="sstat" aria-live="polite"></p><div class="btns"><button class="btn pri" id="sconn" data-act="sconn">📡 센서 연결</button><button class="btn yel" data-act="vrec" disabled id="vrecb">기록하기</button></div>' : '<p class="tiny">이 기기에서는 센서를 연결할 수 없어요. 아래에 기압을 직접 써서 기록해요.</p>') +
+      (CFG.API_URL ? '<div class="vacman"><label>모둠 <input id="vgroup" type="number" min="1" max="12" inputmode="numeric" value="' + esc(String(vacS().group || '')) + '" placeholder="번호"></label><button class="btn sm pri" data-act="vgather">👥 모둠 자료 모으기</button></div><p class="tiny" id="vgmsg" aria-live="polite"></p>' : '') +
       '<div class="vacman"><label>손으로 기록 <input id="vacin" type="number" step="0.01" min="0" max="1.2" inputmode="decimal" placeholder="예: 0.85"> 기압</label><button class="btn sm" data-act="vadd">추가</button></div>' +
       '<div class="btns"><button class="btn sm" data-act="vundo">마지막 기록 지우기</button><button class="btn sm" data-act="vclear">처음부터 다시</button><button class="btn sm" data-act="vsample">예시 자료 보기</button></div></div>' +
       '<div id="vacbox"></div><div id="vacq"></div>';
   };
-  AFTER.vac = function (d, st, i) { drawVac(d, st, i); sPaint(); };
-  function vacGraph(rows) {
-    var W = 560, H = 300, L = 62, R = 20, Tp = 20, B = 50, xm = Math.max(8, rows.length ? rows[rows.length - 1][0] : 0), ym = 1.1;
+  AFTER.vac = function (d, st, i) { drawVac(d, st, i); sPaint(); var gi = $('#vgroup'); if (gi) gi.addEventListener('change', function () { vacS().group = gi.value.trim(); save(); }); };
+  function vacGraph(rows, ser) {
+    var W = 560, H = 300, L = 62, R = 20, Tp = 20, B = 50, xm = 15, ym = 1.1; (ser || []).concat([{ rows: rows }]).forEach(function (q) { q.rows.forEach(function (r) { xm = Math.max(xm, r[0]); }); });
     var X = function (x) { return L + x / xm * (W - L - R); }, Y = function (y) { return H - B - y / ym * (H - Tp - B); }, s = '';
     for (var g = 0; g <= 22; g++) { var yv = g * 0.05, mj = g % 2 === 0; s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(yv) + '" y2="' + Y(yv) + '" class="' + (mj ? 'gl' : 'gm') + '"/>' + (g % 4 === 0 ? '<text x="' + (L - 8) + '" y="' + (Y(yv) + 5) + '" text-anchor="end" class="gt">' + yv.toFixed(1) + '</text>' : ''); }
     for (var k = 0; k <= xm; k++) s += '<line y1="' + Y(0) + '" y2="' + Y(ym) + '" x1="' + X(k) + '" x2="' + X(k) + '" class="gl"/><text x="' + X(k) + '" y="' + (H - B + 22) + '" text-anchor="middle" class="gt">' + k + '</text>';
     s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(0) + '" y2="' + Y(0) + '" class="gax"/><line x1="' + L + '" x2="' + L + '" y1="' + Y(0) + '" y2="' + Y(ym) + '" class="gax"/>';
     s += '<text x="' + ((L + W - R) / 2) + '" y="' + (H - 6) + '" text-anchor="middle" class="gn">펌프질 횟수 (번)</text><text transform="translate(16,' + ((Tp + H - B) / 2) + ') rotate(-90)" text-anchor="middle" class="gn">용기 속 기압</text>';
+    (ser || []).forEach(function (q) { if (q.rows.length > 1) s += '<polyline fill="none" stroke="' + q.color + '" stroke-width="2" stroke-dasharray="5 4" points="' + q.rows.map(function (r) { return X(r[0]) + ',' + Y(r[1]); }).join(' ') + '"/>'; q.rows.forEach(function (r) { s += '<circle cx="' + X(r[0]) + '" cy="' + Y(r[1]) + '" r="5" fill="' + q.color + '" stroke="#1B1F3B" stroke-width="1.5"/>'; }); });
     if (rows.length > 1) s += '<polyline fill="none" stroke="#2F4BD8" stroke-width="3" points="' + rows.map(function (r) { return X(r[0]) + ',' + Y(r[1]); }).join(' ') + '"/>';
-    rows.forEach(function (r) { s += '<circle cx="' + X(r[0]) + '" cy="' + Y(r[1]) + '" r="7" fill="#FFD43B" stroke="#1B1F3B" stroke-width="2.5"/>'; });
+    rows.forEach(function (r) { s += '<circle cx="' + X(r[0]) + '" cy="' + Y(r[1]) + '" r="' + (ser ? 4.5 : 7) + '" fill="' + (ser ? '#2F4BD8' : '#FFD43B') + '" stroke="#1B1F3B" stroke-width="' + (ser ? 1.5 : 2.5) + '"/>'; });
     return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="graph vacg" role="img" aria-label="펌프질 횟수에 따른 용기 속 기압 그래프">' + s + '</svg>';
   }
   function drawVac(d, st, i) {
     var V = vacS(), rows = V.rows, box = $('#vacbox'); if (!box) return;
     var vb = $('#vrecb'); if (vb) vb.textContent = rows.length ? '펌프질 ' + rows.length + '번 뒤 기압 기록' : '처음 기압 기록 (펌프질 전)';
+    var G = V.gather && V.gather.members && V.gather.members.length ? V.gather.members : null;
+    if (G) {
+      G.forEach(function (m) { if (m.me && !V.sample) m.rows = rows.map(function (r) { return r.slice(); }); });
+      var mx = 0; G.forEach(function (m) { m.rows.forEach(function (r) { mx = Math.max(mx, r[0]); }); });
+      var av = []; for (var k = 0; k <= mx; k++) { var vs = G.map(function (m) { var c = m.rows.filter(function (r) { return r[0] === k; })[0]; return c ? c[1] : null; }).filter(function (v) { return v != null; }); if (vs.length) av.push([k, vs.reduce(function (t, v) { return t + v; }, 0) / vs.length, vs.length]); }
+      var ser = G.map(function (m, j) { return { rows: m.rows, color: GCOL[j % GCOL.length], label: m.label }; });
+      box.innerHTML = '<div class="card"><h3>👥 ' + esc(String(V.group)) + '모둠 ' + G.length + '명 비교</h3>' + vacGraph(av.map(function (r) { return [r[0], r[1]]; }), ser) +
+        '<div class="clegend">' + ser.map(function (q) { return '<span><i style="background:' + q.color + '"></i>' + esc(q.label) + '</span>'; }).join('') + '<span><i style="background:#2F4BD8"></i><b>모둠 평균</b></span></div>' +
+        '<div class="scroll"><table class="tbl gtab"><thead><tr><th>펌프질 횟수</th>' + G.map(function (m) { return '<th>' + esc(m.label) + '</th>'; }).join('') + '<th class="avg">평균</th></tr></thead><tbody>' +
+        av.map(function (r) { return '<tr><td>' + (r[0] ? r[0] + '번' : '처음') + '</td>' + G.map(function (m) { var c = m.rows.filter(function (x) { return x[0] === r[0]; })[0]; return '<td>' + (c ? c[1].toFixed(2) : '–') + '</td>'; }).join('') + '<td class="avg">' + r[1].toFixed(2) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
+        '<div class="btns"><button class="btn sm" data-act="vmine">내 자료만 보기</button></div></div>';
+    } else
     box.innerHTML = '<div class="card">' + (V.sample ? '<p class="tiny"><b>예시 자료</b>예요. 우리 모둠이 잰 값으로 바꾸려면 ‘처음부터 다시’를 눌러요.</p>' : '') + vacGraph(rows) +
       (rows.length ? '<div class="scroll"><table class="tbl"><thead><tr><th>펌프질 횟수</th><th>용기 속 기압</th><th>한 번에 줄어든 기압</th></tr></thead><tbody>' + rows.map(function (r, k) { return '<tr><td>' + (r[0] ? r[0] + '번' : '처음') + '</td><td>' + r[1].toFixed(2) + '</td><td>' + (k ? (rows[k - 1][1] - r[1]).toFixed(2) : '–') + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<p class="hint">처음 기압부터 기록해요.</p>') + '</div>';
     $('#vacq').innerHTML = rows.length >= 6 ? itemsHTML(d, st, i, 'retry') : '<p class="hint">펌프질 5번까지 기록하면 질문이 나와요. (지금 ' + Math.max(0, rows.length - 1) + '번)</p>';
   }
-  function vacPush(p) { var V = vacS(); if (V.sample) { V.rows = []; V.sample = false; } V.rows.push([V.rows.length, Math.round(p * 100) / 100]); save(); sync('vac', { rows: V.rows }); chip((V.rows.length - 1 ? '펌프질 ' + (V.rows.length - 1) + '번' : '처음') + ' → ' + p.toFixed(2) + ' 기압'); }
+  function vacPush(p) { var V = vacS(); if (V.sample) { V.rows = []; V.sample = false; } V.rows.push([V.rows.length, Math.round(p * 100) / 100]); save(); sync('vac', { group: V.group || '', rows: V.rows }); chip((V.rows.length - 1 ? '펌프질 ' + (V.rows.length - 1) + '번' : '처음') + ' → ' + p.toFixed(2) + ' 기압'); }
+  function vGather(d, st, i) {
+    var V = vacS(), m = $('#vgmsg'), gi = $('#vgroup'); if (gi) V.group = gi.value.trim();
+    if (!V.group) { m.innerHTML = '<b class="warn">먼저 ‘모둠’ 칸에 모둠 번호를 쓰세요.</b>'; if (gi) gi.focus(); return; }
+    save(); m.textContent = '내 값을 올리고 모둠 자료를 모으는 중…';
+    var up = V.rows.length && !V.sample ? tpost({ cls: S.profile.cls, num: S.profile.num, name: S.profile.name, key: 'vac', val: { group: V.group, rows: V.rows } }).catch(function () { }) : Promise.resolve();
+    up.then(function () { return apiGet({ cls: S.profile.cls, key: 'vac' }); }).then(function (res) {
+      if (res.error) throw new Error(res.error);
+      var mem = (res.rows || []).filter(function (r) { return r.val && r.val.rows && r.val.rows.length && !r.val.sample && String(r.val.group) === String(V.group); }).map(function (r) { var me = String(r.num) === String(S.profile.num); return { label: r.num + '번' + (me ? '(나)' : ''), rows: r.val.rows, num: r.num, me: me }; }).sort(function (p, q) { return p.num - q.num; });
+      V.gather = { members: mem, t: Date.now() }; save(); drawVac(d, st, i);
+      var m2 = $('#vgmsg'); if (m2) m2.textContent = mem.length ? V.group + '모둠 ' + mem.length + '명의 자료를 모았어요. 아직 안 올린 모둠원이 있으면 잠시 뒤 다시 눌러요.' : '아직 올라온 자료가 없어요. 기압을 기록하고 다시 눌러 보세요.';
+    }).catch(function () { var m3 = $('#vgmsg'); if (m3) m3.textContent = '자료를 모으지 못했어요. 잠시 뒤에 다시 눌러 보세요.'; });
+  }
   DONE.vac = function (d, st, i) { var V = S.lab.vac; return !!(V && V.rows.length >= 6 && allRight(pfx(d, i), st.items)); };
   TODO.vac = '펌프질 5번까지 기압을 기록하고 질문에 답해요';
 
@@ -884,6 +910,8 @@
     }
     else if (act === 'vrec') { var vk = sNow(); if (vk == null) return; vacPush(vk / 101.325); drawVac(d, st, i); check(); }
     else if (act === 'vadd') { var vi = $('#vacin'), vv2 = parseFloat(vi.value); if (!(vv2 > 0 && vv2 < 1.3)) { chip('0에서 1.3 사이의 기압을 써요'); return; } vacPush(vv2); vi.value = ''; drawVac(d, st, i); check(); }
+    else if (act === 'vgather') vGather(d, st, i);
+    else if (act === 'vmine') { vacS().gather = null; save(); drawVac(d, st, i); }
     else if (act === 'vundo') { vacS().rows.pop(); save(); drawVac(d, st, i); check(); }
     else if (act === 'vclear') { if (!confirmBox(b, '한 번 더 누르면 기록이 모두 지워져요')) return; var VV = vacS(); VV.rows = []; VV.sample = false; save(); b.removeAttribute('data-sure'); b.textContent = '처음부터 다시'; drawVac(d, st, i); check(); }
     else if (act === 'vsample') { var VS = vacS(); VS.rows = VACS.map(function (r) { return r.slice(); }); VS.sample = true; save(); drawVac(d, st, i); check(); }

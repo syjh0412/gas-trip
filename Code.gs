@@ -8,7 +8,7 @@
  */
 var TEACHER_PIN = '0000';
 var SHEET = 'data';
-var OPEN_KEYS = ['boyle', 'charles']; // 학생도 반 전체를 볼 수 있는 자료
+var OPEN_KEYS = ['boyle', 'charles', 'vac']; // 학생도 반 전체를 볼 수 있는 자료
 
 function sheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
