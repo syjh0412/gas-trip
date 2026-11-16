@@ -339,8 +339,10 @@
     var d = cur.dest; if (!d) return; var sl = cur.sl, st = sl.si != null ? d.steps[sl.si] : null;
     if (st && DONE[st.type](d, st, sl.si)) markDone(d, sl.si);
     var ok = slideDone(d, sl), hk = $('#hintkey'), nx = $('#next'); if (!hk) return;
-    cur.locked = !ok && !isT();
+    cur.locked = !ok && !isT() && !(st && st.free && sl.k === 'whole');
     cur.why = sl.k === 'card' ? '노란 빈칸을 모두 눌러 확인하세요' : (sl.k === 'q' || sl.k === 'pq') ? '질문에 답하면 넘어갈 수 있어요' : (st ? TODO[st.type] : '');
+    if (st && st.type === 'vac' && !ok && vacOwn(d, st, sl.si) && !dataDoneIn(d)) cur.why = '감압 용기는 끝! 이제 실험대를 바꿔 앞 장의 주사기 측정을 끝내야 넘어갈 수 있어요';
+    if (st && st.free && sl.k === 'whole' && !ok && !isT()) { var hk0 = $('#hintkey'); if (hk0) { hk0.className = 'hintkey lockmsg'; hk0.textContent = '감압 용기 먼저 하는 팀은 넘어가도 돼요. 주사기 측정은 실험대를 바꾼 뒤 꼭 돌아와서 해요'; } nx.classList.remove('lock'); nx.setAttribute('aria-disabled', false); return; }
     nx.classList.toggle('lock', cur.locked); nx.setAttribute('aria-disabled', cur.locked);
     hk.className = 'hintkey' + (cur.locked ? ' lockmsg' : ok && sl.k !== 'hero' && sl.k !== 'clear' && sl.k !== 'ex' && sl.k !== 'labs' ? ' okmsg' : '');
     hk.textContent = cur.locked ? '🔒 ' + cur.why : (hk.className.indexOf('okmsg') > 0 ? '✓ 완료 · ' : '') + '← → 키 · 밀어서 넘기기';
@@ -520,7 +522,9 @@
       var m2 = $('#vgmsg'); if (m2) m2.textContent = mem.length ? V.group + '모둠 ' + mem.length + '명의 자료를 모았어요. 아직 안 올린 모둠원이 있으면 잠시 뒤 다시 눌러요.' : '아직 올라온 자료가 없어요. 기압을 기록하고 다시 눌러 보세요.';
     }).catch(function () { var m3 = $('#vgmsg'); if (m3) m3.textContent = '자료를 모으지 못했어요. 잠시 뒤에 다시 눌러 보세요.'; });
   }
-  DONE.vac = function (d, st, i) { var V = S.lab.vac; return !!(V && V.rows.length >= 6 && allRight(pfx(d, i), st.items)); };
+  function vacOwn(d, st, i) { var V = S.lab.vac; return !!(V && V.rows.length >= 6 && allRight(pfx(d, i), st.items)); }
+  function dataDoneIn(d) { for (var k = 0; k < d.steps.length; k++) if (d.steps[k].type === 'data' && !DONE.data(d, d.steps[k], k)) return false; return true; }
+  DONE.vac = function (d, st, i) { return vacOwn(d, st, i) && dataDoneIn(d); };
   TODO.vac = '펌프질 5번까지 기압을 기록하고 질문에 답해요';
 
   // 펌프 속 입자 모형
