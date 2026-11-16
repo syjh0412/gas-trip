@@ -288,3 +288,12 @@ a.rk { text-decoration: none; }
 }
 .turn { background: #EAF6EE; border: 2px solid #2E9E5B; border-radius: 10px; padding: 8px 12px; font-size: 14px; margin: 10px 0 0; }
 .labgrid tr.cur td { background: #FFF6CC; }
+
+.hook { font-size: 18px; color: #4A5078; margin: 0 0 12px; }
+.expgrid { display: grid; gap: 14px; } @media (min-width: 900px) { .expgrid { grid-template-columns: 1fr 1fr; align-items: start; } }
+.expart svg { width: 100%; height: auto; display: block; }
+.mchips { display: flex; flex-wrap: wrap; gap: 6px; } .mchip { background: #EEF1FB; border: 1.5px solid var(--ink); border-radius: 999px; padding: 4px 12px; font-size: 15px; }
+.esteps { margin: 0; padding-left: 22px; } .esteps li { margin: 6px 0; line-height: 1.5; }
+.card.safe { background: #FFF1F1; } .card.tips { background: #FFFBEA; }
+.why li { background: #F3F5FB; border-radius: 10px; padding: 8px 12px; margin: 8px 0; }
+.tag.okt { background: #E3F6EA; color: #1E7A45; font-weight: 700; padding: 8px 14px; font-size: 16px; }

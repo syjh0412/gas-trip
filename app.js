@@ -265,7 +265,7 @@
     S.done[d.id] = S.done[d.id] || {};
     if (S.done[d.id][i]) return;
     S.done[d.id][i] = Date.now(); save();
-    var st = d.steps[i]; mile('s.' + d.id + '.' + i, { presslab: 6, sim: 6, data: 10, vac: 10, pumpsim: 6, chain: 8, line: 6, booth: 6 }[st.type] || 0);
+    var st = d.steps[i]; mile('s.' + d.id + '.' + i, { exp: 4, presslab: 6, sim: 6, data: 10, vac: 10, pumpsim: 6, chain: 8, line: 6, booth: 6 }[st.type] || 0);
     if (st.stamp && d.std) award(d.std, st.stamp);
     syncProgress();
   }
@@ -276,6 +276,7 @@
       if (st.type === 'predict') st.items.forEach(function (it, j) { a.push({ k: 'q', si: si, j: j, n: st.items.length }); });
       else if (st.type === 'cards') { st.cards.forEach(function (c, j) { a.push({ k: 'card', si: si, j: j, n: st.cards.length }); }); if (st.examples) a.push({ k: 'ex', si: si }); if (st.labs) a.push({ k: 'labs', si: si }); }
       else if (st.type === 'quiz') st.ids.forEach(function (id, j) { a.push({ k: 'pq', si: si, j: j, id: id, n: st.ids.length }); });
+      else if (st.type === 'exp') { a.push({ k: 'expa', si: si }); a.push({ k: 'expb', si: si }); }
       else a.push({ k: 'whole', si: si });
     });
     a.push({ k: 'clear' }); return a;
@@ -286,6 +287,8 @@
     if (sl.k === 'pq') return !!S.ans['p.' + sl.id];
     if (sl.k === 'card') return !!S.seen[pfx(d, sl.si) + sl.j];
     if (sl.k === 'whole') return DONE[st.type](d, st, sl.si);
+    if (sl.k === 'expa') return !!S.seen[pfx(d, sl.si) + 'ea'];
+    if (sl.k === 'expb') return expbDone(d, st, sl.si);
     return true;
   }
   function viewDest(d, k) {
@@ -304,6 +307,8 @@
       body = '<p class="s-kicker">' + kick + '</p><article class="bigcard"><h2 class="s-title">' + c.h + '</h2><p class="s-body">' + (seen ? c.b : c.b.replace(/<b>/g, '<b class="blank" data-act="blank" role="button" tabindex="0">')) + '</p></article>';
     }
     else if (sl.k === 'ex') body = '<p class="s-kicker">' + st.title + ' · 생활 속 예</p>' + exHTML(st);
+    else if (sl.k === 'expa') body = expaHTML(d, st, sl.si);
+    else if (sl.k === 'expb') body = expbHTML(d, st, sl.si);
     else if (sl.k === 'labs') body = '<p class="s-kicker">' + st.title + ' · 오늘 수업에서 하는 실험</p>' + labsHTML(st);
     else if (sl.k === 'clear') {
       var got = d.std ? ['see', 'meas', 'part'].map(function (x) { return stampHTML(d.std, x); }).join('') : '', ni = T.dests.indexOf(d) + 1, nd = T.dests[ni];
@@ -341,6 +346,7 @@
     var ok = slideDone(d, sl), hk = $('#hintkey'), nx = $('#next'); if (!hk) return;
     cur.locked = !ok && !isT() && !(st && st.free && sl.k === 'whole');
     cur.why = sl.k === 'card' ? '노란 빈칸을 모두 눌러 확인하세요' : (sl.k === 'q' || sl.k === 'pq') ? '질문에 답하면 넘어갈 수 있어요' : (st ? TODO[st.type] : '');
+    if (sl.k === 'expa' || sl.k === 'expb') cur.why = sl.k === 'expa' ? '실험을 마치면 ‘우리 모둠 실험 완료’를 눌러요' : '질문에 답하고, 설명을 끝까지 보고, 빈칸을 눌러요';
     if (st && st.type === 'vac' && !ok && vacOwn(d, st, sl.si) && !dataDoneIn(d)) cur.why = '감압 용기는 끝! 이제 실험대를 바꿔 앞 장의 주사기 측정을 끝내야 넘어갈 수 있어요';
     if (st && st.free && sl.k === 'whole' && !ok && !isT()) { var hk0 = $('#hintkey'); if (hk0) { hk0.className = 'hintkey lockmsg'; hk0.textContent = '감압 용기 먼저 하는 팀은 넘어가도 돼요. 주사기 측정은 실험대를 바꾼 뒤 꼭 돌아와서 해요'; } nx.classList.remove('lock'); nx.setAttribute('aria-disabled', false); return; }
     nx.classList.toggle('lock', cur.locked); nx.setAttribute('aria-disabled', cur.locked);
@@ -362,6 +368,35 @@
   STEP.cards = function () { return ''; };
   DONE.cards = function () { return true; };
   function boothURL(hash) { return (CFG.BOOTH_URL || 'https://syjh0412.github.io/gas-booth/').split('#')[0] + (hash || ''); }
+
+
+  // 직접 하는 실험 (1~2차시)
+  function expaHTML(d, st, i) {
+    var e = T.exps[st.code], ok = S.seen[pfx(d, i) + 'ea'];
+    return '<p class="s-kicker">' + st.title + ' · 실험 방법</p><h2 class="s-title">' + esc(e.title) + '</h2><p class="hook">' + esc(e.hook) + '</p>' +
+      '<div class="expgrid"><div class="card expart"><svg role="img" aria-label="' + esc(e.title) + ' 실험 그림" viewBox="0 0 660 300">' + e.art + '</svg></div>' +
+      '<div><div class="card"><h3>준비물</h3><div class="mchips">' + e.materials.map(function (m) { return '<span class="mchip">' + esc(m) + '</span>'; }).join('') + '</div></div>' +
+      '<div class="card"><h3>실험 방법</h3><ol class="esteps">' + e.steps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ol></div></div></div>' +
+      '<div class="expgrid"><div class="card safe"><h3>⚠️ 안전</h3><ul class="plain">' + e.safety.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ul></div>' +
+      '<div class="card tips"><h3>💡 잘하는 요령</h3><ul class="plain">' + e.tips.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ul></div></div>' +
+      '<div class="btns ctr">' + (ok ? '<span class="tag okt">✓ 실험 완료</span>' : '<button class="btn yel" data-act="expdone">✓ 우리 모둠 실험 완료</button>') + '</div>';
+  }
+  function expbDone(d, st, i) {
+    var e = T.exps[st.code], k = pfx(d, i), an = S.ans[k + 'ew'];
+    return !!(an && an.c === e.ws.a && (S.seen[k + 'wy'] || 0) >= e.why.length && S.seen[k + 'ef']);
+  }
+  function expbHTML(d, st, i) {
+    var e = T.exps[st.code], k = pfx(d, i), n = S.seen[k + 'wy'] || 0, fdone = S.seen[k + 'ef'];
+    var f = esc(e.ws.f).replace(/\[([^\]]+)\]/g, function (m, w) { return fdone ? '<b class="blank on">' + w + '</b>' : '<b class="blank" data-act="eblank" role="button" tabindex="0">' + w + '</b>'; });
+    return '<p class="s-kicker">' + st.title + ' · 결과와 까닭</p><h2 class="s-title">' + esc(e.title) + '</h2>' +
+      '<div class="card"><h3>결과 확인</h3>' + mcq(k + 'ew', { q: e.ws.q, opts: e.ws.o, a: e.ws.a, ex: e.law }, 'retry', 0) + '</div>' +
+      '<div class="card"><h3>모둠에서 이야기해 보기</h3><ol class="esteps">' + e.qs.map(function (q) { return '<li>' + esc(q) + '</li>'; }).join('') + '</ol>' +
+      '<ul class="plain why">' + e.why.map(function (w, j) { return j < n ? '<li>' + esc(w) + '</li>' : ''; }).join('') + '</ul>' +
+      (n < e.why.length ? '<button class="btn" data-act="whynext">설명 한 줄씩 보기 (' + n + '/' + e.why.length + ')</button>' : '') + '</div>' +
+      (n >= e.why.length ? '<article class="bigcard"><h3>한 문장으로 정리</h3><p class="s-body">' + f + '</p></article>' : '');
+  }
+  DONE.exp = function (d, st, i) { return !!S.seen[pfx(d, i) + 'ea'] && expbDone(d, st, i); };
+  TODO.exp = '실험을 하고 결과와 까닭을 확인해요';
 
   // 점토 실험실
   var LABC = { fw: ['가득', '넓은 바닥', 1, '(가)'], fn: ['가득', '좁은 뚜껑', 4, '(나)'], hn: ['반', '좁은 뚜껑', 2, '(다)'], hw: ['반', '넓은 바닥', 0.5, '(라)'] };
@@ -970,6 +1005,9 @@
     else if (act === 'blank') { b.classList.add('on'); b.removeAttribute('data-act'); if (!document.querySelector('.blank:not(.on)')) { S.seen[pfx(d, i) + cur.sl.j] = 1; save(); mile('c.' + pfx(d, i) + cur.sl.j, 2); } check(); }
     else if (act === 'lab') { S.lab.press[b.dataset.k] = b.dataset.v; drawLab(d, st, i); check(); }
     else if (act === 'labreplay') drawLab(d, st, i);
+    else if (act === 'expdone') { S.seen[pfx(d, i) + 'ea'] = 1; save(); b.outerHTML = '<span class="tag okt">✓ 실험 완료</span>'; check(); }
+    else if (act === 'whynext') { var wk = pfx(d, i) + 'wy'; S.seen[wk] = (S.seen[wk] || 0) + 1; save(); var sb = $('#stgbody'), y = sb ? sb.scrollTop : 0; route(); var sb2 = $('#stgbody'); if (sb2) sb2.scrollTop = y; }
+    else if (act === 'eblank') { b.classList.add('on'); b.removeAttribute('data-act'); if (!document.querySelector('.blank[data-act=eblank]')) { S.seen[pfx(d, i) + 'ef'] = 1; save(); mile('f.' + pfx(d, i), 2); } check(); }
     else if (act === 'addrow') { readRows(st.kind); S.data[st.kind].rows.push(['', '']); save(); drawData(d, st, i); }
     else if (act === 'sample') { var K = KIND[st.kind], D = getData(st.kind); D.rows = K.sample.map(function (r) { return [String(r[0]), String(r[1])]; }); D.unit = K.sampleUnit; D.sample = true; save(); drawData(d, st, i); }
     else if (act === 'lock') {
