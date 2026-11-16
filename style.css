@@ -265,3 +265,7 @@ a.rk { text-decoration: none; }
 .glegend rect { fill: #fff; stroke: #1B1F3B; stroke-width: 1.5; } .glegend text { font-size: 14px; font-weight: 700; fill: #1B1F3B; font-family: var(--fb); }
 .trendopts { grid-template-columns: repeat(4, 1fr); } .trendopts .opt { flex-direction: column; align-items: center; text-align: center; } .trendopts .tl { font-size: 15px; } .trendopts .opt::after { position: absolute; }
 @media (max-width: 700px) { .trendopts { grid-template-columns: 1fr 1fr; } }
+
+/* ---------- 모둠 모으기 · 반 그래프 ---------- */
+.gath { background: #F4FFF6; } .gtab td.avg, .gtab th.avg { background: #FFF3B8; font-weight: 700; }
+.clegend { display: flex; flex-wrap: wrap; gap: 6px 12px; margin: 10px 0 0; font-size: 14px; } .clegend span { display: inline-flex; align-items: center; gap: 6px; } .clegend i { width: 14px; height: 14px; border-radius: 50%; display: inline-block; border: 1.5px solid #1B1F3B; } .clegend .me { font-weight: 700; text-decoration: underline; }

@@ -531,12 +531,45 @@
       '<div class="btns"><button class="btn pri" id="sconn" data-act="sconn">📡 센서 연결</button><button class="btn sm" id="szero" data-act="szero" disabled>다시 1기압 맞추기</button></div><p class="tiny" style="margin:4px 0 0">연결할 때와 ‘다시 1기압 맞추기’를 누를 때는 주사기 피스톤을 건드리지 마세요.</p>' +
       '<p class="tiny" style="margin:10px 0 4px"><b>지금 부피를 눌러 기록하기</b></p><div class="svols">' + vols.map(function (x) { return '<button class="btn sm" data-act="srec" data-v="' + x + '"' + (SENS.state === 'on' ? '' : ' disabled') + '>' + x + ' mL</button>'; }).join('') + '</div></div>';
   }
+  /* ---------- 모둠 자료 모으기 · 반/학년 그래프 ---------- */
+  var GCOL = ['#E4572E', '#17BEBB', '#E0A800', '#4E9F3D', '#9B5DE5', '#F15BB5', '#2E86AB', '#8D6E63', '#00897B', '#5C6BC0'];
+  function xKey(kind, x) { return kind === 'boyle' ? String(+x) : String(Math.round(+x)); }
+  function avgRows(kind, list) { // list: [[x,y],...] from several people -> averaged by x
+    var by = {}, K = KIND[kind]; list.forEach(function (r) { var k = xKey(kind, r[K.x === 1 ? 1 : 0]); });
+    list.forEach(function (r) { var k = xKey(kind, r[0]); (by[k] = by[k] || []).push(+r[1]); });
+    return Object.keys(by).map(function (k) { var a = by[k]; return [+k, a.reduce(function (t, v) { return t + v; }, 0) / a.length, a.length]; }).sort(function (a, b) { return a[0] - b[0]; });
+  }
+  function recOK(v, D) { return v && v.rows && v.rows.length && !v.sample && !v.avg && (!D || v.unit === D.unit); }
+  function gatherCard(kind, D) {
+    var g = D.gather, h = '<div class="card gath"><h3>👥 모둠 자료 모으기</h3><p class="tiny" style="margin:0 0 8px">모둠원이 각자 자기 태블릿에서 측정했다면, <b>모두 같은 모둠 번호</b>를 쓰고 이 버튼을 눌러요. 내 값이 올라가고, 모둠원들의 값이 함께 모여요.</p><div class="btns"><button class="btn pri" data-act="gather">' + (g ? '다시 불러오기' : '모둠 자료 모으기') + '</button></div><p class="tiny" id="gmsg2b" aria-live="polite"></p>';
+    if (g && g.members.length) {
+      var K = KIND[kind], xs = {}; g.members.forEach(function (m) { m.rows.forEach(function (r) { xs[xKey(kind, r[0])] = 1; }); });
+      var keys = Object.keys(xs).map(Number).sort(function (a, b) { return kind === 'boyle' ? b - a : a - b; }), av = avgRows(kind, [].concat.apply([], g.members.map(function (m) { return m.rows; })));
+      var avMap = {}; av.forEach(function (r) { avMap[r[0]] = r[1]; });
+      h += '<div class="scroll"><table class="tbl gtab"><thead><tr><th>' + K.cols[0] + '</th>' + g.members.map(function (m) { return '<th>' + esc(m.label) + '</th>'; }).join('') + '<th class="avg">평균</th></tr></thead><tbody>' +
+        keys.map(function (k) { return '<tr><td>' + k + '</td>' + g.members.map(function (m) { var c = m.rows.filter(function (r) { return xKey(kind, r[0]) === String(k); })[0]; return '<td>' + (c ? c[1] : '–') + '</td>'; }).join('') + '<td class="avg">' + (+avMap[k].toFixed(kind === 'boyle' ? 2 : 2)) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
+        '<div class="btns"><button class="btn yel" data-act="useavg">평균값으로 그래프 그리기</button></div>';
+    }
+    return h + '</div>';
+  }
+  function gather(d, st, i) {
+    var kind = st.kind; readRows(kind); var D = S.data[kind], m = $('#gmsg2b'), own = validRows(D);
+    if (!D.group) { m.innerHTML = '<b class="warn">먼저 위의 ‘모둠’ 칸에 모둠 번호를 쓰세요.</b>'; var gi = $('#dgroup'); if (gi) gi.focus(); return; }
+    m.textContent = '내 값을 올리고 모둠 자료를 모으는 중…';
+    var up = own.length && !D.sample ? tpost({ cls: S.profile.cls, num: S.profile.num, name: S.profile.name, key: kind, val: { group: D.group, unit: D.unit, rows: own, sample: false } }).catch(function () { }) : Promise.resolve();
+    up.then(function () { return apiGet({ cls: S.profile.cls, key: kind }); }).then(function (res) {
+      var mem = (res.rows || []).filter(function (r) { return recOK(r.val, D) && String(r.val.group) === String(D.group); }).map(function (r) { return { label: r.num + '번' + (String(r.num) === String(S.profile.num) ? '(나)' : ''), rows: r.val.rows, num: r.num }; }).sort(function (a, b) { return a.num - b.num; });
+      D.gather = { members: mem, t: Date.now() }; save(); drawData(d, st, i);
+      var m2 = $('#gmsg2b'); if (m2) m2.textContent = mem.length ? D.group + '모둠 ' + mem.length + '명의 자료를 모았어요. 아직 안 올린 모둠원이 있으면 잠시 뒤 다시 불러오세요.' : '아직 올라온 자료가 없어요. 표에 측정값을 넣고 다시 눌러 보세요.';
+    }).catch(function () { var m3 = $('#gmsg2b'); if (m3) m3.textContent = '자료를 모으지 못했어요. 잠시 뒤에 다시 눌러 보세요.'; });
+  }
   STEP.data = function (d, st, i) { return '<div id="databox"></div>'; };
   AFTER.data = function (d, st, i) { drawData(d, st, i); };
   function drawData(d, st, i) {
     var kind = st.kind, K = KIND[kind], D = getData(kind), u = units(kind, D), h = '';
     if (!D.locked) {
       if (kind === 'boyle') h += sensorCard(D);
+      if (CFG.API_URL) h += gatherCard(kind, D);
       h += '<div class="card"><h3>① 측정값 입력</h3><div class="row3"><label>모둠<input id="dgroup" inputmode="numeric" maxlength="2" value="' + esc(D.group) + '" placeholder="예: 3"></label>' +
         (K.units ? '<label>압력 단위<select id="dunit">' + K.units.map(function (x) { return '<option' + (x === D.unit ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></label>' : '<label>부피 단위<input id="dunit" maxlength="8" value="' + esc(D.unit) + '"></label>') + '</div>' +
         '<table class="tbl in"><thead><tr><th>번호</th><th>' + K.cols[0] + ' (' + u[0] + ')</th><th>' + K.cols[1] + ' (' + u[1] + ')</th></tr></thead><tbody>' +
@@ -545,7 +578,7 @@
       $('#databox').innerHTML = h; sPaint(); return;
     }
     var rows = validRows(D), xi = K.x, yi = K.y;
-    h += '<div class="card"><h3>① 우리 모둠 자료' + (D.sample ? ' <span class="tag">예시 자료</span>' : '') + ' <button class="linkbtn" data-act="unlock">고치기</button></h3><table class="tbl"><thead><tr><th>번호</th><th>' + K.cols[0] + ' (' + u[0] + ')</th><th>' + K.cols[1] + ' (' + u[1] + ')</th>' + (kind === 'boyle' ? '<th>압력 × 부피</th>' : '') + '</tr></thead><tbody>' +
+    h += '<div class="card"><h3>① 우리 모둠 자료' + (D.sample ? ' <span class="tag">예시 자료</span>' : '') + (D.avg ? ' <span class="tag">모둠원 ' + (D.gather ? D.gather.members.length : '') + '명 평균</span>' : '') + ' <button class="linkbtn" data-act="unlock">다시 측정하기</button></h3><table class="tbl"><thead><tr><th>번호</th><th>' + K.cols[0] + ' (' + u[0] + ')</th><th>' + K.cols[1] + ' (' + u[1] + ')</th>' + (kind === 'boyle' ? '<th>압력 × 부피</th>' : '') + '</tr></thead><tbody>' +
       rows.map(function (r, j) { return '<tr class="' + (j === D.placed ? 'cur' : '') + '"><td>' + (j + 1) + (j < D.placed ? ' ✓' : '') + '</td><td>' + r[0] + '</td><td>' + r[1] + '</td>' + (kind === 'boyle' ? '<td>' + (+(r[0] * r[1]).toPrecision(3)) + '</td>' : '') + '</tr>'; }).join('') + '</tbody></table></div>';
     var ax = axes(rows, xi, yi, kind), done = D.placed >= rows.length, tr = done && D.trendOK, cur0 = done ? null : rows[D.placed];
     graphSVG.extra = { trend: tr, miss: !done && D.miss ? D.miss : null, guide: !done && D.fails >= 2 ? cur0[xi] : null, guideY: !done && D.fails >= 3 ? cur0[yi] : null };
@@ -566,7 +599,7 @@
           '<h4>측정값과 이론값 비교</h4><p class="tiny" style="margin:0 0 6px">' + tc.note + '</p><div class="scroll"><table class="tbl"><thead><tr><th>번호</th><th>' + K.cols[xi] + ' (' + u[xi] + ')</th><th>측정한 ' + K.cols[yi] + '</th><th>이론값</th><th>차이</th></tr></thead><tbody>' +
           rows.map(function (r, j) { var th = tc.at(r[xi]), df = (r[yi] - th) / th * 100; return '<tr><td>' + (j + 1) + '</td><td>' + r[xi] + '</td><td>' + r[yi] + '</td><td>' + (+th.toFixed(2)) + '</td><td>' + (df >= 0 ? '+' : '') + df.toFixed(1) + '%</td></tr>'; }).join('') + '</tbody></table></div>' +
           '<p class="tiny">차이가 몇 % 정도는 생길 수 있어요. 눈금을 읽는 오차, 주사기 연결 부분의 공기, 손의 온도 같은 것 때문이에요. 차이가 큰 점이 있다면 그때 무슨 일이 있었는지 모둠에서 이야기해 보세요.</p>' +
-          '<div class="btns"><button class="btn sm" data-act="classdata">우리 반 그래프 보기</button></div><p class="tiny" id="cmsg">' + (kind === 'charles' ? '세로축은 0부터 시작하지 않아요. 눈금의 숫자를 잘 보세요.' : '') + '</p>';
+          '<div class="btns"><button class="btn sm" data-act="classdata">우리 반 그래프 보기</button><button class="btn sm" data-act="gradedata">1학년 전체 그래프 보기</button></div><div id="clegend" class="clegend"></div><p class="tiny" id="cmsg">' + (kind === 'charles' ? '세로축은 0부터 시작하지 않아요. 눈금의 숫자를 잘 보세요.' : '') + '</p>';
       }
       h += '</div>';
       if (tr) h += '<h3 class="sub3">④ 그래프 해석</h3>' + itemsHTML(d, st, i, 'retry');
@@ -576,7 +609,7 @@
     if (svg && !done) svg.addEventListener('click', function (e) {
       var pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; var q = pt.matrixTransform(svg.getScreenCTM().inverse());
       var vx = ax.x0 + (q.x - ax.L) / ax.pw * (ax.x1 - ax.x0), vy = ax.y0 + (ax.T + ax.ph - q.y) / ax.ph * (ax.y1 - ax.y0), r = rows[D.placed];
-      if (Math.abs(vx - r[xi]) <= (ax.x1 - ax.x0) * 0.045 && Math.abs(vy - r[yi]) <= (ax.y1 - ax.y0) * 0.06) { D.placed++; D.fails = 0; D.miss = null; if (D.placed >= rows.length && !D.missed && !D.sample) S.flags.sharp = 1; save(); if (D.placed >= rows.length) sync(kind, { group: D.group, unit: D.unit, rows: rows, sample: D.sample }); drawData(d, st, i); check(); }
+      if (Math.abs(vx - r[xi]) <= (ax.x1 - ax.x0) * 0.045 && Math.abs(vy - r[yi]) <= (ax.y1 - ax.y0) * 0.06) { D.placed++; D.fails = 0; D.miss = null; if (D.placed >= rows.length && !D.missed && !D.sample) S.flags.sharp = 1; save(); if (D.placed >= rows.length && !D.avg) sync(kind, { group: D.group, unit: D.unit, rows: rows, sample: D.sample }); drawData(d, st, i); check(); }
       else { D.fails++; D.missed = 1; D.miss = [q.x, q.y]; save(); drawData(d, st, i); }
     });
   }
@@ -610,7 +643,7 @@
     for (v = a.x0; v <= a.x1 + 1e-9; v += a.xs) s += '<line x1="' + a.X(v) + '" x2="' + a.X(v) + '" y1="' + a.T + '" y2="' + (a.T + a.ph) + '" class="gl"/><text x="' + a.X(v) + '" y="' + (a.T + a.ph + 20) + '" text-anchor="middle" class="gt">' + fmt(v) + '</text>';
     for (v = a.y0; v <= a.y1 + 1e-9; v += a.ys) s += '<line x1="' + a.L + '" x2="' + (a.L + a.pw) + '" y1="' + a.Y(v) + '" y2="' + a.Y(v) + '" class="gl"/><text x="' + (a.L - 8) + '" y="' + (a.Y(v) + 5) + '" text-anchor="end" class="gt">' + fmt(v) + '</text>';
     s += '<path d="M' + a.L + ' ' + a.T + 'V' + (a.T + a.ph) + 'H' + (a.L + a.pw) + '" class="gax"/><text x="' + (a.L + a.pw / 2) + '" y="384" text-anchor="middle" class="gn">' + K.cols[xi] + ' (' + u[xi] + ')</text><text x="16" y="' + (a.T + a.ph / 2) + '" text-anchor="middle" class="gn" transform="rotate(-90 16 ' + (a.T + a.ph / 2) + ')">' + K.cols[yi] + ' (' + u[yi] + ')</text>';
-    if (cls) cls.forEach(function (g) { g.rows.forEach(function (r) { if (r[xi] >= a.x0 && r[xi] <= a.x1 && r[yi] >= a.y0 && r[yi] <= a.y1) s += '<circle cx="' + a.X(r[xi]) + '" cy="' + a.Y(r[yi]) + '" r="5" class="gc"/>'; }); });
+    if (cls) cls.forEach(function (g) { g.rows.forEach(function (r) { var px = kind === 'boyle' ? r[1] : r[0], py = kind === 'boyle' ? r[0] : r[1]; if (g.color) { px = r[xi]; py = r[yi]; } if (px >= a.x0 && px <= a.x1 && py >= a.y0 && py <= a.y1) s += '<circle cx="' + a.X(px) + '" cy="' + a.Y(py) + '" r="' + (g.me ? 6.5 : 5.5) + '" class="gc"' + (g.color ? ' style="fill:' + g.color + ';opacity:.85"' : '') + '/>'; }); });
     var ex = graphSVG.extra || {};
     if (ex.guide != null) s += '<line x1="' + a.X(ex.guide) + '" x2="' + a.X(ex.guide) + '" y1="' + a.T + '" y2="' + (a.T + a.ph) + '" class="gguide"/>';
     if (ex.guideY != null) s += '<line x1="' + a.L + '" x2="' + (a.L + a.pw) + '" y1="' + a.Y(ex.guideY) + '" y2="' + a.Y(ex.guideY) + '" class="gguide"/>';
@@ -745,12 +778,20 @@
     else if (act === 'lock') {
       readRows(st.kind); var D2 = S.data[st.kind], rows = validRows(D2);
       if (rows.length < 4) { $('#dmsg').innerHTML = '<b class="warn">숫자로 된 측정값이 4개 이상 필요해요.</b> 지금은 ' + rows.length + '개예요.'; return; }
-      D2.locked = true; D2.placed = 0; D2.fails = 0; D2.missed = 0; D2.miss = null; D2.trendOK = 0; D2.trendPick = null; save(); drawData(d, st, i); check();
+      D2.locked = true; D2.placed = 0; D2.fails = 0; D2.missed = 0; D2.miss = null; D2.trendOK = 0; D2.trendPick = null; save(); if (!D2.sample && !D2.avg) sync(st.kind, { group: D2.group, unit: D2.unit, rows: rows, sample: false }); drawData(d, st, i); check();
     }
-    else if (act === 'unlock') { var D3 = S.data[st.kind]; D3.locked = false; D3.placed = 0; D3.sample = false; D3.trendOK = 0; D3.trendPick = null; D3.miss = null; save(); drawData(d, st, i); check(); }
+    else if (act === 'unlock') { if (!confirmBox(b, '한 번 더 누르면 표가 비워지고 처음부터 다시 측정해요')) return; var D3 = S.data[st.kind]; D3.locked = false; D3.placed = 0; D3.sample = false; D3.avg = 0; D3.rows = []; D3.gather = null; D3.trendOK = 0; D3.trendPick = null; D3.miss = null; save(); drawData(d, st, i); check(); }
     else if (act === 'trend') { var D5 = S.data[st.kind], rt = st.kind === 'boyle' ? 'inv' : 'upi'; D5.trendPick = b.dataset.v; if (b.dataset.v === rt) { D5.trendOK = 1; mile('trend.' + st.kind, 4); } save(); drawData(d, st, i); check(); var tb = document.querySelector('.trendopts'); if (tb && D5.trendOK) tb.closest('.card').scrollIntoView({ block: 'start' }); }
     else if (act === 'autoplace') { var D4 = S.data[st.kind]; D4.placed++; D4.fails = 0; D4.missed = 1; D4.miss = null; save(); drawData(d, st, i); check(); }
-    else if (act === 'classdata') { classData(st.kind); }
+    else if (act === 'classdata') { classData(st.kind, 'class'); }
+    else if (act === 'gradedata') { classData(st.kind, 'grade'); }
+    else if (act === 'gather') { gather(d, st, i); }
+    else if (act === 'useavg') {
+      var DA = S.data[st.kind], av = avgRows(st.kind, [].concat.apply([], DA.gather.members.map(function (m) { return m.rows; })));
+      if (av.length < 4) { toast('<p>평균을 낼 자료가 4개 이상 필요해요.</p>'); return; }
+      DA.rows = av.map(function (r) { return [String(r[0]), String(+r[1].toFixed(2))]; }); DA.avg = 1; DA.sample = false;
+      DA.locked = true; DA.placed = 0; DA.fails = 0; DA.missed = 0; DA.miss = null; DA.trendOK = 0; DA.trendPick = null; save(); drawData(d, st, i); check(); window.scrollTo(0, 0); var sb2 = $('#stgbody'); if (sb2) sb2.scrollTop = 0;
+    }
     else if (act === 'chain') { var C = S.chain[d.id]; C.sel[+b.dataset.j] = +b.dataset.k; C.checked = false; save(); $('#stepbody').innerHTML = STEP.chain(d, st, i); }
     else if (act === 'chaincheck') {
       var C2 = S.chain[d.id];
@@ -769,15 +810,23 @@
   function confirmBox(b, msg) { if (b.dataset.sure) return true; b.dataset.sure = '1'; b.textContent = msg; return false; }
   function readRows(kind) { var D = S.data[kind]; document.querySelectorAll('.tbl.in input').forEach(function (inp) { D.rows[+inp.dataset.r][+inp.dataset.c] = inp.value.trim().replace(',', '.'); }); var g = $('#dgroup'), u = $('#dunit'); if (g) D.group = g.value.trim(); if (u) D.unit = u.value.trim() || D.unit; D.sample = false; save(); }
   function quizScores() { var o = {}; Object.keys(S.ans).forEach(function (k) { if (k.indexOf('p.') === 0) o[k.slice(2)] = S.ans[k].first === T.pool[k.slice(2)].a ? 1 : 0; }); return o; }
-  function classData(kind) {
-    var msg = $('#cmsg');
+  function classData(kind, scope) {
+    var msg = $('#cmsg'), leg = $('#clegend');
     if (!CFG.API_URL) { msg.textContent = '선생님이 ‘반 자료 모으기’를 켜면 다른 모둠의 점도 함께 볼 수 있어요.'; return; }
-    msg.textContent = '우리 반 자료를 불러오는 중…';
-    apiGet({ cls: S.profile.cls, key: kind }).then(function (res) {
-      var by = {}; (res.rows || []).forEach(function (r) { var v = r.val; if (v && v.rows && !v.sample) by[v.group || (r.num + '번')] = v; });
-      var D = S.data[kind], K = KIND[kind], rows = validRows(D), groups = Object.keys(by).filter(function (g) { return by[g].unit === D.unit; }).map(function (g) { return by[g]; });
-      graphSVG.extra = { trend: !!D.trendOK }; $('.gwrap').innerHTML = graphSVG(axes(rows, K.x, K.y, kind), rows, K.x, K.y, rows.length, kind, K, units(kind, D), true, groups);
-      msg.textContent = groups.length + '개 모둠의 자료를 회색 점으로 겹쳐 그렸어요. 우리 모둠의 점(파란색)과 비교해 보세요.';
+    msg.textContent = (scope === 'grade' ? '1학년 전체' : '우리 반') + ' 자료를 불러오는 중…';
+    apiGet({ cls: scope === 'grade' ? 'all' : S.profile.cls, key: kind }).then(function (res) {
+      var D = S.data[kind], K = KIND[kind], rows = validRows(D), grp = {};
+      (res.rows || []).forEach(function (r) { var v = r.val; if (!recOK(v, D)) return; var c = scope === 'grade' ? String(r.cls) : String(S.profile.cls), g = v.group ? String(v.group) : r.num + '번', id = c + '|' + g; (grp[id] = grp[id] || { cls: c, group: g, list: [], n: 0 }); grp[id].list = grp[id].list.concat(v.rows); grp[id].n++; });
+      var ids = Object.keys(grp).sort(function (a, b) { var A = grp[a], B = grp[b]; return (A.cls - B.cls) || (parseFloat(A.group) - parseFloat(B.group)) || (A.group < B.group ? -1 : 1); });
+      if (!ids.length) { msg.textContent = '아직 올라온 자료가 없어요.'; return; }
+      var classes = []; ids.forEach(function (id) { if (classes.indexOf(grp[id].cls) < 0) classes.push(grp[id].cls); });
+      var series = ids.map(function (id, j) { var G = grp[id], col = scope === 'grade' ? GCOL[classes.indexOf(G.cls) % GCOL.length] : GCOL[j % GCOL.length], me = G.cls === String(S.profile.cls) && G.group === String(D.group);
+        return { rows: avgRows(kind, G.list).map(function (r) { return [r[0], r[1]]; }), color: col, label: scope === 'grade' ? G.cls + '반 ' + G.group + '모둠' : G.group + '모둠' + (me ? '(우리)' : ''), n: G.n, me: me }; });
+      var all = rows.concat.apply(rows, series.map(function (sr) { return sr.rows; }));
+      graphSVG.extra = { trend: !!D.trendOK }; $('.gwrap').innerHTML = graphSVG(axes(all, K.x, K.y, kind), rows, K.x, K.y, rows.length, kind, K, units(kind, D), true, series);
+      leg.innerHTML = scope === 'grade' ? classes.map(function (c, j) { return '<span><i style="background:' + GCOL[j % GCOL.length] + '"></i>' + c + '반 (' + series.filter(function (sr) { return sr.label.indexOf(c + '반') === 0; }).length + '모둠)</span>'; }).join('') :
+        series.map(function (sr) { return '<span' + (sr.me ? ' class="me"' : '') + '><i style="background:' + sr.color + '"></i>' + esc(sr.label) + ' · ' + sr.n + '명</span>'; }).join('');
+      msg.textContent = scope === 'grade' ? classes.length + '개 반, ' + series.length + '개 모둠의 평균을 반마다 다른 색으로 그렸어요. 반이 달라도 같은 경향이 나타나는지 보세요.' : series.length + '개 모둠의 평균을 모둠마다 다른 색으로 그렸어요. 우리 모둠의 점(파란색)과 비교해 보세요.';
     }).catch(function () { msg.textContent = '자료를 불러오지 못했어요. 잠시 뒤에 다시 눌러 보세요.'; });
   }
 

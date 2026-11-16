@@ -107,17 +107,17 @@ function rows_(cls, key, all) {
   var rows = [];
   for (var i = 1; i < values.length; i++) {
     var r = values[i];
-    if (String(r[2]) !== String(cls)) continue;
+    if (cls !== 'all' && String(r[2]) !== String(cls)) continue;
     if (!all && r[5] !== key) continue;
     if (r[5] === 'state') continue; // 이어 하기용 전체 기록은 목록에서 뺀다
     var val = null;
     try { val = JSON.parse(r[6]); } catch (x) {}
-    rows.push(all ? { cls: r[2], num: Number(r[3]), name: r[4], key: r[5], val: val } : { num: Number(r[3]), key: r[5], val: val });
+    rows.push(all ? { cls: r[2], num: Number(r[3]), name: r[4], key: r[5], val: val } : { cls: r[2], num: Number(r[3]), key: r[5], val: val });
   }
   return rows;
 }
 
-/** 학생용: 반 전체 실험 자료(이름 없음)만 돌려준다. */
+/** 학생용: 반 전체(cls=반 번호) 또는 1학년 전체(cls=all) 실험 자료를 이름 없이 돌려준다. */
 function doGet(e) {
   var p = e.parameter || {};
   if (p.roster === '1') { // 입장 화면용 명단: 이름은 가운데를 가려서 보낸다
