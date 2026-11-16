@@ -106,7 +106,7 @@ input, select, textarea { border: 2px solid var(--ink); border-radius: 10px; pad
 
 /* 그래프 */
 .gwrap { background: #fff; } .graph { width: 100%; height: auto; display: block; touch-action: manipulation; } .graph.live { cursor: crosshair; }
-.gl { stroke: #D5D9EE; stroke-width: 1; } .gax { fill: none; stroke: var(--ink); stroke-width: 3; } .gt { font-size: 14px; fill: var(--ink); font-family: var(--fb); } .gn { font-size: 16px; font-weight: 700; fill: var(--ink); font-family: var(--fb); }
+.gl { stroke: #9CA3C9; stroke-width: 1.3; } .gm { stroke: #E3E6F4; stroke-width: .8; } .gax { fill: none; stroke: var(--ink); stroke-width: 3; } .gt { font-size: 14px; fill: var(--ink); font-family: var(--fb); } .gn { font-size: 16px; font-weight: 700; fill: var(--ink); font-family: var(--fb); }
 .gp { fill: #2F4BD8; stroke: #fff; stroke-width: 2; } .gc { fill: #8A90AD; opacity: .7; } .gfit { fill: none; stroke: #A61E6E; stroke-width: 2.5; stroke-dasharray: 7 5; }
 .gmsg { background: #FFFBEA; border: 2px solid var(--ink); border-radius: 10px; padding: 8px 12px; }
 
@@ -257,3 +257,11 @@ a.rk { text-decoration: none; }
 .sens { background: #EEF6FF; } .slive { display: flex; align-items: baseline; gap: 8px; font-family: var(--ft); } .slive span { font-size: 56px; line-height: 1.1; } .slive small { font-size: 22px; }
 .svols { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; } .svols .btn { padding: 0 4px; }
 @media (max-width: 620px) { .svols { grid-template-columns: repeat(4, 1fr); } }
+
+/* ---------- 그래프 보강 ---------- */
+.gguide { stroke: #E05A9A; stroke-width: 2.5; stroke-dasharray: 6 5; }
+.gmiss path { stroke: #B3261E; stroke-width: 3.5; stroke-linecap: round; }
+.gtrend { fill: none; stroke: #2F4BD8; stroke-width: 3.5; } .gtheo { fill: none; stroke: #C2410C; stroke-width: 3; stroke-dasharray: 9 6; }
+.glegend rect { fill: #fff; stroke: #1B1F3B; stroke-width: 1.5; } .glegend text { font-size: 14px; font-weight: 700; fill: #1B1F3B; font-family: var(--fb); }
+.trendopts { grid-template-columns: repeat(4, 1fr); } .trendopts .opt { flex-direction: column; align-items: center; text-align: center; } .trendopts .tl { font-size: 15px; } .trendopts .opt::after { position: absolute; }
+@media (max-width: 700px) { .trendopts { grid-template-columns: 1fr 1fr; } }

@@ -465,7 +465,7 @@
 
   // 자료 입력과 그래프
   var KIND = {
-    boyle: { cols: ['부피', '압력'], unitA: 'mL', units: ['기압', 'kPa', 'hPa'], x: 1, y: 0, n: 7, sample: [[60, 0.5], [50, 0.6], [40, 0.75], [30, 1.0], [25, 1.2], [20, 1.5], [15, 2.0]], sampleUnit: '기압' },
+    boyle: { cols: ['부피', '압력'], unitA: 'mL', units: ['기압', 'kPa', 'hPa'], x: 1, y: 0, n: 7, sample: [[20, 1.0], [18, 1.12], [16, 1.26], [14, 1.44], [12, 1.66], [10, 1.98], [8, 2.45]], sampleUnit: '기압' },
     charles: { cols: ['온도', '부피'], unitA: '℃', units: null, x: 0, y: 1, n: 6, sample: [[60, 6.14], [50, 5.95], [40, 5.77], [30, 5.58], [20, 5.40], [10, 5.21]], sampleUnit: 'mL' }
   };
   function getData(kind) {
@@ -476,19 +476,22 @@
   function validRows(D) { return D.rows.filter(function (r) { return r[0] !== '' && r[1] !== '' && isFinite(+r[0]) && isFinite(+r[1]); }).map(function (r) { return [+r[0], +r[1]]; }); }
   function units(kind, D) { return kind === 'boyle' ? ['mL', D.unit] : ['℃', D.unit]; }
   /* ---------- 무선 압력 센서 (사이언스큐브 SC:PRES, 투명 직렬 통신) ---------- */
-  var SENS = { dev: null, rx: null, poll: null, recent: [], mode: null, buf: '', busy: false, state: 'off', kpa: null };
+  var SENS = { dev: null, rx: null, poll: null, recent: [], raws: [], zero: null, raw: null, buf: '', busy: false, state: 'off', kpa: null };
   var SVC = '49535343-fe7d-4ae5-8fa9-9fafd205e455', STX = '49535343-1e4d-4bd9-ba61-23c647249616', SRX = '49535343-8841-43f4-a8d4-ecbe34729bb3';
   function sFrame(ch) { var b = new Uint8Array(12); b[0] = ch.charCodeAt(0); b[11] = b[0]; var t = ''; for (var i = 0; i < 12; i++) t += String.fromCharCode(b[i]); return '{{' + btoa(t) + '}}'; }
   function sSend(ch) { if (!SENS.rx || SENS.busy) return Promise.resolve(); SENS.busy = true; return SENS.rx.writeValue(new TextEncoder().encode(sFrame(ch))).catch(function () { }).then(function () { SENS.busy = false; }); }
-  function sToKpa(v) { if (SENS.mode == null) SENS.mode = v > 500 ? 'abs' : 'gauge'; return SENS.mode === 'abs' ? v / 10 : 101.325 + v / 10; }
+  function sToKpa(v) { return 101.325 + (v - SENS.zero) / 10; }
+  function sZero() { SENS.raws = []; SENS.zero = null; SENS.kpa = null; SENS.recent = []; sPaint(); }
   function sNow() { var a = SENS.recent; if (!a.length) return null; return a.reduce(function (t, x) { return t + x[1]; }, 0) / a.length; }
   function sPaint() {
-    var el = $('#slive'), stt = $('#sstat'); if (stt) stt.textContent = { off: '센서가 연결되지 않았어요.', wait: '센서를 고르는 중…', conn: '연결하는 중…', on: '연결됐어요. 주사기를 움직여 보세요.', err: SENS.err || '연결하지 못했어요.' }[SENS.state];
-    if (el) el.textContent = SENS.kpa == null ? '–' : (SENS.kpa / 101.325).toFixed(2);
+    var el = $('#slive'), stt = $('#sstat'); if (stt) stt.textContent = { off: '센서가 연결되지 않았어요.', wait: '센서를 고르는 중…', conn: '연결하는 중…', on: SENS.zero == null ? '1기압을 맞추는 중이에요. 피스톤을 건드리지 마세요…' : '연결됐어요. 지금 압력을 1기압으로 맞췄어요.', err: SENS.err || '연결하지 못했어요.' }[SENS.state];
+    if (el) el.textContent = SENS.kpa == null ? (SENS.state === 'on' ? '…' : '–') : (SENS.kpa / 101.325).toFixed(2);
+    var rw = $('#sraw'); if (rw) rw.textContent = SENS.raw == null ? '' : '센서 원래 숫자 ' + SENS.raw.toFixed(1) + ' · 기준 ' + (SENS.zero == null ? '맞추는 중' : SENS.zero.toFixed(1));
+    var sz = $('#szero'); if (sz) sz.disabled = SENS.state !== 'on';
     var c = $('#sconn'); if (c) { c.textContent = SENS.state === 'on' ? '연결 끊기' : '📡 센서 연결'; c.dataset.act = SENS.state === 'on' ? 'sdisc' : 'sconn'; }
     document.querySelectorAll('[data-act=srec]').forEach(function (b) { b.disabled = SENS.state !== 'on'; });
   }
-  function sDisconnect() { clearInterval(SENS.poll); SENS.poll = null; try { if (SENS.dev && SENS.dev.gatt.connected) SENS.dev.gatt.disconnect(); } catch (e) { } SENS.dev = null; SENS.rx = null; SENS.state = 'off'; SENS.kpa = null; SENS.recent = []; SENS.mode = null; sPaint(); }
+  function sDisconnect() { clearInterval(SENS.poll); SENS.poll = null; SENS.zero = null; SENS.raws = []; SENS.raw = null; try { if (SENS.dev && SENS.dev.gatt.connected) SENS.dev.gatt.disconnect(); } catch (e) { } SENS.dev = null; SENS.rx = null; SENS.state = 'off'; SENS.kpa = null; SENS.recent = []; SENS.mode = null; sPaint(); }
   function sConnect() {
     if (!navigator.bluetooth) { SENS.state = 'err'; SENS.err = '이 기기에서는 센서를 연결할 수 없어요. 갤럭시 태블릿의 크롬에서 열어 주세요.'; sPaint(); return; }
     SENS.state = 'wait'; sPaint();
@@ -506,7 +509,8 @@
         while ((m = re.exec(SENS.buf))) {
           last = re.lastIndex; var raw = atob(m[1]); if (raw.charAt(0) !== 't') continue;
           var b = new Uint8Array(12); for (var k = 0; k < 12; k++) b[k] = raw.charCodeAt(k);
-          var v = new DataView(b.buffer).getFloat32(4, true), now = performance.now();
+          var v = new DataView(b.buffer).getFloat32(4, true), now = performance.now(); SENS.raw = v;
+          if (SENS.zero == null) { SENS.raws.push(v); if (SENS.state !== 'on') SENS.state = 'on'; if (SENS.raws.length >= 6) { var srt = SENS.raws.slice(1).sort(function (p1, p2) { return p1 - p2; }); SENS.zero = srt[Math.floor(srt.length / 2)]; } sPaint(); continue; }
           SENS.kpa = sToKpa(v); SENS.recent.push([now, SENS.kpa]); while (SENS.recent.length && SENS.recent[0][0] < now - 1000) SENS.recent.shift();
           if (SENS.state !== 'on') { SENS.state = 'on'; }
           sPaint();
@@ -523,8 +527,8 @@
     if (!navigator.bluetooth && !isT()) return '';
     var vols = []; for (var v = 20; v >= 2; v -= 2) vols.push(v);
     return '<div class="card sens"><h3>📡 무선 압력 센서로 재기</h3><p class="tiny" style="margin:0 0 8px">사이언스샵 앱은 꺼 두세요. 센서를 켜고 연결한 뒤, 피스톤을 눈금에 맞추고 <b>숫자가 멈추면</b> 그 부피를 눌러요. 압력이 표에 들어가요.</p>' +
-      '<div class="slive"><span id="slive">' + (SENS.kpa == null ? '–' : (SENS.kpa / 101.325).toFixed(2)) + '</span><small>기압</small></div><p class="tiny" id="sstat" aria-live="polite"></p>' +
-      '<div class="btns"><button class="btn pri" id="sconn" data-act="sconn">📡 센서 연결</button></div>' +
+      '<div class="slive"><span id="slive">–</span><small>기압</small></div><p class="tiny" id="sstat" aria-live="polite"></p>' + (isT() ? '<p class="tiny" id="sraw"></p>' : '') +
+      '<div class="btns"><button class="btn pri" id="sconn" data-act="sconn">📡 센서 연결</button><button class="btn sm" id="szero" data-act="szero" disabled>다시 1기압 맞추기</button></div><p class="tiny" style="margin:4px 0 0">연결할 때와 ‘다시 1기압 맞추기’를 누를 때는 주사기 피스톤을 건드리지 마세요.</p>' +
       '<p class="tiny" style="margin:10px 0 4px"><b>지금 부피를 눌러 기록하기</b></p><div class="svols">' + vols.map(function (x) { return '<button class="btn sm" data-act="srec" data-v="' + x + '"' + (SENS.state === 'on' ? '' : ' disabled') + '>' + x + ' mL</button>'; }).join('') + '</div></div>';
   }
   STEP.data = function (d, st, i) { return '<div id="databox"></div>'; };
@@ -543,19 +547,37 @@
     var rows = validRows(D), xi = K.x, yi = K.y;
     h += '<div class="card"><h3>① 우리 모둠 자료' + (D.sample ? ' <span class="tag">예시 자료</span>' : '') + ' <button class="linkbtn" data-act="unlock">고치기</button></h3><table class="tbl"><thead><tr><th>번호</th><th>' + K.cols[0] + ' (' + u[0] + ')</th><th>' + K.cols[1] + ' (' + u[1] + ')</th>' + (kind === 'boyle' ? '<th>압력 × 부피</th>' : '') + '</tr></thead><tbody>' +
       rows.map(function (r, j) { return '<tr class="' + (j === D.placed ? 'cur' : '') + '"><td>' + (j + 1) + (j < D.placed ? ' ✓' : '') + '</td><td>' + r[0] + '</td><td>' + r[1] + '</td>' + (kind === 'boyle' ? '<td>' + (+(r[0] * r[1]).toPrecision(3)) + '</td>' : '') + '</tr>'; }).join('') + '</tbody></table></div>';
-    var ax = axes(rows, xi, yi, kind), done = D.placed >= rows.length;
-    h += '<div class="card"><h3>② 그래프에 점 찍기</h3><p id="gmsg" class="gmsg" aria-live="polite">' + (done ? '점을 모두 찍었어요. 점들이 어떤 모양으로 놓였는지 살펴보세요.' : '<b>' + (D.placed + 1) + '번</b> 자료 (' + K.cols[xi] + ' ' + rows[D.placed][xi] + ', ' + K.cols[yi] + ' ' + rows[D.placed][yi] + ')의 자리를 그래프에서 눌러 보세요.') + '</p>' +
+    var ax = axes(rows, xi, yi, kind), done = D.placed >= rows.length, tr = done && D.trendOK, cur0 = done ? null : rows[D.placed];
+    graphSVG.extra = { trend: tr, miss: !done && D.miss ? D.miss : null, guide: !done && D.fails >= 2 ? cur0[xi] : null, guideY: !done && D.fails >= 3 ? cur0[yi] : null };
+    var gm = done ? (tr ? '경향선을 그렸어요. 이론값과 비교해 보세요.' : '점을 모두 찍었어요. 이제 점들이 보여 주는 <b>경향</b>을 찾아요.') :
+      D.fails ? '<b class="warn">그 자리가 아니에요.</b> 점 찍을 위치를 다시 확인해 보세요. 가로축에서 <b>' + cur0[xi] + '</b>을(를) 먼저 찾고, 그 위로 올라가 세로축 <b>' + cur0[yi] + '</b> 높이를 눌러요.' + (D.fails >= 2 ? ' (분홍 점선이 가로축 ' + cur0[xi] + '의 자리예요.)' : '') :
+      '<b>' + (D.placed + 1) + '번</b> 자료 (' + K.cols[xi] + ' ' + cur0[xi] + ', ' + K.cols[yi] + ' ' + cur0[yi] + ')의 자리를 그래프에서 눌러 보세요.';
+    h += '<div class="card"><h3>② 그래프에 점 찍기</h3><p id="gmsg" class="gmsg" aria-live="polite">' + gm + '</p>' +
       '<div class="gwrap">' + graphSVG(ax, rows, xi, yi, D.placed, kind, K, u, done, null) + '</div>' +
-      (!done && D.fails >= 2 ? '<button class="btn sm" data-act="autoplace">이 점은 도움 받기</button>' : '') +
-      (done ? '<div class="btns"><button class="btn sm" data-act="classdata">우리 반 그래프 보기</button></div><p class="tiny" id="cmsg">' + (kind === 'charles' ? '세로축은 0부터 시작하지 않아요. 눈금의 숫자를 잘 보세요.' : '') + '</p>' : '') + '</div>';
-    if (done) h += '<h3 class="sub3">③ 그래프 해석</h3>' + itemsHTML(d, st, i, 'retry');
+      (!done && D.fails >= 3 ? '<button class="btn sm" data-act="autoplace">이 점은 도움 받기</button>' : '') + '</div>';
+    if (done) {
+      var right = kind === 'boyle' ? 'inv' : 'upi', topts = [['upi', '오른쪽 위로 곧게 올라간다'], ['down', '오른쪽 아래로 곧게 내려간다'], ['inv', '오른쪽 아래로 휘어지며 내려간다'], ['flat', '가로로 평평하다']];
+      h += '<div class="card"><h3>③ 경향선 그리기</h3><p>그래프는 점을 찍는 것으로 끝나지 않아요. 점 하나하나보다 <b>점들이 모여서 보여 주는 모양(경향)</b>이 중요해요. 점들은 어떤 선을 따라 놓여 있나요?</p>' +
+        '<div class="opts figs trendopts">' + topts.map(function (o) { var c = 'opt' + (D.trendPick === o[0] ? (o[0] === right ? ' ok' : ' no') : ''); return '<button class="' + c + '" data-act="trend" data-v="' + o[0] + '"' + (tr ? ' disabled' : '') + '>' + figSVG(o[0], K.cols[xi], K.cols[yi]) + '<span class="tl">' + o[1] + '</span></button>'; }).join('') + '</div>' +
+        (D.trendPick && !tr ? '<p class="fb no">점들을 한 번 더 보세요. 점 몇 개만 보지 말고 처음부터 끝까지 어떻게 이어지는지 손가락으로 따라가 보세요.</p>' : '');
+      if (tr) {
+        var tc = trendCurves(rows, xi, yi, kind);
+        h += '<p class="fb ok"><b>맞아요.</b> ' + (kind === 'boyle' ? '압력이 커질수록 부피가 작아지는데, 곧은 선이 아니라 휘어지는 곡선이에요. 압력이 2배가 되면 부피가 1/2배가 되는 <b>반비례</b> 관계예요.' : '온도가 높아질수록 부피가 일정하게 커지는 <b>곧은 선</b>이에요.') + '</p>' +
+          '<h4>측정값과 이론값 비교</h4><p class="tiny" style="margin:0 0 6px">' + tc.note + '</p><div class="scroll"><table class="tbl"><thead><tr><th>번호</th><th>' + K.cols[xi] + ' (' + u[xi] + ')</th><th>측정한 ' + K.cols[yi] + '</th><th>이론값</th><th>차이</th></tr></thead><tbody>' +
+          rows.map(function (r, j) { var th = tc.at(r[xi]), df = (r[yi] - th) / th * 100; return '<tr><td>' + (j + 1) + '</td><td>' + r[xi] + '</td><td>' + r[yi] + '</td><td>' + (+th.toFixed(2)) + '</td><td>' + (df >= 0 ? '+' : '') + df.toFixed(1) + '%</td></tr>'; }).join('') + '</tbody></table></div>' +
+          '<p class="tiny">차이가 몇 % 정도는 생길 수 있어요. 눈금을 읽는 오차, 주사기 연결 부분의 공기, 손의 온도 같은 것 때문이에요. 차이가 큰 점이 있다면 그때 무슨 일이 있었는지 모둠에서 이야기해 보세요.</p>' +
+          '<div class="btns"><button class="btn sm" data-act="classdata">우리 반 그래프 보기</button></div><p class="tiny" id="cmsg">' + (kind === 'charles' ? '세로축은 0부터 시작하지 않아요. 눈금의 숫자를 잘 보세요.' : '') + '</p>';
+      }
+      h += '</div>';
+      if (tr) h += '<h3 class="sub3">④ 그래프 해석</h3>' + itemsHTML(d, st, i, 'retry');
+    }
     $('#databox').innerHTML = h;
     var svg = $('#gsvg');
     if (svg && !done) svg.addEventListener('click', function (e) {
       var pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY; var q = pt.matrixTransform(svg.getScreenCTM().inverse());
       var vx = ax.x0 + (q.x - ax.L) / ax.pw * (ax.x1 - ax.x0), vy = ax.y0 + (ax.T + ax.ph - q.y) / ax.ph * (ax.y1 - ax.y0), r = rows[D.placed];
-      if (Math.abs(vx - r[xi]) <= (ax.x1 - ax.x0) * 0.045 && Math.abs(vy - r[yi]) <= (ax.y1 - ax.y0) * 0.06) { D.placed++; D.fails = 0; if (D.placed >= rows.length && !D.missed && !D.sample) S.flags.sharp = 1; save(); if (D.placed >= rows.length) sync(kind, { group: D.group, unit: D.unit, rows: rows, sample: D.sample }); drawData(d, st, i); check(); }
-      else { D.fails++; D.missed = 1; save(); drawData(d, st, i); $('#gmsg').innerHTML = '조금 달라요. 가로축에서 <b>' + r[xi] + '</b>을(를) 먼저 찾고, 그 위로 올라가 세로축 <b>' + r[yi] + '</b> 높이를 눌러요.'; }
+      if (Math.abs(vx - r[xi]) <= (ax.x1 - ax.x0) * 0.045 && Math.abs(vy - r[yi]) <= (ax.y1 - ax.y0) * 0.06) { D.placed++; D.fails = 0; D.miss = null; if (D.placed >= rows.length && !D.missed && !D.sample) S.flags.sharp = 1; save(); if (D.placed >= rows.length) sync(kind, { group: D.group, unit: D.unit, rows: rows, sample: D.sample }); drawData(d, st, i); check(); }
+      else { D.fails++; D.missed = 1; D.miss = [q.x, q.y]; save(); drawData(d, st, i); }
     });
   }
   function nice(lo, hi, n) { var raw = (hi - lo) / n, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p, s = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; return s; }
@@ -563,30 +585,46 @@
     var xs = rows.map(function (r) { return r[xi]; }), ys = rows.map(function (r) { return r[yi]; });
     var xmax = Math.max.apply(null, xs), ymax = Math.max.apply(null, ys), ymin = Math.min.apply(null, ys);
     var a = { L: 62, T: 16, pw: 540, ph: 320 };
-    a.xs = nice(0, xmax * 1.05, 5); a.x0 = 0; a.x1 = Math.ceil(xmax * 1.02 / a.xs) * a.xs;
-    if (kind === 'boyle') { a.ys = nice(0, ymax * 1.05, 6); a.y0 = 0; a.y1 = Math.ceil(ymax * 1.02 / a.ys) * a.ys; }
-    else { var pad = Math.max((ymax - ymin) * 0.6, ymax * 0.02); a.ys = nice(ymin - pad, ymax + pad * 0.4, 6); a.y0 = Math.max(0, Math.floor((ymin - pad) / a.ys) * a.ys); a.y1 = Math.ceil((ymax + pad * 0.3) / a.ys) * a.ys; }
+    a.xs = nice(0, xmax * 1.05, 8); a.x0 = 0; a.x1 = Math.ceil(xmax * 1.02 / a.xs) * a.xs;
+    if (kind === 'boyle') { a.ys = nice(0, ymax * 1.05, 8); a.y0 = 0; a.y1 = Math.ceil(ymax * 1.02 / a.ys) * a.ys; }
+    else { var pad = Math.max((ymax - ymin) * 0.6, ymax * 0.02); a.ys = nice(ymin - pad, ymax + pad * 0.4, 8); a.y0 = Math.max(0, Math.floor((ymin - pad) / a.ys) * a.ys); a.y1 = Math.ceil((ymax + pad * 0.3) / a.ys) * a.ys; }
     a.X = function (v) { return a.L + (v - a.x0) / (a.x1 - a.x0) * a.pw; }; a.Y = function (v) { return a.T + a.ph - (v - a.y0) / (a.y1 - a.y0) * a.ph; };
     return a;
   }
   function fmt(v) { return +v.toFixed(3); }
+  function trendCurves(rows, xi, yi, kind) {
+    if (kind === 'boyle') {
+      var k = rows.reduce(function (t, r) { return t + r[0] * r[1]; }, 0) / rows.length, k0 = rows[0][0] * rows[0][1];
+      return { trend: function (x) { return k / x; }, theory: function (x) { return k0 / x; }, at: function (x) { return k0 / x; }, note: '처음 상태(' + rows[0][xi] + ' 기압, ' + rows[0][yi] + ' mL)에서 압력×부피가 ' + (+k0.toFixed(2)) + '로 일정하다고 보고 계산했어요.' };
+    }
+    var n = rows.length, sx = 0, sy = 0, sxx = 0, sxy = 0; rows.forEach(function (r) { sx += r[xi]; sy += r[yi]; sxx += r[xi] * r[xi]; sxy += r[xi] * r[yi]; });
+    var m = (n * sxy - sx * sy) / (n * sxx - sx * sx || 1), b0 = (sy - m * sx) / n, t0 = rows[0][xi], v0 = rows[0][yi];
+    return { trend: function (x) { return b0 + m * x; }, theory: function (x) { return v0 * (273 + x) / (273 + t0); }, at: function (x) { return v0 * (273 + x) / (273 + t0); }, note: '처음 상태(' + t0 + ' ℃, ' + v0 + ')에서 샤를 법칙대로 온도가 1 ℃ 오를 때마다 일정하게 늘어난다고 보고 계산했어요.' };
+  }
   function graphSVG(a, rows, xi, yi, placed, kind, K, u, done, cls) {
-    var s = '<svg id="gsvg" viewBox="0 0 620 390" class="graph' + (done ? '' : ' live') + '" role="img" aria-label="' + K.cols[xi] + '과 ' + K.cols[yi] + '의 그래프">', v;
+    var s = '<svg id="gsvg" viewBox="0 0 620 390" class="graph' + (done ? '' : ' live') + '" role="img" aria-label="' + K.cols[xi] + '과 ' + K.cols[yi] + '의 그래프">', v, mi;
+    function sub(st) { var p10 = Math.pow(10, Math.floor(Math.log10(st) + 1e-9)), f = Math.round(st / p10 * 10) / 10; return st / (f === 2 ? 4 : 5); }
+    var mx = sub(a.xs), my = sub(a.ys);
+    for (mi = a.x0; mi <= a.x1 + 1e-9; mi += mx) s += '<line x1="' + a.X(mi) + '" x2="' + a.X(mi) + '" y1="' + a.T + '" y2="' + (a.T + a.ph) + '" class="gm"/>';
+    for (mi = a.y0; mi <= a.y1 + 1e-9; mi += my) s += '<line x1="' + a.L + '" x2="' + (a.L + a.pw) + '" y1="' + a.Y(mi) + '" y2="' + a.Y(mi) + '" class="gm"/>';
     for (v = a.x0; v <= a.x1 + 1e-9; v += a.xs) s += '<line x1="' + a.X(v) + '" x2="' + a.X(v) + '" y1="' + a.T + '" y2="' + (a.T + a.ph) + '" class="gl"/><text x="' + a.X(v) + '" y="' + (a.T + a.ph + 20) + '" text-anchor="middle" class="gt">' + fmt(v) + '</text>';
     for (v = a.y0; v <= a.y1 + 1e-9; v += a.ys) s += '<line x1="' + a.L + '" x2="' + (a.L + a.pw) + '" y1="' + a.Y(v) + '" y2="' + a.Y(v) + '" class="gl"/><text x="' + (a.L - 8) + '" y="' + (a.Y(v) + 5) + '" text-anchor="end" class="gt">' + fmt(v) + '</text>';
     s += '<path d="M' + a.L + ' ' + a.T + 'V' + (a.T + a.ph) + 'H' + (a.L + a.pw) + '" class="gax"/><text x="' + (a.L + a.pw / 2) + '" y="384" text-anchor="middle" class="gn">' + K.cols[xi] + ' (' + u[xi] + ')</text><text x="16" y="' + (a.T + a.ph / 2) + '" text-anchor="middle" class="gn" transform="rotate(-90 16 ' + (a.T + a.ph / 2) + ')">' + K.cols[yi] + ' (' + u[yi] + ')</text>';
     if (cls) cls.forEach(function (g) { g.rows.forEach(function (r) { if (r[xi] >= a.x0 && r[xi] <= a.x1 && r[yi] >= a.y0 && r[yi] <= a.y1) s += '<circle cx="' + a.X(r[xi]) + '" cy="' + a.Y(r[yi]) + '" r="5" class="gc"/>'; }); });
-    if (done) {
-      var d = '', j, x;
-      if (kind === 'boyle') { var k = rows.reduce(function (t, r) { return t + r[0] * r[1]; }, 0) / rows.length; for (j = 0; j <= 60; j++) { x = a.x1 * (0.12 + 0.88 * j / 60); var y = k / x; if (y <= a.y1) d += (d ? 'L' : 'M') + a.X(x).toFixed(1) + ' ' + a.Y(y).toFixed(1); } }
-      else { var n = rows.length, sx = 0, sy = 0, sxx = 0, sxy = 0; rows.forEach(function (r) { sx += r[xi]; sy += r[yi]; sxx += r[xi] * r[xi]; sxy += r[xi] * r[yi]; }); var m = (n * sxy - sx * sy) / (n * sxx - sx * sx || 1), b = (sy - m * sx) / n; d = 'M' + a.X(a.x0) + ' ' + a.Y(Math.max(a.y0, b + m * a.x0)) + 'L' + a.X(a.x1) + ' ' + a.Y(Math.min(a.y1, b + m * a.x1)); }
-      s += '<path d="' + d + '" class="gfit"/>';
+    var ex = graphSVG.extra || {};
+    if (ex.guide != null) s += '<line x1="' + a.X(ex.guide) + '" x2="' + a.X(ex.guide) + '" y1="' + a.T + '" y2="' + (a.T + a.ph) + '" class="gguide"/>';
+    if (ex.guideY != null) s += '<line x1="' + a.L + '" x2="' + (a.L + a.pw) + '" y1="' + a.Y(ex.guideY) + '" y2="' + a.Y(ex.guideY) + '" class="gguide"/>';
+    if (ex.miss) s += '<g class="gmiss" transform="translate(' + ex.miss[0].toFixed(1) + ' ' + ex.miss[1].toFixed(1) + ')"><path d="M-8-8L8 8M8-8L-8 8"/></g>';
+    if (ex.trend) {
+      var tc = trendCurves(rows, xi, yi, kind), path = function (fn) { var d = '', j, x, y; for (j = 0; j <= 80; j++) { x = a.x0 + (a.x1 - a.x0) * j / 80; if (kind === 'boyle' && x < (a.x1 - a.x0) * 0.08) continue; y = fn(x); if (y < a.y0 || y > a.y1) continue; d += (d ? 'L' : 'M') + a.X(x).toFixed(1) + ' ' + a.Y(y).toFixed(1); } return d; };
+      s += '<path d="' + path(tc.theory) + '" class="gtheo"/><path d="' + path(tc.trend) + '" class="gtrend"/>' +
+        '<g class="glegend" transform="translate(' + (a.L + a.pw - 196) + ' ' + (a.T + 8) + ')"><rect width="190" height="54" rx="8"/><path d="M10 18h30" class="gtrend"/><text x="48" y="23">우리 모둠 경향선</text><path d="M10 40h30" class="gtheo"/><text x="48" y="45">이론값</text></g>';
     }
     rows.forEach(function (r, j) { if (j < placed) s += '<circle cx="' + a.X(r[xi]) + '" cy="' + a.Y(r[yi]) + '" r="7" class="gp"/>'; });
     return s + '</svg>';
   }
-  DONE.data = function (d, st, i) { var D = S.data[st.kind]; return !!(D && D.locked && D.placed >= validRows(D).length && allRight(pfx(d, i), st.items)); };
-  TODO.data = '표를 채우고, 점을 찍고, 질문에 답해요';
+  DONE.data = function (d, st, i) { var D = S.data[st.kind]; return !!(D && D.locked && D.placed >= validRows(D).length && D.trendOK && allRight(pfx(d, i), st.items)); };
+  TODO.data = '표를 채우고, 점을 찍고, 경향선을 그리고, 질문에 답해요';
 
   // 입자로 설명하기 (변화 사슬)
   STEP.chain = function (d, st, i) {
@@ -683,6 +721,7 @@
     else if (act === 'go') go(+b.dataset.d);
     else if (act === 'sconn') sConnect();
     else if (act === 'sdisc') sDisconnect();
+    else if (act === 'szero') sZero();
     else if (act === 'srec') {
       var pk = sNow(); if (pk == null) return; pk = pk / 101.325; readRows('boyle'); var SD = S.data.boyle, vv = b.dataset.v, put = false;
       SD.unit = '기압'; SD.sample = false;
@@ -706,10 +745,11 @@
     else if (act === 'lock') {
       readRows(st.kind); var D2 = S.data[st.kind], rows = validRows(D2);
       if (rows.length < 4) { $('#dmsg').innerHTML = '<b class="warn">숫자로 된 측정값이 4개 이상 필요해요.</b> 지금은 ' + rows.length + '개예요.'; return; }
-      D2.locked = true; D2.placed = 0; D2.fails = 0; D2.missed = 0; save(); drawData(d, st, i); check();
+      D2.locked = true; D2.placed = 0; D2.fails = 0; D2.missed = 0; D2.miss = null; D2.trendOK = 0; D2.trendPick = null; save(); drawData(d, st, i); check();
     }
-    else if (act === 'unlock') { var D3 = S.data[st.kind]; D3.locked = false; D3.placed = 0; D3.sample = false; save(); drawData(d, st, i); check(); }
-    else if (act === 'autoplace') { var D4 = S.data[st.kind]; D4.placed++; D4.fails = 0; D4.missed = 1; save(); drawData(d, st, i); check(); }
+    else if (act === 'unlock') { var D3 = S.data[st.kind]; D3.locked = false; D3.placed = 0; D3.sample = false; D3.trendOK = 0; D3.trendPick = null; D3.miss = null; save(); drawData(d, st, i); check(); }
+    else if (act === 'trend') { var D5 = S.data[st.kind], rt = st.kind === 'boyle' ? 'inv' : 'upi'; D5.trendPick = b.dataset.v; if (b.dataset.v === rt) { D5.trendOK = 1; mile('trend.' + st.kind, 4); } save(); drawData(d, st, i); check(); var tb = document.querySelector('.trendopts'); if (tb && D5.trendOK) tb.closest('.card').scrollIntoView({ block: 'start' }); }
+    else if (act === 'autoplace') { var D4 = S.data[st.kind]; D4.placed++; D4.fails = 0; D4.missed = 1; D4.miss = null; save(); drawData(d, st, i); check(); }
     else if (act === 'classdata') { classData(st.kind); }
     else if (act === 'chain') { var C = S.chain[d.id]; C.sel[+b.dataset.j] = +b.dataset.k; C.checked = false; save(); $('#stepbody').innerHTML = STEP.chain(d, st, i); }
     else if (act === 'chaincheck') {
@@ -736,7 +776,7 @@
     apiGet({ cls: S.profile.cls, key: kind }).then(function (res) {
       var by = {}; (res.rows || []).forEach(function (r) { var v = r.val; if (v && v.rows && !v.sample) by[v.group || (r.num + '번')] = v; });
       var D = S.data[kind], K = KIND[kind], rows = validRows(D), groups = Object.keys(by).filter(function (g) { return by[g].unit === D.unit; }).map(function (g) { return by[g]; });
-      $('.gwrap').innerHTML = graphSVG(axes(rows, K.x, K.y, kind), rows, K.x, K.y, rows.length, kind, K, units(kind, D), true, groups);
+      graphSVG.extra = { trend: !!D.trendOK }; $('.gwrap').innerHTML = graphSVG(axes(rows, K.x, K.y, kind), rows, K.x, K.y, rows.length, kind, K, units(kind, D), true, groups);
       msg.textContent = groups.length + '개 모둠의 자료를 회색 점으로 겹쳐 그렸어요. 우리 모둠의 점(파란색)과 비교해 보세요.';
     }).catch(function () { msg.textContent = '자료를 불러오지 못했어요. 잠시 뒤에 다시 눌러 보세요.'; });
   }
