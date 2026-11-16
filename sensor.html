@@ -37,7 +37,10 @@ small, .small { font-size: 14px; color: #555B80; } ol { padding-left: 22px; marg
   <p style="font-size:15px;margin:0">센서 값</p>
   <p id="big" style="font-size:48px;margin:0">–</p>
   <p class="small">받은 횟수: <b id="count">0</b> · 초당 약 4번 물어봅니다.</p>
-  <div class="btns"><button class="yel" data-mark="그대로 둠 (주사기 30 mL, 약 1기압)">표시: 그대로 둠</button><button class="yel" data-mark="피스톤을 밀고 있음">표시: 밀고 있음</button><button class="yel" data-mark="피스톤을 당기고 있음">표시: 당기고 있음</button></div>
+  <h2 style="margin-top:14px">3. 위치마다 값 기록</h2>
+  <p class="small">피스톤을 그 눈금에 맞추고 <b>숫자가 멈출 때까지 2~3초 기다린 뒤</b> 버튼을 누르세요. 최근 1초 값의 평균을 기록합니다.</p>
+  <div class="btns" id="vols"><button class="yel" data-vol="공기 중(아무것도 안 끼움)">아무것도 안 끼움</button><button class="yel" data-vol="60">60 mL</button><button class="yel" data-vol="50">50 mL</button><button class="yel" data-vol="40">40 mL</button><button class="yel" data-vol="30">30 mL</button><button class="yel" data-vol="25">25 mL</button><button class="yel" data-vol="20">20 mL</button><button class="yel" data-vol="15">15 mL</button></div>
+  <table id="vt" style="width:100%;border-collapse:collapse;margin-top:10px;font-size:16px"><thead><tr><th style="text-align:left">위치</th><th style="text-align:right">센서 값 (평균)</th></tr></thead><tbody></tbody></table>
   <label class="small" style="display:block;margin-top:10px">사이언스샵 앱에서 본 값을 알면 적고 표시하기 (예: 그대로 둘 때 101.3 kPa)<input id="note" placeholder="예: 그대로 101.3 kPa / 20 mL로 밀었을 때 150 kPa"></label>
   <div class="btns"><button data-marknote>적은 값으로 표시</button></div>
 </div>
@@ -46,13 +49,14 @@ small, .small { font-size: 14px; color: #555B80; } ol { padding-left: 22px; marg
   <h2>3. 기록 보내기</h2>
   <div id="log" aria-label="받은 자료 기록"></div>
   <div class="btns"><button class="pri" id="copy">기록 복사</button><button id="save">파일로 저장</button><button id="clear">지우기</button></div>
+  <p class="small">기록 화면에는 앞으로 표 부분이 맨 아래에 함께 들어갑니다.</p>
   <p class="small" id="copymsg">복사한 내용을 Claude에게 그대로 붙여 넣어 주세요.</p>
 </div>
 </main>
 <script>
 (function () {
   var SVC = '49535343-fe7d-4ae5-8fa9-9fafd205e455', TX = '49535343-1e4d-4bd9-ba61-23c647249616', RX = '49535343-8841-43f4-a8d4-ecbe34729bb3';
-  var $ = function (id) { return document.getElementById(id); }, dev = null, rx = null, lines = [], n = 0, t0 = 0, buf = '', poll = null, tail = '', gotReply = false, busy = false;
+  var recent = [], table = [], $ = function (id) { return document.getElementById(id); }, dev = null, rx = null, lines = [], n = 0, t0 = 0, buf = '', poll = null, tail = '', gotReply = false, busy = false;
   function log(s) { lines.push(s); if (lines.length > 6000) lines.shift(); var el = $('log'); el.textContent = lines.slice(-300).join('\n'); el.scrollTop = el.scrollHeight; }
   function st(msg, cls) { $('status').textContent = msg; $('status').className = cls || ''; }
   function ts() { return ((performance.now() - t0) / 1000).toFixed(2).padStart(7, ' '); }
@@ -75,7 +79,7 @@ small, .small { font-size: 14px; color: #555B80; } ol { padding-left: 22px; marg
     var sum = 0; for (var k = 0; k < 11; k++) sum += b[k]; var ok = (sum & 255) === b[11];
     var ch = String.fromCharCode(b[0]), dv = new DataView(b.buffer), txt = ch + ' [' + hex(b) + ']' + (ok ? '' : ' (합계 틀림)');
     gotReply = true; n++; $('count').textContent = n;
-    if (ch === 't') { var v = dv.getFloat32(4, true); $('big').textContent = v.toFixed(2); txt += '  값=' + v.toFixed(3); }
+    if (ch === 't') { var v = dv.getFloat32(4, true); $('big').textContent = v.toFixed(2); txt += '  값=' + v.toFixed(3); recent.push([performance.now(), v]); while (recent.length && recent[0][0] < performance.now() - 1000) recent.shift(); }
     else if (ch === 'm') { var v2 = dv.getFloat32(2, true); $('big').textContent = v2.toFixed(2); txt += '  값=' + v2.toFixed(3); }
     else if (ch === 'n' || ch === 'v') { var s = ''; for (var q = 2; q < 11; q++) if (b[q]) s += String.fromCharCode(b[q]); txt += '  ' + s; $('info').textContent += (ch === 'n' ? '일련번호 ' : ' · 펌웨어 ') + s; }
     log(ts() + ' <<< ' + txt);
@@ -108,10 +112,18 @@ small, .small { font-size: 14px; color: #555B80; } ol { padding-left: 22px; marg
   };
   $('disconnect').onclick = function () { clearInterval(poll); if (dev && dev.gatt.connected) dev.gatt.disconnect(); };
   document.addEventListener('click', function (e) {
+    var vb = e.target.closest('[data-vol]');
+    if (vb) {
+      if (!recent.length) { vb.textContent = vb.textContent.replace(/ ✕$/, '') + ' ✕'; return; }
+      var avg = recent.reduce(function (t, x) { return t + x[1]; }, 0) / recent.length, lab = isNaN(+vb.dataset.vol) ? vb.dataset.vol : vb.dataset.vol + ' mL';
+      table.push([lab, avg]); log('##### ' + ts() + ' 기록: ' + lab + ' → 평균 ' + avg.toFixed(2) + ' (' + recent.length + '개) #####');
+      document.querySelector('#vt tbody').innerHTML = table.map(function (r) { return '<tr><td>' + r[0] + '</td><td style="text-align:right">' + r[1].toFixed(1) + '</td></tr>'; }).join('');
+      vb.textContent = vb.textContent.replace(/ [✓✕]$/, '') + ' ✓';
+    }
     var b = e.target.closest('[data-mark]'); if (b) log('##### ' + ts() + ' 표시: ' + b.dataset.mark + ' (화면 값 ' + $('big').textContent + ') #####');
     if (e.target.closest('[data-marknote]')) log('##### ' + ts() + ' 앱에서 본 값: ' + ($('note').value || '(비어 있음)') + ' (화면 값 ' + $('big').textContent + ') #####');
   });
-  $('copy').onclick = function () { var t = lines.join('\n'); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { $('copymsg').textContent = '복사했어요 (' + lines.length + '줄). Claude에게 붙여 넣어 주세요.'; }).catch(function () { $('copymsg').textContent = '복사가 안 되면 ‘파일로 저장’을 눌러 파일을 보내 주세요.'; }); };
+  $('copy').onclick = function () { var t = lines.join('\n') + '\n\n=== 위치별 기록 ===\n' + table.map(function (r) { return r[0] + '\t' + r[1].toFixed(2); }).join('\n'); (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(function () { $('copymsg').textContent = '복사했어요 (' + lines.length + '줄). Claude에게 붙여 넣어 주세요.'; }).catch(function () { $('copymsg').textContent = '복사가 안 되면 ‘파일로 저장’을 눌러 파일을 보내 주세요.'; }); };
   $('save').onclick = function () { var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/plain' })); a.download = 'sensor-log2.txt'; a.click(); };
   $('clear').onclick = function () { lines = []; n = 0; $('count').textContent = 0; $('log').textContent = ''; };
 })();
