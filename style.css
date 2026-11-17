@@ -314,3 +314,5 @@ a.rk { text-decoration: none; }
 .subroad button { font: inherit; font-size: 13px; font-weight: 700; padding: 5px 12px; border: 1.5px solid #B8C0E0; background: #fff; color: #4A5078; border-radius: 999px; cursor: pointer; }
 .subroad button.ok { border-color: #2E9E5B; color: #1E7A45; } .subroad button.on { background: #2F4BD8; border-color: #2F4BD8; color: #fff; }
 .subroad button small { font-weight: 400; }
+.svols.part-e .po, .svols.part-o .pe { display: none; }
+.spart { margin-bottom: 4px; }

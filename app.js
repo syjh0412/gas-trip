@@ -865,7 +865,8 @@
       '<div class="slive"><span id="slive">–</span><small>기압</small></div><p class="tiny" id="sstat" aria-live="polite"></p>' + (isT() ? '<p class="tiny" id="sraw"></p>' : '') +
       '<div class="btns"><button class="btn pri" id="sconn" data-act="sconn">📡 센서 연결</button><button class="btn sm" id="szero" data-act="szero" disabled>다시 1기압 맞추기</button></div><p class="tiny" style="margin:4px 0 0">연결할 때와 ‘다시 1기압 맞추기’를 누를 때는 주사기 피스톤을 건드리지 마세요.</p>' +
       '<p class="turn">👥 <b>한 사람씩 차례로</b> 재요. 센서는 한 번에 태블릿 한 대에만 연결돼요. 내 측정이 끝나면 <b>‘내 차례 끝 · 연결 끊기’</b>를 눌러야 다음 친구가 연결할 수 있어요.</p>' +
-      '<p class="tiny" style="margin:10px 0 4px"><b>지금 부피를 눌러 기록하기</b></p><div class="svols">' + vols.map(function (x) { return '<button class="btn sm" data-act="srec" data-v="' + x + '"' + (SENS.state === 'on' ? '' : ' disabled') + '>' + x + ' mL</button>'; }).join('') + '</div></div>';
+      '<p class="tiny" style="margin:10px 0 4px"><b>내가 맡은 부피</b> (짝과 나눠 재요)</p><div class="seg spart">' + [['e', '짝수 20·18…8'], ['o', '홀수 19·17…7'], ['', '전부']].map(function (p) { return '<button class="' + ((D.part || '') === p[0] ? 'on' : '') + '" data-act="spart" data-p="' + p[0] + '">' + p[1] + '</button>'; }).join('') + '</div>' +
+      '<p class="tiny" style="margin:10px 0 4px"><b>지금 부피를 눌러 기록하기</b></p><div class="svols part-' + (D.part || 'a') + '">' + vols.map(function (x) { return '<button class="btn sm p' + (x % 2 ? 'o' : 'e') + '" data-act="srec" data-v="' + x + '"' + (SENS.state === 'on' ? '' : ' disabled') + '>' + x + ' mL</button>'; }).join('') + '</div></div>';
   }
   /* ---------- 모둠 자료 모으기 · 반/학년 그래프 ---------- */
   var GCOL = ['#E4572E', '#17BEBB', '#E0A800', '#4E9F3D', '#9B5DE5', '#F15BB5', '#2E86AB', '#8D6E63', '#00897B', '#5C6BC0'];
@@ -1106,7 +1107,7 @@
       for (var ri = 0; ri < SD.rows.length; ri++) if (SD.rows[ri][0] === vv) { SD.rows[ri][1] = pk.toFixed(2); put = true; break; }
       if (!put) { for (ri = 0; ri < SD.rows.length; ri++) if (SD.rows[ri][0] === '' && SD.rows[ri][1] === '') { SD.rows[ri] = [vv, pk.toFixed(2)]; put = true; break; } }
       if (!put) SD.rows.push([vv, pk.toFixed(2)]);
-      save(); drawData(d, st, i); chip(vv + ' mL → ' + pk.toFixed(2) + ' 기압'); if (vv === '7') setTimeout(function () { chip('다 쟀어요! 피스톤을 20 mL로 돌리고 ‘내 차례 끝 · 연결 끊기’를 눌러 다음 친구에게 넘겨요'); }, 1600);
+      save(); drawData(d, st, i); chip(vv + ' mL → ' + pk.toFixed(2) + ' 기압'); var D7 = S.data[st.kind] || {}; if (vv === (D7.part === 'e' ? '8' : '7')) setTimeout(function () { chip('다 쟀어요! 피스톤을 20 mL로 돌리고 ‘내 차례 끝 · 연결 끊기’를 눌러 다음 친구에게 넘겨요'); }, 1600);
     }
     else if (act === 'vrec') { var vk = sNow(); if (vk == null) return; vacPush(vk / 101.325); drawVac(d, st, i); check(); }
     else if (act === 'vadd') { var vi = $('#vacin'), vv2 = parseFloat(vi.value); if (!(vv2 > 0 && vv2 < 1.3)) { chip('0에서 1.3 사이의 기압을 써요'); return; } vacPush(vv2); vi.value = ''; drawVac(d, st, i); check(); }
@@ -1130,6 +1131,7 @@
     else if (act === 'blank') { b.classList.add('on'); b.removeAttribute('data-act'); if (!document.querySelector('.blank:not(.on)')) { S.seen[pfx(d, i) + cur.sl.j] = 1; save(); mile('c.' + pfx(d, i) + cur.sl.j, 2); } check(); }
     else if (act === 'lab') { S.lab.press[b.dataset.k] = b.dataset.v; drawLab(d, st, i); check(); }
     else if (act === 'labreplay') drawLab(d, st, i);
+    else if (act === 'spart') { var DP = S.data[st.kind] = S.data[st.kind] || {}; DP.part = b.dataset.p; save(); document.querySelectorAll('.spart button').forEach(function (x3) { x3.classList.toggle('on', x3 === b); }); var sv = $('.svols'); if (sv) sv.className = 'svols part-' + (DP.part || 'a'); chip(DP.part === 'e' ? '20, 18, 16 … 8 mL를 재요' : DP.part === 'o' ? '19, 17, 15 … 7 mL를 재요' : '20부터 7 mL까지 모두 재요'); }
     else if (act === 'road') roadGo(+b.dataset.r);
     else if (act === 'roadg') slideGo(+b.dataset.t);
     else if (act === 'sblank') { b.classList.add('on'); b.removeAttribute('data-act'); if (!document.querySelector('.blank[data-act=sblank]')) { S.seen['sum.' + d.id] = 1; save(); mile('sum.' + d.id, 2); } }
