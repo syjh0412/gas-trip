@@ -277,8 +277,8 @@
     if (t === 'presslab' || t === 'data' || t === 'vac') return 1; if (t === 'sim' || t === 'pumpsim' || t === 'chain') return 2; if (t === 'line') return 3; if (t === 'booth') return 1; if (t === 'quiz' || t === 'exam') return 4; return -1;
   }
   function slStage(d, s) { return roadIdx(s, s.si != null ? d.steps[s.si] : null); }
-  function grpName(d, s) { var st = s.si != null ? d.steps[s.si] : null; if (s.k === 'ex') return '생활 속 예'; if (s.k === 'labs') return '실험 목록'; if (st && st.type === 'exp' && T.exps[st.code]) return T.exps[st.code].title; return st ? st.title : ''; }
-  function grpKey(s) { return s.si + (s.k === 'ex' ? 'x' : s.k === 'labs' ? 'l' : ''); }
+  function grpName(d, s) { var st = s.si != null ? d.steps[s.si] : null; if (s.k === 'ex') return '생활 속 예'; if (s.k === 'labs') return '실험 목록'; if (st && st.grp) return st.grp; if (st && st.type === 'exp' && T.exps[st.code]) return T.exps[st.code].title; return st ? st.title : ''; }
+  function grpKey(s) { var st = s.si != null && cur.dest ? cur.dest.steps[s.si] : null; if (st && st.grp) return 'g:' + st.grp; return s.si + (s.k === 'ex' ? 'x' : s.k === 'labs' ? 'l' : ''); }
   function roadHTML(sl, st) {
     var r = roadIdx(sl, st); if (r < 0) return '';
     var d = cur.dest, all = cur.slides || [], cnt = [0, 0, 0, 0, 0];
