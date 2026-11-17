@@ -392,8 +392,8 @@
     cur.locked = !ok && !isT() && !(st && st.free && sl.k === 'whole');
     cur.why = sl.k === 'card' ? '노란 빈칸을 모두 눌러 확인하세요' : (sl.k === 'q' || sl.k === 'pq') ? '질문에 답하면 넘어갈 수 있어요' : (st ? TODO[st.type] : '');
     if (sl.k === 'expa' || sl.k === 'expb') cur.why = sl.k === 'expa' ? '실험을 마치면 ‘우리 모둠 실험 완료’를 눌러요' : '질문에 답하고, 설명을 끝까지 보고, 빈칸을 눌러요';
-    if (st && st.type === 'vac' && !ok && vacOwn(d, st, sl.si) && !dataDoneIn(d)) cur.why = '감압 용기는 끝! 이제 실험대를 바꿔 앞 장의 주사기 측정을 끝내야 넘어갈 수 있어요';
-    if (st && st.free && sl.k === 'whole' && !ok && !isT()) { var hk0 = $('#hintkey'); if (hk0) { hk0.className = 'hintkey lockmsg'; hk0.textContent = '감압 용기 먼저 하는 팀은 넘어가도 돼요. 주사기 측정은 실험대를 바꾼 뒤 꼭 돌아와서 해요'; } nx.classList.remove('lock'); nx.setAttribute('aria-disabled', false); return; }
+    if (st && st.type === 'vac' && !ok && vacOwn(d, st, sl.si) && !dataDoneIn(d)) cur.why = '감압 용기는 끝! 이제 실험 바구니를 바꿔 앞 장의 주사기 측정을 끝내야 넘어갈 수 있어요';
+    if (st && st.free && sl.k === 'whole' && !ok && !isT()) { var hk0 = $('#hintkey'); if (hk0) { hk0.className = 'hintkey lockmsg'; hk0.textContent = '감압 용기 먼저 하는 팀은 넘어가도 돼요. 주사기 측정은 실험 바구니를 바꾼 뒤 꼭 돌아와서 해요'; } nx.classList.remove('lock'); nx.setAttribute('aria-disabled', false); return; }
     nx.classList.toggle('lock', cur.locked); nx.setAttribute('aria-disabled', cur.locked);
     hk.className = 'hintkey' + (cur.locked ? ' lockmsg' : ok && sl.k !== 'hero' && sl.k !== 'clear' && sl.k !== 'ex' && sl.k !== 'labs' ? ' okmsg' : '');
     hk.textContent = cur.locked ? '🔒 ' + cur.why : (hk.className.indexOf('okmsg') > 0 ? '✓ 완료 · ' : '') + '← → 키 · 밀어서 넘기기';
