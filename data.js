@@ -15,7 +15,7 @@ window.TRIP = {
     { min: 190, name: "전문 가이드", st: 6 }, { min: 235, name: "베테랑 가이드", st: 6 }, { min: 280, name: "수석 가이드", st: 9 }, { min: 325, name: "마스터 가이드", st: 9 }, { min: 375, name: "전설의 입자 가이드", st: 9 }
   ],
   items: [
-    { id: "hat", name: "여행 모자", at: 1 }, { id: "glasses", name: "선글라스", at: 2 }, { id: "scarf", name: "목도리", at: 3 }, { id: "flag", name: "가이드 깃발", at: 4 }, { id: "headset", name: "안내 헤드셋", at: 6 }, { id: "crown", name: "전설의 왕관", at: 9 }
+    { id: "ribbon", name: "리본", at: 0 }, { id: "bowtie", name: "나비넥타이", at: 0 }, { id: "hat", name: "여행 모자", at: 1 }, { id: "flower", name: "꽃 핀", at: 1 }, { id: "glasses", name: "선글라스", at: 2 }, { id: "sprout", name: "새싹", at: 2 }, { id: "scarf", name: "목도리", at: 3 }, { id: "flag", name: "가이드 깃발", at: 4 }, { id: "wings", name: "구름 날개", at: 5 }, { id: "headset", name: "안내 헤드셋", at: 6 }, { id: "halo", name: "반짝 링", at: 8 }, { id: "crown", name: "전설의 왕관", at: 9 }
   ],
   coupons: [
     { id: "c1", name: "첫 여권 완성 쿠폰", cond: "한 성취기준의 도장 3개를 모두 모으기" },

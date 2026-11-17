@@ -8,7 +8,7 @@
   var DEST = {}; T.dests.forEach(function (d) { DEST[d.id] = d; });
 
   /* ---------- 상태 ---------- */
-  var S = { profile: null, miles: 0, mi: {}, combo: 0, flags: {}, wear: {}, badges: {}, pos: {}, seen: {}, done: {}, stamps: {}, ans: {}, data: {}, lines: {}, lab: {}, chain: {}, booths: [], exam: null };
+  var S = { profile: null, miles: 0, mi: {}, combo: 0, flags: {}, wear: {}, look: {}, badges: {}, pos: {}, seen: {}, done: {}, stamps: {}, ans: {}, data: {}, lines: {}, lab: {}, chain: {}, booths: [], exam: null };
   try { var raw = localStorage.getItem(KEY); if (raw) { var o = JSON.parse(raw); for (var k in o) S[k] = o[k]; } } catch (e) { }
   var stTimer = null;
   function save() {
@@ -195,7 +195,7 @@
       if (api && (code.length < 2 || code.length > 8)) { m.innerHTML = '<b class="warn">여권 암호는 2~8자로 정하세요.</b>'; return; }
       function enter(res) {
         var same = S.profile && S.profile.cls === c && S.profile.num === n, state = res && res.state;
-        if (!same) { var keep = { profile: null, miles: 0, mi: {}, combo: 0, flags: {}, wear: {}, badges: {}, pos: {}, seen: {}, done: {}, stamps: {}, ans: {}, data: {}, lines: {}, lab: {}, chain: {}, booths: [], exam: null }; for (var k0 in keep) S[k0] = keep[k0]; }
+        if (!same) { var keep = { profile: null, miles: 0, mi: {}, combo: 0, flags: {}, wear: {}, look: {}, badges: {}, pos: {}, seen: {}, done: {}, stamps: {}, ans: {}, data: {}, lines: {}, lab: {}, chain: {}, booths: [], exam: null }; for (var k0 in keep) S[k0] = keep[k0]; }
         if (state && (state.miles || 0) >= (S.miles || 0)) { for (var k in state) S[k] = state[k]; }
         S.profile = { cls: c, num: n, name: (res && res.name) || nm, v: 2 }; sessionStorage.setItem('gastrip.in', '1'); save(); syncProgress(); route(); toast('<div class="rkup">🧳</div><p>환영합니다, <b>' + esc(S.profile.name) + '</b> ' + rank().name + '님!</p>');
       }
@@ -207,18 +207,105 @@
       }).catch(function () { m.innerHTML = '<b class="warn">서버에 연결하지 못해 이 기기에만 저장해요.</b>'; enter(null); });
     });
   }
+  var INK = '#1B1F3B';
   var WEAR = {
-    scarf: '<path d="M22 74q28 14 56 0l-2 9q-26 12-52 0z" fill="#C2410C" stroke="#1B1F3B" stroke-width="3"/><path d="M62 83l4 13 8-3-3-12z" fill="#C2410C" stroke="#1B1F3B" stroke-width="3"/>',
-    headset: '<path d="M17 52a33 33 0 0 1 66 0" fill="none" stroke="#1B1F3B" stroke-width="5"/><rect x="10" y="48" width="11" height="18" rx="4" fill="#A61E6E" stroke="#1B1F3B" stroke-width="3"/><rect x="79" y="48" width="11" height="18" rx="4" fill="#A61E6E" stroke="#1B1F3B" stroke-width="3"/>',
-    glasses: '<rect x="27" y="40" width="21" height="14" rx="4" fill="#1B1F3B"/><rect x="52" y="40" width="21" height="14" rx="4" fill="#1B1F3B"/><path d="M47 45h6" stroke="#1B1F3B" stroke-width="4"/>',
-    hat: '<path d="M24 30q26-26 52 0z" fill="#2F4BD8" stroke="#1B1F3B" stroke-width="4" stroke-linejoin="round"/><path d="M16 31h62" stroke="#1B1F3B" stroke-width="6" stroke-linecap="round"/>',
-    crown: '<path d="M30 25l5-17 15 12 15-12 5 17z" fill="#FFD43B" stroke="#1B1F3B" stroke-width="4" stroke-linejoin="round"/>',
-    flag: '<path d="M8 70V26" stroke="#1B1F3B" stroke-width="4" stroke-linecap="round"/><path d="M8 26l20 7-20 7z" fill="#0B7A4B" stroke="#1B1F3B" stroke-width="3" stroke-linejoin="round"/>'
+    scarf: '<path d="M22 74q28 14 56 0l-2 9q-26 12-52 0z" fill="#E8590C" stroke="#1B1F3B" stroke-width="3"/><path d="M62 83l4 13 8-3-3-12z" fill="#E8590C" stroke="#1B1F3B" stroke-width="3"/><path d="M30 80l2-4M40 83l2-4M50 84l2-4M60 83l2-4" stroke="#FFD8A8" stroke-width="2" stroke-linecap="round"/>',
+    headset: '<path d="M17 52a33 33 0 0 1 66 0" fill="none" stroke="#1B1F3B" stroke-width="5"/><rect x="10" y="48" width="11" height="18" rx="4" fill="#A61E6E" stroke="#1B1F3B" stroke-width="3"/><rect x="79" y="48" width="11" height="18" rx="4" fill="#A61E6E" stroke="#1B1F3B" stroke-width="3"/><path d="M16 64q4 12 18 12" fill="none" stroke="#1B1F3B" stroke-width="3"/><circle cx="35" cy="76" r="3" fill="#1B1F3B"/>',
+    glasses: '<rect x="27" y="39" width="21" height="15" rx="5" fill="#1B1F3B"/><rect x="52" y="39" width="21" height="15" rx="5" fill="#1B1F3B"/><path d="M47 45h6" stroke="#1B1F3B" stroke-width="4"/><path d="M31 43l5-2M56 43l5-2" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".8"/>',
+    hat: '<path d="M24 30q26-26 52 0z" fill="#2F4BD8" stroke="#1B1F3B" stroke-width="4" stroke-linejoin="round"/><path d="M27 25q23-6 46 0" stroke="#FFD43B" stroke-width="4" fill="none"/><path d="M16 31h62" stroke="#1B1F3B" stroke-width="6" stroke-linecap="round"/>',
+    crown: '<path d="M30 25l5-17 15 12 15-12 5 17z" fill="#FFD43B" stroke="#1B1F3B" stroke-width="4" stroke-linejoin="round"/><circle cx="50" cy="20" r="3" fill="#F03E3E"/><circle cx="37" cy="21" r="2" fill="#4DABF7"/><circle cx="63" cy="21" r="2" fill="#4DABF7"/>',
+    flag: '<path d="M8 70V26" stroke="#1B1F3B" stroke-width="4" stroke-linecap="round"/><path d="M8 26l20 7-20 7z" fill="#0B7A4B" stroke="#1B1F3B" stroke-width="3" stroke-linejoin="round"/>',
+    ribbon: '<path d="M62 22l-12 8 3-14zM62 22l14-4-3 13z" fill="#FF6B9E" stroke="#1B1F3B" stroke-width="3" stroke-linejoin="round"/><circle cx="62" cy="22" r="4" fill="#FF8FB8" stroke="#1B1F3B" stroke-width="3"/>',
+    bowtie: '<path d="M50 84l-11-6v12zM50 84l11-6v12z" fill="#F03E3E" stroke="#1B1F3B" stroke-width="3" stroke-linejoin="round"/><circle cx="50" cy="84" r="3.5" fill="#C92A2A" stroke="#1B1F3B" stroke-width="2.5"/>',
+    flower: '<g transform="translate(30 24)"><circle cx="0" cy="-6" r="5" fill="#FFF3BF" stroke="#1B1F3B" stroke-width="2"/><circle cx="6" cy="-1" r="5" fill="#FFF3BF" stroke="#1B1F3B" stroke-width="2"/><circle cx="3" cy="6" r="5" fill="#FFF3BF" stroke="#1B1F3B" stroke-width="2"/><circle cx="-4" cy="5" r="5" fill="#FFF3BF" stroke="#1B1F3B" stroke-width="2"/><circle cx="-6" cy="-2" r="5" fill="#FFF3BF" stroke="#1B1F3B" stroke-width="2"/><circle r="4" fill="#FCC419" stroke="#1B1F3B" stroke-width="2"/></g>',
+    sprout: '<path d="M50 18v-10" stroke="#2B8A3E" stroke-width="3.5" stroke-linecap="round"/><path d="M50 10q-12-8-16 2q10 4 16-2zM50 8q10-10 16-2q-8 6-16 2z" fill="#69DB7C" stroke="#1B1F3B" stroke-width="2.5" stroke-linejoin="round"/>',
+    halo: '<ellipse cx="50" cy="12" rx="18" ry="5" fill="none" stroke="#FFD43B" stroke-width="5"/><ellipse cx="50" cy="12" rx="18" ry="5" fill="none" stroke="#1B1F3B" stroke-width="1.5" opacity=".5"/>'
+  };
+  var WEAR_BACK = {
+    wings: '<path d="M20 50q-20-22-16 6q-8 10 14 10z" fill="#E7F5FF" stroke="#1B1F3B" stroke-width="3" stroke-linejoin="round"/><path d="M80 50q20-22 16 6q8 10-14 10z" fill="#E7F5FF" stroke="#1B1F3B" stroke-width="3" stroke-linejoin="round"/><path d="M10 52q4 4 10 4M90 52q-4 4-10 4" stroke="#A5D8FF" stroke-width="2.5" fill="none" stroke-linecap="round"/>'
+  };
+  var WEAR_ORDER = ['scarf', 'bowtie', 'headset', 'glasses', 'hat', 'ribbon', 'flower', 'sprout', 'crown', 'halo', 'flag'];
+  var LOOK = {
+    body: [['yellow', '노랑', '#FFE57A', '#FFB300'], ['peach', '복숭아', '#FFD3B8', '#FF8A5B'], ['pink', '분홍', '#FFC2DA', '#F0508A'], ['berry', '딸기', '#FF9AA6', '#E03150'], ['lilac', '라벤더', '#E0CCFF', '#9663F0'], ['sky', '하늘', '#B8E2FF', '#3B8BEB'], ['mint', '민트', '#B6F5D8', '#20B07A'], ['lime', '연두', '#DDF59A', '#69B82A'], ['cloud', '구름', '#FFFFFF', '#B9C2E0'], ['night', '밤하늘', '#7C8BEA', '#2B2F7B'], ['choco', '초코', '#D9A77F', '#8A5530'], ['rainbow', '무지개', '', '']],
+    eyes: [['dot', '동글'], ['shine', '반짝'], ['happy', '웃는'], ['wink', '윙크'], ['sleepy', '졸린'], ['star', '별'], ['heart', '하트'], ['cool', '새침']],
+    mouth: [['smile', '방긋'], ['grin', '활짝'], ['tongue', '메롱'], ['cat', '고양이'], ['o', '오!'], ['tiny', '쪼끔'], ['teeth', '이빨']],
+    cheek: [['pink', '분홍 볼'], ['coral', '주황 볼'], ['shy', '부끄 볼'], ['none', '볼 없음']],
+    pattern: [['none', '없음'], ['dots', '물방울'], ['spark', '반짝이'], ['freckle', '주근깨'], ['stripe', '줄무늬'], ['heart', '하트']],
+    move: [['right', '오른쪽'], ['left', '왼쪽'], ['both', '양쪽'], ['off', '끄기']]
   };
   var PREV = null;
-  function mascot(sz, plain) {
-    var w = plain === 1 ? {} : JSON.parse(JSON.stringify(S.wear || {})), ex = ''; if (plain === 2 && PREV) w[PREV] = true; ['scarf', 'headset', 'glasses', 'hat', 'crown', 'flag'].forEach(function (k) { if (w[k]) ex += WEAR[k]; });
-    return '<svg width="' + sz + '" height="' + sz + '" viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="52" r="34" fill="#FFD43B" stroke="#1B1F3B" stroke-width="5"/><circle cx="39" cy="47" r="5" fill="#1B1F3B"/><circle cx="61" cy="47" r="5" fill="#1B1F3B"/><path d="M38 62q12 11 24 0" fill="none" stroke="#1B1F3B" stroke-width="5" stroke-linecap="round"/>' + (w.headset ? '' : '<path d="M88 44l10-2M86 30l8-6" stroke="#1B1F3B" stroke-width="4" stroke-linecap="round"/>') + ex + '</svg>';
+  var LOOK0 = { body: 'yellow', eyes: 'shine', mouth: 'smile', cheek: 'pink', pattern: 'none', move: 'right' };
+  function lookOf() { var L = {}, s = (S && S.look) || {}; for (var k in LOOK0) L[k] = s[k] || LOOK0[k]; return L; }
+  var MID = 0, MSEED = Math.random().toString(36).slice(2, 6);
+  function eyesSVG(e, dark) {
+    var c = dark ? '#fff' : INK, hl = dark ? INK : '#fff';
+    if (e === 'dot') return '<circle cx="39" cy="47" r="5" fill="' + c + '"/><circle cx="61" cy="47" r="5" fill="' + c + '"/>';
+    if (e === 'shine') return '<ellipse cx="39" cy="47" rx="6" ry="7.5" fill="' + c + '"/><ellipse cx="61" cy="47" rx="6" ry="7.5" fill="' + c + '"/><circle cx="41" cy="44" r="2.6" fill="' + hl + '"/><circle cx="63" cy="44" r="2.6" fill="' + hl + '"/><circle cx="37.5" cy="50" r="1.2" fill="' + hl + '"/><circle cx="59.5" cy="50" r="1.2" fill="' + hl + '"/>';
+    if (e === 'happy') return '<path d="M32 49q7-9 14 0M54 49q7-9 14 0" fill="none" stroke="' + c + '" stroke-width="4.5" stroke-linecap="round"/>';
+    if (e === 'wink') return '<ellipse cx="39" cy="47" rx="6" ry="7.5" fill="' + c + '"/><circle cx="41" cy="44" r="2.6" fill="' + hl + '"/><path d="M54 48q7-6 14 0" fill="none" stroke="' + c + '" stroke-width="4.5" stroke-linecap="round"/>';
+    if (e === 'sleepy') return '<path d="M32 47q7 6 14 0M54 47q7 6 14 0" fill="none" stroke="' + c + '" stroke-width="4" stroke-linecap="round"/>';
+    if (e === 'star') return [39, 61].map(function (x) { return '<path transform="translate(' + x + ' 47)" d="M0-8l2.4 5 5.6.6-4.2 3.8 1.2 5.6L0 4.2-5 7l1.2-5.6L-8-2.4l5.6-.6z" fill="' + (dark ? '#FFE066' : '#FAB005') + '" stroke="' + INK + '" stroke-width="1.8" stroke-linejoin="round"/>'; }).join('');
+    if (e === 'heart') return [39, 61].map(function (x) { return '<path transform="translate(' + x + ' 47)" d="M0 6C-9 0-8-7-4-7c2 0 3 1 4 3c1-2 2-3 4-3c4 0 5 7-4 13z" fill="#F03E6E" stroke="' + INK + '" stroke-width="1.8" stroke-linejoin="round"/>'; }).join('');
+    if (e === 'cool') return '<path d="M32 45h14M54 45h14" stroke="' + c + '" stroke-width="3" stroke-linecap="round"/><path d="M33 47q6 6 12 0M55 47q6 6 12 0" fill="' + c + '"/>';
+    return '';
+  }
+  function mouthSVG(m, dark) {
+    var c = dark ? '#fff' : INK;
+    if (m === 'smile') return '<path d="M40 61q10 9 20 0" fill="none" stroke="' + c + '" stroke-width="4.5" stroke-linecap="round"/>';
+    if (m === 'grin') return '<path d="M38 59h24q-1 14-12 14t-12-14z" fill="#7A1F2B" stroke="' + c + '" stroke-width="3.5" stroke-linejoin="round"/><path d="M43 69q7-5 14 0q-3 4-7 4t-7-4z" fill="#FF8787"/>';
+    if (m === 'tongue') return '<path d="M40 61q10 9 20 0" fill="none" stroke="' + c + '" stroke-width="4.5" stroke-linecap="round"/><path d="M47 66v4q3 5 6 0v-4" fill="#FF6B81" stroke="' + INK + '" stroke-width="2.5" stroke-linejoin="round"/>';
+    if (m === 'cat') return '<path d="M40 61q5 6 10 0q5 6 10 0" fill="none" stroke="' + c + '" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>';
+    if (m === 'o') return '<ellipse cx="50" cy="64" rx="5" ry="6" fill="#7A1F2B" stroke="' + c + '" stroke-width="3.5"/>';
+    if (m === 'tiny') return '<path d="M46 63q4 3 8 0" fill="none" stroke="' + c + '" stroke-width="3.5" stroke-linecap="round"/>';
+    if (m === 'teeth') return '<path d="M40 60q10 10 20 0z" fill="#7A1F2B" stroke="' + c + '" stroke-width="3.5" stroke-linejoin="round"/><path d="M44 61h12v3h-12z" fill="#fff"/>';
+    return '';
+  }
+  function cheekSVG(c) {
+    if (c === 'none') return '';
+    if (c === 'shy') return '<g stroke="#F06595" stroke-width="2" stroke-linecap="round"><path d="M24 59l3-4M28 60l3-4M32 61l3-4M65 61l3-4M69 60l3-4M73 59l3-4"/></g>';
+    var col = c === 'coral' ? '#FF922B' : '#FF6B9E';
+    return '<ellipse cx="29" cy="59" rx="7" ry="4.2" fill="' + col + '" opacity=".55"/><ellipse cx="71" cy="59" rx="7" ry="4.2" fill="' + col + '" opacity=".55"/>';
+  }
+  function patSVG(p, dark) {
+    var w = dark ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.6)';
+    if (p === 'dots') return '<circle cx="28" cy="36" r="4" fill="' + w + '"/><circle cx="74" cy="34" r="3" fill="' + w + '"/><circle cx="22" cy="66" r="3.5" fill="' + w + '"/><circle cx="78" cy="68" r="4.5" fill="' + w + '"/><circle cx="50" cy="80" r="3" fill="' + w + '"/><circle cx="64" cy="26" r="2.5" fill="' + w + '"/>';
+    if (p === 'spark') return [[26, 34, 5], [76, 66, 6], [70, 30, 3.5], [30, 74, 3.5]].map(function (a) { return '<path transform="translate(' + a[0] + ' ' + a[1] + ') scale(' + (a[2] / 6) + ')" d="M0-6Q1-1 6 0Q1 1 0 6Q-1 1-6 0Q-1-1 0-6z" fill="#fff" opacity=".9"/>'; }).join('');
+    if (p === 'freckle') return '<g fill="#B5651D" opacity=".55"><circle cx="25" cy="54" r="1.4"/><circle cx="29" cy="52" r="1.4"/><circle cx="27" cy="57" r="1.4"/><circle cx="75" cy="54" r="1.4"/><circle cx="71" cy="52" r="1.4"/><circle cx="73" cy="57" r="1.4"/></g>';
+    if (p === 'stripe') return '<g stroke="' + w + '" stroke-width="5" stroke-linecap="round"><path d="M10 30h80M8 74h84"/></g>';
+    if (p === 'heart') return [[26, 34], [76, 70], [72, 30]].map(function (a) { return '<path transform="translate(' + a[0] + ' ' + a[1] + ') scale(.6)" d="M0 6C-9 0-8-7-4-7c2 0 3 1 4 3c1-2 2-3 4-3c4 0 5 7-4 13z" fill="#fff" opacity=".75"/>'; }).join('');
+    return '';
+  }
+  function moveSVG(m) {
+    var r = '<path d="M89 44l9-2M87 32l7-6M89 56l8 3" stroke="' + INK + '" stroke-width="4" stroke-linecap="round" opacity=".75"/>', l = '<path d="M11 44l-9-2M13 32l-7-6M11 56l-8 3" stroke="' + INK + '" stroke-width="4" stroke-linecap="round" opacity=".75"/>';
+    return m === 'right' ? r : m === 'left' ? l : m === 'both' ? r + l : '';
+  }
+  function mascot(sz, plain, lookOver) {
+    var w = plain === 1 || plain === 3 ? {} : JSON.parse(JSON.stringify(S.wear || {})), ex = '', back = '';
+    if (plain === 2 && PREV) w[PREV] = true;
+    var L = plain === 1 ? JSON.parse(JSON.stringify(LOOK0)) : lookOf(); if (lookOver) for (var k in lookOver) L[k] = lookOver[k];
+    WEAR_ORDER.forEach(function (k) { if (w[k]) ex += WEAR[k]; }); if (w.wings) back = WEAR_BACK.wings;
+    var id = 'm' + MSEED + (++MID), b = LOOK.body.filter(function (x) { return x[0] === L.body; })[0] || LOOK.body[0], dark = L.body === 'night' || L.body === 'choco';
+    var grad = L.body === 'rainbow' ? '<linearGradient id="' + id + 'g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF8787"/><stop offset=".25" stop-color="#FFD43B"/><stop offset=".5" stop-color="#8CE99A"/><stop offset=".75" stop-color="#74C0FC"/><stop offset="1" stop-color="#B197FC"/></linearGradient>'
+      : '<radialGradient id="' + id + 'g" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="' + b[2] + '"/><stop offset="1" stop-color="' + b[3] + '"/></radialGradient>';
+    var moving = !(w.headset) && L.move;
+    return '<svg class="pmascot" width="' + sz + '" height="' + sz + '" viewBox="0 0 100 100" aria-hidden="true"><defs>' + grad + '<clipPath id="' + id + 'c"><circle cx="50" cy="52" r="32"/></clipPath></defs>' +
+      '<ellipse cx="50" cy="92" rx="26" ry="4" fill="#1B1F3B" opacity=".12"/>' + back +
+      '<circle cx="50" cy="52" r="34" fill="url(#' + id + 'g)" stroke="' + INK + '" stroke-width="4.5"/>' +
+      '<g clip-path="url(#' + id + 'c)">' + patSVG(L.pattern, dark) + '</g>' +
+      '<ellipse cx="36" cy="32" rx="10" ry="6" fill="#fff" opacity=".55" transform="rotate(-30 36 32)"/><circle cx="26" cy="42" r="2.5" fill="#fff" opacity=".6"/>' +
+      cheekSVG(L.cheek) + eyesSVG(L.eyes, dark) + mouthSVG(L.mouth, dark) + (moving ? moveSVG(L.move) : '') + ex + '</svg>';
+  }
+  function lookPicker() {
+    var L = lookOf(), h = '';
+    var grp = function (k, label, fn) { return '<div class="lkgrp"><p class="lkh">' + label + '</p><div class="lkrow">' + LOOK[k].map(function (o) { var on = L[k] === o[0]; return '<button class="lk' + (on ? ' on' : '') + '" data-act="look" data-k="' + k + '" data-v="' + o[0] + '" aria-pressed="' + on + '" title="' + o[1] + '">' + fn(o) + '<small>' + o[1] + '</small></button>'; }).join('') + '</div></div>'; };
+    var mini = function (over) { return mascot(46, 3, over); };
+    h += grp('body', '🎨 몸 색깔', function (o) { return mini({ body: o[0] }); });
+    h += grp('eyes', '👀 눈', function (o) { return mini({ eyes: o[0] }); });
+    h += grp('mouth', '👄 입', function (o) { return mini({ mouth: o[0] }); });
+    h += grp('cheek', '🌸 볼', function (o) { return mini({ cheek: o[0] }); });
+    h += grp('pattern', '✨ 무늬', function (o) { return mini({ pattern: o[0] }); });
+    h += grp('move', '💨 움직임 표시', function (o) { return mini({ move: o[0] }); });
+    return h;
   }
 
   /* ---------- 홈 ---------- */
@@ -247,8 +334,10 @@
     var got = BADGES.filter(function (b) { return S.badges[b.id]; }).length;
     P.bag += '<section class="card"><h2>여행 가방 <span class="cnt">' + got + ' / ' + BADGES.length + '</span></h2><p class="tiny" style="margin:0 0 10px">여행지를 마치면 스티커를, 특별한 일을 해내면 배지를 얻어요. 눌러서 조건을 볼 수 있어요.</p><div class="bgrid">' +
       BADGES.map(function (b) { var on = S.badges[b.id]; return '<button class="bdg' + (on ? ' on' : '') + '" data-act="bdg" data-n="' + esc(b.n) + '" data-d="' + esc(b.d) + '" aria-label="' + esc(b.n) + (on ? ' 획득' : ' 아직') + '"><span>' + (on ? b.ic : '❔') + '</span><small>' + b.n + '</small></button>'; }).join('') + '</div><p class="tiny" id="bdgmsg" aria-live="polite"></p></section>';
-    P.me += '<section class="card"><h2>내 입자 꾸미기</h2><div class="wearbox"><div class="wearme">' + mascot(120, 2) + (PREV ? '<small>미리 보기</small>' : '') + '</div><div class="wearlist">' +
-      T.items.map(function (it) { var open = ri >= it.at || isT(); return '<button class="wr' + (S.wear[it.id] ? ' on' : '') + '" data-act="wear" data-id="' + it.id + '" data-lock="' + (open ? '' : '1') + '" aria-pressed="' + !!S.wear[it.id] + '">' + (open ? '' : '🔒 ') + it.name + (open ? '' : '<small>Lv.' + (it.at + 1) + '</small>') + '</button>'; }).join('') + '</div></div><p class="tiny">' + (PREV ? '잠긴 아이템을 미리 보고 있어요. 등급이 오르면 쓸 수 있어요.' : '🔒 잠긴 아이템도 누르면 어떤 모습인지 미리 볼 수 있어요.') + '</p></section>';
+    P.me += '<section class="card"><h2>내 입자 꾸미기</h2><div class="wearbox"><div class="wearme">' + mascot(140, 2) + (PREV ? '<small>미리 보기</small>' : '') + '<div class="lkbtns"><button class="btn sm" data-act="lookrand">🎲 아무거나</button><button class="btn sm ghost" data-act="lookreset">↺ 처음 모습</button></div></div><div class="lkall">' + lookPicker() + '</div></div>' +
+      '<p class="tiny">기체 입자는 쉬지 않고 움직여요. 💨 움직임 표시는 그 움직임을 나타내는 선이에요. 모양과 색은 꾸미기일 뿐, 진짜 입자는 아주 작아서 색도 얼굴도 없어요.</p></section>' +
+      '<section class="card"><h2>여행 아이템 <span class="cnt">등급이 오르면 열려요</span></h2><div class="wearlist">' +
+      T.items.map(function (it) { var open = ri >= it.at || isT(); return '<button class="wr' + (S.wear[it.id] ? ' on' : '') + '" data-act="wear" data-id="' + it.id + '" data-lock="' + (open ? '' : '1') + '" aria-pressed="' + !!S.wear[it.id] + '">' + (open ? '' : '🔒 ') + it.name + (open ? '' : '<small>Lv.' + (it.at + 1) + '</small>') + '</button>'; }).join('') + '</div><p class="tiny">' + (PREV ? '잠긴 아이템을 미리 보고 있어요. 등급이 오르면 쓸 수 있어요.' : '🔒 잠긴 아이템도 누르면 어떤 모습인지 미리 볼 수 있어요.') + '</p></section>';
     P.rank += '<section class="card lvnow"><div class="lvface">' + mascot(96) + '</div><div><p class="rk">지금 내 등급</p><h2>Lv.' + (ri + 1) + ' ' + r.name + '</h2><p>' + nx + '</p><div class="mbar dark"><i style="width:' + pc.toFixed(0) + '%"></i></div><p class="tiny">' + S.miles + ' 마일 · 도장 ' + n + '개</p></div></section>';
     P.rank += '<section class="card"><h2>마일은 이렇게 모아요</h2><ul class="earn">' + [['🗝️', '안내 카드의 빈칸을 모두 열기', '+2'], ['🔮', '출발 질문에 예측하기', '+2 (맞으면 +3)'], ['📝', '문제를 한 번에 맞히기', '+3 (틀리면 +1)'], ['🔥', '3번, 5번 연속으로 맞히기', '+3, +5'], ['🔬', '실험 활동 마치기 (점토, 입자 모형, 그래프, 입자로 설명하기)', '+6 ~ +10'], ['🗣️', '여행 안내 한 줄 쓰기', '+6'], ['📘', '도장 받기', '+10'], ['🎓', '자격시험', '맞힌 문항 × 2']].map(function (x) { return '<li><span>' + x[0] + '</span><div>' + x[1] + '</div><b>' + x[2] + '</b></li>'; }).join('') + '</ul></section>';
     P.rank += '<section class="card"><h2>등급과 선물</h2><ol class="rklist">' + T.ranks.map(function (x, j) { var gift = T.items.filter(function (it) { return it.at === j; }).map(function (it) { return '🎁 ' + it.name; }); if (j === 7 && CFG.COUPONS !== false) gift.push('🎟️ 쿠폰'); return '<li class="' + (j === ri ? 'cur' : j < ri ? 'past' : '') + '"><span class="lv">' + (j < ri ? '✓ ' : '') + 'Lv.' + (j + 1) + '</span><b>' + x.name + (gift.length ? '<em>' + gift.join(' · ') + '</em>' : '') + '</b><span class="rq">' + x.min + ' 마일' + (x.st ? ' · 도장 ' + x.st + '개' : '') + '</span></li>'; }).join('') + '</ol><p class="tiny">Lv.6부터는 마일만으로는 오를 수 없어요. 입자로 설명해서 도장을 모아야 해요.</p></section>';
@@ -1127,6 +1216,9 @@
     else if (act === 'gguest') { $('#ggbox').hidden = !$('#ggbox').hidden; }
     else if (act === 'ggo') { sessionStorage.setItem('gastrip.guest', '1'); for (var gk in S) if (gk !== 'profile') S[gk] = Array.isArray(S[gk]) ? [] : (S[gk] && typeof S[gk] === 'object') ? {} : (typeof S[gk] === 'number' ? 0 : null); S.profile = { cls: '0', num: '0', name: '참관 선생님' }; location.hash = '#home'; route(); }
     else if (act === 'bdg') { $('#bdgmsg').innerHTML = '<b>' + b.dataset.n + '</b> — ' + b.dataset.d; }
+    else if (act === 'look') { S.look = S.look || {}; S.look[b.dataset.k] = b.dataset.v; save(); var y1 = window.scrollY; viewHome(); window.scrollTo(0, y1); }
+    else if (act === 'lookrand') { S.look = {}; for (var lk in LOOK) { var arr = LOOK[lk]; S.look[lk] = arr[Math.floor(Math.random() * arr.length)][0]; } if (S.look.move === 'off') S.look.move = 'right'; save(); var y2 = window.scrollY; viewHome(); window.scrollTo(0, y2); }
+    else if (act === 'lookreset') { S.look = {}; save(); var y3 = window.scrollY; viewHome(); window.scrollTo(0, y3); }
     else if (act === 'wear') { if (b.dataset.lock) PREV = PREV === b.dataset.id ? null : b.dataset.id; else { PREV = null; S.wear[b.dataset.id] = !S.wear[b.dataset.id]; save(); } var y = window.scrollY; viewHome(); window.scrollTo(0, y); }
     else if (act === 'blank') { b.classList.add('on'); b.removeAttribute('data-act'); if (!document.querySelector('.blank:not(.on)')) { S.seen[pfx(d, i) + cur.sl.j] = 1; save(); mile('c.' + pfx(d, i) + cur.sl.j, 2); } check(); }
     else if (act === 'lab') { S.lab.press[b.dataset.k] = b.dataset.v; drawLab(d, st, i); check(); }

@@ -179,7 +179,7 @@ textarea { resize: vertical; line-height: 1.6; }
 .bgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
 .bdg { background: #F3F5FB; border: 2px dashed #9AA0BF; border-radius: 14px; padding: 8px 4px; min-height: 88px; display: flex; flex-direction: column; align-items: center; gap: 2px; } .bdg span { font-size: 32px; line-height: 1.2; filter: grayscale(1); opacity: .5; } .bdg small { font-size: 12px; font-weight: 700; color: var(--muted); line-height: 1.25; }
 .bdg.on { background: #FFFBEA; border: 3px solid var(--ink); } .bdg.on span { filter: none; opacity: 1; } .bdg.on small { color: var(--ink); }
-.wearbox { display: grid; grid-template-columns: 140px 1fr; gap: 14px; align-items: center; } .wearme { background: #E7EAFA; border-radius: 18px; padding: 10px; text-align: center; }
+.wearbox { display: grid; grid-template-columns: 180px 1fr; gap: 14px; align-items: center; } .wearme { background: #E7EAFA; border-radius: 18px; padding: 10px; text-align: center; }
 .wearlist { display: flex; flex-wrap: wrap; gap: 8px; } .wr { min-height: 46px; border: 2px solid var(--ink); border-radius: 23px; background: #fff; padding: 0 14px; font-weight: 700; font-size: 15px; } .wr.on { background: var(--ink); color: #fff; } .wr[data-lock="1"] { border-style: dashed; color: var(--muted); } .wr small { margin-left: 6px; font-weight: 400; }
 .rklist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; } .rklist li { display: grid; grid-template-columns: 54px 1fr auto; gap: 8px; align-items: center; border: 2px solid var(--line); border-radius: 12px; padding: 6px 10px; color: var(--muted); } .rklist .lv { font-weight: 700; font-size: 14px; } .rklist b { font-family: var(--ft); font-weight: 400; font-size: 18px; } .rklist .rq { font-size: 13px; }
 .rklist li.past { color: var(--ink); background: #F3F5FB; } .rklist li.cur { color: var(--ink); border: 3px solid var(--ink); background: var(--yel); }
@@ -316,3 +316,19 @@ a.rk { text-decoration: none; }
 .subroad button small { font-weight: 400; }
 .svols.part-e .po, .svols.part-o .pe { display: none; }
 .spart { margin-bottom: 4px; }
+
+/* 내 입자 꾸미기 */
+.wearme { position: sticky; top: 84px; align-self: start; background: radial-gradient(circle at 50% 40%, #fff 0, #E7EAFA 70%); }
+.wearme .pmascot { animation: bob 2.4s ease-in-out infinite; }
+@keyframes bob { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-6px) rotate(2deg); } }
+@media (prefers-reduced-motion: reduce) { .wearme .pmascot { animation: none; } }
+.lkbtns { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.lkall { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.lkh { margin: 0 0 6px; font-weight: 800; font-size: 15px; }
+.lkrow { display: flex; flex-wrap: wrap; gap: 6px; }
+.lk { flex: 0 0 auto; width: 64px; border: 2px solid #D5DAF0; border-radius: 14px; background: #fff; padding: 4px 2px 3px; display: flex; flex-direction: column; align-items: center; gap: 1px; cursor: pointer; }
+.lk small { font-size: 12px; font-weight: 700; color: var(--muted); white-space: nowrap; }
+.lk.on { border-color: var(--ink); background: #FFF9DB; box-shadow: 0 3px 0 var(--ink); }
+.lk.on small { color: var(--ink); }
+.lk:hover { border-color: #8C95C9; }
+@media (max-width: 620px) { .wearme { position: static; } }
