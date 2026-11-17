@@ -332,3 +332,25 @@ a.rk { text-decoration: none; }
 .lk.on small { color: var(--ink); }
 .lk:hover { border-color: #8C95C9; }
 @media (max-width: 620px) { .wearme { position: static; } }
+
+/* 개념기반 탐구 */
+.cqbox { margin: 14px auto 0; max-width: 560px; background: #FFF9DB; border: 2px solid var(--ink); border-radius: 16px; padding: 10px 14px; text-align: left; box-shadow: 0 3px 0 var(--ink); }
+.cqbox span { display: block; font-size: 13px; font-weight: 800; color: #8A6D00; } .cqbox b { font-size: 18px; line-height: 1.45; }
+.genq, .bigq { background: #FFF9DB; border-color: var(--ink); } .genq.deb { background: #EEF2FF; }
+.cqlab { margin: 0; font-size: 13px; font-weight: 800; color: #6B5A00; } .deb .cqlab { color: #3B4BA8; }
+.cqtx { margin: 4px 0 0; font-size: 19px; font-weight: 800; line-height: 1.45; }
+.h4 { margin: 0 0 8px; font-weight: 800; }
+.gcases { margin: 0; padding-left: 20px; line-height: 1.6; } .gcases .own { list-style: none; margin: 6px 0 0 -20px; background: #E7F5FF; border-radius: 10px; padding: 6px 10px; font-weight: 700; }
+.gparts { display: flex; flex-direction: column; gap: 8px; }
+.gpart { display: flex; flex-direction: column; gap: 4px; } .glab { font-size: 13px; font-weight: 800; color: #3B4BA8; } .grow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; } .grow em { font-style: normal; font-weight: 800; font-size: 16px; } .grow .gin { flex: 1 1 220px; width: auto; }
+.gin { min-height: 46px; border: 2px solid #C9CFE6; border-radius: 12px; padding: 0 12px; font-size: 16px; font-family: inherit; width: 100%; box-sizing: border-box; } .gin:focus { border-color: var(--ink); outline: none; }
+.gprev { min-height: 1.4em; margin: 10px 0 0; font-weight: 700; color: #0B7A4B; }
+.genprev { background: #F1F3FA; } .genprev p:last-child { margin: 4px 0 0; font-weight: 700; }
+.gck { display: flex; flex-direction: row; gap: 10px; align-items: center; justify-content: flex-start; min-height: 40px; font-weight: 600; text-align: left; cursor: pointer; } .gck input { width: 22px; height: 22px; }
+.gmodel { background: #EBFBEE; border-color: #2B8A3E; } .gmodel p:last-of-type { font-weight: 700; }
+.dseg { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; } .dseg button { min-height: 46px; border: 2px solid var(--ink); border-radius: 23px; background: #fff; padding: 0 16px; font-weight: 700; font-size: 15px; } .dseg button.on { background: var(--ink); color: #fff; }
+#debtx, #refltx, #bigtx { width: 100%; box-sizing: border-box; border: 2px solid #C9CFE6; border-radius: 12px; padding: 10px; font-size: 16px; font-family: inherit; }
+.rpred { margin: 0; padding: 0; list-style: none; } .rpred li { padding: 8px 0; border-bottom: 1px dashed #D5DAF0; } .rpred li span { display: block; font-size: 14px; color: var(--muted); } .rpred b.ok { color: #0B7A4B; } .rpred b.no { color: #C2410C; }
+.gnote { margin: 0; padding-left: 22px; line-height: 1.55; } .gnote li { margin-bottom: 8px; } .gnote small { display: block; font-weight: 800; color: var(--muted); } .gnote em { color: #9AA1C4; } .gnote li.big { color: #3B4BA8; font-weight: 700; }
+.mygen { background: #FFF9DB; } .mygen p { font-weight: 700; font-size: 17px; margin: 6px 0 0; }
+

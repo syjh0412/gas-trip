@@ -8,7 +8,7 @@
   var DEST = {}; T.dests.forEach(function (d) { DEST[d.id] = d; });
 
   /* ---------- 상태 ---------- */
-  var S = { profile: null, miles: 0, mi: {}, combo: 0, flags: {}, wear: {}, look: {}, badges: {}, pos: {}, seen: {}, done: {}, stamps: {}, ans: {}, data: {}, lines: {}, lab: {}, chain: {}, booths: [], exam: null };
+  var S = { profile: null, miles: 0, mi: {}, combo: 0, flags: {}, wear: {}, look: {}, badges: {}, pos: {}, seen: {}, done: {}, stamps: {}, ans: {}, data: {}, lines: {}, lab: {}, chain: {}, booths: [], exam: null, gen: {}, deb: {}, refl: {}, bigtxt: '' };
   try { var raw = localStorage.getItem(KEY); if (raw) { var o = JSON.parse(raw); for (var k in o) S[k] = o[k]; } } catch (e) { }
   var stTimer = null;
   function save() {
@@ -195,7 +195,7 @@
       if (api && (code.length < 2 || code.length > 8)) { m.innerHTML = '<b class="warn">여권 암호는 2~8자로 정하세요.</b>'; return; }
       function enter(res) {
         var same = S.profile && S.profile.cls === c && S.profile.num === n, state = res && res.state;
-        if (!same) { var keep = { profile: null, miles: 0, mi: {}, combo: 0, flags: {}, wear: {}, look: {}, badges: {}, pos: {}, seen: {}, done: {}, stamps: {}, ans: {}, data: {}, lines: {}, lab: {}, chain: {}, booths: [], exam: null }; for (var k0 in keep) S[k0] = keep[k0]; }
+        if (!same) { var keep = { profile: null, miles: 0, mi: {}, combo: 0, flags: {}, wear: {}, look: {}, badges: {}, pos: {}, seen: {}, done: {}, stamps: {}, ans: {}, data: {}, lines: {}, lab: {}, chain: {}, booths: [], exam: null, gen: {}, deb: {}, refl: {}, bigtxt: '' }; for (var k0 in keep) S[k0] = keep[k0]; }
         if (state && (state.miles || 0) >= (S.miles || 0)) { for (var k in state) S[k] = state[k]; }
         S.profile = { cls: c, num: n, name: (res && res.name) || nm, v: 2 }; sessionStorage.setItem('gastrip.in', '1'); save(); syncProgress(); route(); toast('<div class="rkup">🧳</div><p>환영합니다, <b>' + esc(S.profile.name) + '</b> ' + rank().name + '님!</p>');
       }
@@ -325,6 +325,8 @@
       P.pass += '<div class="prow"><div class="pstd"><b>' + T.stds[s].short + '</b><span>' + T.stds[s].code + '</span></div>' + stampHTML(s, 'see') + stampHTML(s, 'meas') + stampHTML(s, 'part') + '</div>';
     });
     P.pass += '</div><p class="tiny">본 것 → 잰 것 → 입자 순서로, 눈에 보이는 현상에서 보이지 않는 입자까지 설명하면 여권이 완성돼요.</p></section>';
+    P.pass += '<section class="card"><h2>📒 내 일반화 노트</h2><p class="tiny" style="margin:0 0 8px">앞 차시에서 찾은 규칙을 뒤 차시에서 입자로 다듬어요.</p><ol class="gnote">' + T.dests.filter(function (x) { return x.steps.some(function (y) { return y.type === 'gen'; }); }).map(function (x) { var gs = x.steps.filter(function (y) { return y.type === 'gen'; })[0], t = genText(S.gen[x.id]); return '<li><small>' + x.period + ' · ' + (gs.mode === 'tmp' ? '규칙 찾기' : '일반화') + '</small>' + (t ? esc(t) : '<em>아직 쓰지 않았어요</em>') + '</li>'; }).join('') + (S.bigtxt ? '<li class="big"><small>9차시 · 큰 질문에 답하기</small>' + esc(S.bigtxt) + '</li>' : '') + '</ol></section>';
+    P.trip += '<section class="card bigq"><p class="cqlab">🧭 이번 여행의 큰 질문</p><p class="cqtx">' + T.big.q + '</p><p class="tiny">여행지마다 작은 탐구 질문에 답하며 문장을 다듬고, 마지막 자격시험 날 이 큰 질문에 내 말로 답해요. 내 문장은 ‘내 여권’에 모여요.</p></section>';
     P.trip += '<ol class="route">';
     T.dests.forEach(function (d) {
       var p = destProgress(d), tot = d.steps.length, fin = p >= tot;
@@ -354,23 +356,23 @@
     S.done[d.id] = S.done[d.id] || {};
     if (S.done[d.id][i]) return;
     S.done[d.id][i] = Date.now(); save();
-    var st = d.steps[i]; mile('s.' + d.id + '.' + i, { exp: 4, presslab: 6, sim: 6, data: 10, vac: 10, pumpsim: 6, chain: 8, line: 6, booth: 6 }[st.type] || 0);
+    var st = d.steps[i]; mile('s.' + d.id + '.' + i, { exp: 4, presslab: 6, sim: 6, data: 10, vac: 10, pumpsim: 6, chain: 8, line: 6, booth: 6, gen: 8, debate: 4, reflect: 3, bigidea: 8 }[st.type] || 0);
     if (st.stamp && d.std) award(d.std, st.stamp);
     syncProgress();
   }
-  var ROAD = ['예상', '탐구', '입자', '설명', '문제'];
+  var ROAD = ['예상', '탐구', '입자', '설명', '문제', '돌아보기'];
   function roadIdx(sl, st) {
     if (sl.k === 'q') return 0; if (sl.k === 'pq') return 4;
     if (sl.k === 'card' || sl.k === 'ex' || sl.k === 'labs' || sl.k === 'expa' || sl.k === 'expb') return 1;
     if (!st) return -1; var t = st.type;
-    if (t === 'presslab' || t === 'data' || t === 'vac') return 1; if (t === 'sim' || t === 'pumpsim' || t === 'chain') return 2; if (t === 'line') return 3; if (t === 'booth') return 1; if (t === 'quiz' || t === 'exam') return 4; return -1;
+    if (t === 'presslab' || t === 'data' || t === 'vac') return 1; if (t === 'sim' || t === 'pumpsim' || t === 'chain') return 2; if (t === 'line' || t === 'gen' || t === 'debate' || t === 'bigidea') return 3; if (t === 'reflect') return 5; if (t === 'booth') return 1; if (t === 'quiz' || t === 'exam') return 4; return -1;
   }
   function slStage(d, s) { return roadIdx(s, s.si != null ? d.steps[s.si] : null); }
   function grpName(d, s) { var st = s.si != null ? d.steps[s.si] : null; if (s.k === 'ex') return '생활 속 예'; if (s.k === 'labs') return '실험 목록'; if (st && st.grp) return st.grp; if (st && st.type === 'exp' && T.exps[st.code]) return T.exps[st.code].title; return st ? st.title : ''; }
   function grpKey(s) { var st = s.si != null && cur.dest ? cur.dest.steps[s.si] : null; if (st && st.grp) return 'g:' + st.grp; return s.si + (s.k === 'ex' ? 'x' : s.k === 'labs' ? 'l' : ''); }
   function roadHTML(sl, st) {
     var r = roadIdx(sl, st); if (r < 0) return '';
-    var d = cur.dest, all = cur.slides || [], cnt = [0, 0, 0, 0, 0];
+    var d = cur.dest, all = cur.slides || [], cnt = ROAD.map(function () { return 0; });
     all.forEach(function (s) { var x = slStage(d, s); if (x >= 0) cnt[x]++; });
     var h = '<ol class="road" aria-label="오늘의 길">' + ROAD.map(function (n, j) { return '<li class="' + (j < r ? 'past' : j === r ? 'now' : '') + (cnt[j] ? '' : ' none') + '"' + (j === r ? ' aria-current="step"' : '') + '><button data-act="road" data-r="' + j + '">' + n + (cnt[j] ? ' <small>' + cnt[j] + '장</small>' : '') + '</button></li>'; }).join('') + '</ol>';
     var gs = [], gm = {};
@@ -398,8 +400,12 @@
     location.hash = '#d/' + d.id + '/' + t;
   }
   function sumHTML(d) {
-    if (!d.sum) return ''; var k = 'sum.' + d.id, done = S.seen[k];
-    return '<article class="bigcard sumcard"><h3>오늘 배운 것</h3><ol>' + d.sum.map(function (l) { return '<li>' + esc(l).replace(/\[([^\]]+)\]/g, function (m, w) { return done ? '<b class="blank on">' + w + '</b>' : '<b class="blank" data-act="sblank" role="button" tabindex="0">' + w + '</b>'; }) + '</li>'; }).join('') + '</ol>' + (done ? '' : '<p class="tiny">노란 칸을 눌러 확인해요.</p>') + '</article>';
+    var gs = d.steps.filter(function (x) { return x.type === 'gen'; })[0], my = gs && genText(S.gen[d.id]), full = gs && gs.mode !== 'tmp';
+    var mine = my ? '<article class="bigcard mygen"><h3>📒 ' + (full ? '내가 만든 일반화' : '내가 찾은 규칙') + '</h3><p>“' + esc(my) + '”</p></article>' : '';
+    if (!d.sum) return mine;
+    if (full) return mine + '<article class="bigcard sumcard"><h3>가이드 노트와 비교해요</h3><ol>' + d.sum.map(function (l) { return '<li>' + esc(l).replace(/\[([^\]]+)\]/g, '<b>$1</b>') + '</li>'; }).join('') + '</ol></article>';
+    var k = 'sum.' + d.id, done = S.seen[k];
+    return mine + '<article class="bigcard sumcard"><h3>오늘 배운 것</h3><ol>' + d.sum.map(function (l) { return '<li>' + esc(l).replace(/\[([^\]]+)\]/g, function (m, w) { return done ? '<b class="blank on">' + w + '</b>' : '<b class="blank" data-act="sblank" role="button" tabindex="0">' + w + '</b>'; }) + '</li>'; }).join('') + '</ol>' + (done ? '' : '<p class="tiny">노란 칸을 눌러 확인해요.</p>') + '</article>';
   }
   function isDone(d, i) { return !!(S.done[d.id] && S.done[d.id][i]); }
   function buildSlides(d) {
@@ -432,7 +438,7 @@
     var sl = slides[k], st = sl.si != null ? d.steps[sl.si] : null, body = '', kick = st ? st.title + (sl.n > 1 ? ' ' + (sl.j + 1) + ' / ' + sl.n : '') : '';
     cur = { dest: d, step: sl.si, slide: k, slides: slides, sl: sl };
     if (sl.k !== 'hero' && sl.k !== 'clear') body = roadHTML(sl, st);
-    if (sl.k === 'hero') body = '<div class="hero"><div class="hic">' + d.icon + '</div><p class="s-kicker">' + d.period + ' · ' + d.page + '</p><h1 class="s-title">' + d.place + '</h1><p class="hsub">' + d.title + '</p><p class="hintro">' + d.intro + '</p>' + (d.std ? '<p class="hstd"><b>' + T.stds[d.std].code + '</b> ' + T.stds[d.std].text + '</p>' : '') + '</div>';
+    if (sl.k === 'hero') body = '<div class="hero"><div class="hic">' + d.icon + '</div><p class="s-kicker">' + d.period + ' · ' + d.page + '</p><h1 class="s-title">' + d.place + '</h1><p class="hsub">' + d.title + '</p><p class="hintro">' + d.intro + '</p>' + (d.cq ? '<div class="cqbox"><span>🧭 오늘의 탐구 질문</span><b>' + d.cq + '</b></div>' : '') + (d.std ? '<p class="hstd"><b>' + T.stds[d.std].code + '</b> ' + T.stds[d.std].text + '</p>' : '') + '</div>';
     else if (sl.k === 'q') body += '<p class="s-kicker">' + kick + '</p>' + (st.note ? '<p class="note">' + st.note + '</p>' : '') + mcq(pfx(d, sl.si) + sl.j, st.items[sl.j], 'free', 0);
     else if (sl.k === 'pq') body += '<p class="s-kicker">' + kick + '</p>' + mcq('p.' + sl.id, T.pool[sl.id], 'quiz', 0);
     else if (sl.k === 'card') {
@@ -1110,6 +1116,74 @@
   DONE.line = function (d) { return (S.lines[d.id] || '').trim().length >= 15; };
   TODO.line = '안내 문장을 써서 저장해요';
 
+  // 개념기반 탐구: 일반화하기 · 생각 나누기 · 돌아보기 · 큰 생각 잇기
+  function rerender() { var d = cur.dest, si = cur.sl.si, st = d.steps[si], sb = $('#stepbody'); if (!sb) return; sb.innerHTML = STEP[st.type](d, st, si); if (AFTER[st.type]) AFTER[st.type](d, st, si); }
+  function syncThink() { sync('think', { gen: S.gen, deb: S.deb, refl: S.refl, big: S.bigtxt }); }
+  function genCompose(st, v) { return st.parts.map(function (p, j) { var x = (v[j] || '').trim(); if (!x) return ''; return (p.pre || '') + x + (p.post || ''); }).filter(Boolean).reduce(function (a, x) { if (a && /^왜냐하면/.test(x) && !/[.,]$/.test(a)) a += '.'; return a ? a + ' ' + x : x; }, '').replace(/\s+/g, ' ').replace(/([^.])$/, '$1.').trim(); }
+  function genText(g) { return g ? (g.text || (g.parts ? g.parts.join(' ') : '')) : ''; }
+  function ownPairs(kind) {
+    var D = S.data && S.data[kind]; if (!D) return ''; var r = validRows(D); if (r.length < 2) return '';
+    var K = KIND[kind], u = units(kind, D), a = r[0], b = r[r.length - 1];
+    var f = function (x) { return kind === 'boyle' ? x[0] + ' mL일 때 ' + x[1] + ' ' + u[1] : x[0] + ' ℃일 때 ' + x[1] + ' ' + u[1]; };
+    return '<li class="own">📊 우리가 잰 값: ' + esc(f(a)) + ', ' + esc(f(b)) + '</li>';
+  }
+  STEP.gen = function (d, st, i) {
+    var g = S.gen[d.id] || {}, prev = st.from && S.gen[st.from], tmp = st.mode === 'tmp', n = st.parts.length;
+    var pst = st.from && (T.dests.filter(function (x) { return x.id === st.from; })[0] || { steps: [] }).steps.filter(function (x) { return x.type === 'gen'; })[0], vals = (g.parts || []).slice(), pre = false; if (!g.parts && prev && prev.parts && pst) prev.parts.forEach(function (x, j) { if (j < n && (pst.parts[j].pre || '') === (st.parts[j].pre || '')) { vals[j] = x; pre = true; } });
+    var h = '<div class="card genq"><p class="cqlab">🧭 탐구 질문</p><p class="cqtx">' + st.q + '</p></div>';
+    if (prev && genText(prev)) h += '<div class="card genprev"><p class="tiny">📒 ' + (T.dests.filter(function (x) { return x.id === st.from; })[0] || {}).period + '에 쓴 내 문장' + (pre ? ' · 아래 칸에 미리 넣어 두었어요. 오늘 사례에도 맞는지 보고 고치고, 입자로 까닭을 붙여요.' : ' · 오늘 사례까지 넣어 더 넓게 들어맞는 문장으로 다듬어요.') + '</p><p>“' + esc(genText(prev)) + '”</p></div>';
+    h += '<div class="card"><p class="h4">🔎 증거로 쓸 사례</p><ul class="gcases">' + st.cases.map(function (c) { return '<li>' + esc(c) + '</li>'; }).join('') + (st.own ? ownPairs(st.own) : '') + '</ul></div>';
+    h += '<div class="card"><p class="h4">✍️ ' + (tmp ? '사례들에 공통으로 들어맞는 규칙을 한 문장으로 써요' : '모든 사례에 들어맞는 일반화 문장을 써요') + '</p><div class="gparts">' + st.parts.map(function (pt, j) { return '<label class="gpart"><span class="glab">' + (j + 1) + '. ' + esc(pt.lab) + '</span><span class="grow">' + (pt.pre ? '<em>' + esc(pt.pre) + '</em>' : '') + '<input class="gin" data-j="' + j + '" maxlength="120" placeholder="' + esc(pt.ph) + '" value="' + esc(vals[j] || '') + '">' + (pt.post ? '<em>' + esc(pt.post) + '</em>' : '') + '</span></label>'; }).join('') + '</div>' +
+      '<p class="words">꼭 넣을 말: ' + st.words.map(function (w) { return '<span class="w" data-w="' + w + '">' + w + '</span>'; }).join(' ') + '</p><p class="gprev" id="gprev"></p><div class="btns"><button class="btn pri" data-act="gensave">저장</button>' + ((CFG.SNORKL && CFG.SNORKL[d.id]) ? '<a class="btn" target="_blank" rel="noopener" href="' + esc(CFG.SNORKL[d.id]) + '">스노클에서 말로 설명하기</a>' : '') + '</div><p class="tiny" id="genmsg" aria-live="polite"></p></div>';
+    if (g.parts) {
+      var ck = g.ck || {}, items = ['개념 두 가지 이상을 이어서 썼다', '증거로 쓴 사례 모두에 들어맞는다'].concat(tmp ? [] : ['입자로 까닭을 설명했다']);
+      h += '<div class="card gcheck"><p class="h4">✅ 스스로 점검하고 짝과 비교해요</p>' + items.map(function (t, j) { return '<label class="gck"><input type="checkbox" data-act="genck" data-j="' + j + '"' + (ck[j] ? ' checked' : '') + '> ' + t + '</label>'; }).join('') +
+        '<p class="tiny">짝의 문장과 비교해서 빠진 말이 있으면 위 칸을 고쳐 다시 저장해요.</p>' +
+        (g.cmp ? '<div class="gmodel"><p class="tiny">🎓 선배 가이드의 문장 · 내 문장과 무엇이 같고 무엇이 다른가요?</p><p>“' + esc(st.model) + '”</p></div>' : '<button class="btn" data-act="gencmp"' + (Object.keys(ck).filter(function (k) { return ck[k]; }).length < items.length ? ' disabled' : '') + '>선배 가이드의 문장과 비교하기</button>') + '</div>';
+    }
+    return h;
+  };
+  AFTER.gen = function (d, st) {
+    function mk() { var t = [].map.call(document.querySelectorAll('.gin'), function (x) { return x.value.trim(); }); var all = t.join(' '); $('#gprev').textContent = all.trim() ? '→ ' + genCompose(st, t) : ''; document.querySelectorAll('.words .w').forEach(function (w) { w.classList.toggle('in', all.indexOf(w.dataset.w) >= 0); }); }
+    document.querySelectorAll('.gin').forEach(function (x) { x.addEventListener('input', mk); }); mk();
+  };
+  DONE.gen = function (d, st) { var g = S.gen[d.id]; return !!(g && g.parts && g.parts.every(function (x) { return x && x.trim().length >= 2; }) && g.cmp); };
+  TODO.gen = '문장을 저장하고, 점검한 뒤 선배 가이드의 문장과 비교해요';
+
+  STEP.debate = function (d, st) {
+    var v = S.deb[d.id] || {};
+    return '<div class="card genq deb"><p class="cqlab">💬 생각 나누기 · 정답이 하나로 정해진 질문이 아니에요</p><p class="cqtx">' + st.q + '</p></div><div class="card"><p class="h4">내 생각은?</p><div class="seg dseg">' + st.opts.map(function (o, j) { return '<button data-act="debpick" data-j="' + j + '" class="' + (v.pick === j ? 'on' : '') + '" aria-pressed="' + (v.pick === j) + '">' + esc(o) + '</button>'; }).join('') + '</div>' +
+      '<p class="h4">그렇게 생각한 까닭 (근거가 된 실험이나 사례를 넣어요)</p><textarea id="debtx" rows="3" maxlength="300" placeholder="왜냐하면 …">' + esc(v.why || '') + '</textarea><div class="btns"><button class="btn pri" data-act="debsave">저장</button></div><p class="tiny" id="debmsg" aria-live="polite"></p></div>' +
+      (v.pick != null && (v.why || '').trim().length >= 10 ? '<div class="card gmodel"><p class="h4">🤔 생각할 거리</p><p>' + esc(st.think) + '</p><p class="tiny">짝이나 모둠 친구와 서로 다른 생각을 나눠 보세요. 생각이 바뀌었다면 위 칸을 고쳐 다시 저장해도 돼요.</p></div>' : '');
+  };
+  DONE.debate = function (d) { var v = S.deb[d.id]; return !!(v && v.pick != null && (v.why || '').trim().length >= 10); };
+  TODO.debate = '내 생각을 고르고 까닭을 10자 이상 써서 저장해요';
+
+  var REFL = ['생각이 바뀌었어요', '더 확실해졌어요', '아직 궁금한 게 있어요'];
+  STEP.reflect = function (d) {
+    var v = S.refl[d.id] || {}, h = '<div class="card"><p class="h4">🔮 처음 내 예측</p><ul class="rpred">';
+    d.steps.forEach(function (st, si) { if (st.type !== 'predict') return; st.items.forEach(function (it, j) { var a = S.ans[pfx(d, si) + j], f = a ? a.first : null; h += '<li><span>' + esc(it.q) + '</span><b class="' + (f === it.a ? 'ok' : f == null ? '' : 'no') + '">' + (f == null ? '답하지 않음' : esc(it.opts[f])) + (f === it.a ? ' ✓' : f == null ? '' : ' → 지금은 ' + esc(it.opts[it.a])) + '</b></li>'; }); });
+    h += '</ul></div>';
+    var g = S.gen[d.id]; if (g && genText(g)) h += '<div class="card"><p class="h4">📒 오늘 내가 만든 문장</p><p>“' + esc(genText(g)) + '”</p></div>';
+    h += '<div class="card"><p class="h4">오늘 내 생각은</p><div class="seg dseg">' + REFL.map(function (o, j) { return '<button data-act="reflpick" data-j="' + j + '" class="' + (v.pick === j ? 'on' : '') + '" aria-pressed="' + (v.pick === j) + '">' + o + '</button>'; }).join('') + '</div>' +
+      '<textarea id="refltx" rows="2" maxlength="200" placeholder="' + (v.pick === 2 ? '아직 궁금한 것: …' : v.pick === 0 ? '처음에는 … 라고 생각했는데, 지금은 …' : '… 덕분에 더 확실해졌어요') + '">' + esc(v.tx || '') + '</textarea><div class="btns"><button class="btn pri" data-act="reflsave">저장</button></div><p class="tiny" id="reflmsg" aria-live="polite"></p></div>';
+    return h;
+  };
+  DONE.reflect = function (d) { var v = S.refl[d.id]; return !!(v && v.pick != null && (v.tx || '').trim().length >= 5); };
+  TODO.reflect = '하나를 고르고 한 줄을 써서 저장해요';
+
+  STEP.bigidea = function () {
+    var ids = [['T2', 'T1'], ['T4', 'T3'], ['T6', 'T5']].map(function (x) { return genText(S.gen[x[0]]) ? x[0] : genText(S.gen[x[1]]) ? x[1] : x[0]; }), h = '<div class="card genq"><p class="cqlab">🧭 이번 여행의 큰 질문</p><p class="cqtx">' + T.big.q + '</p></div><div class="card"><p class="h4">📒 내가 만든 일반화 세 문장</p><ol class="gnote">';
+    ids.forEach(function (id) { var dd = T.dests.filter(function (x) { return x.id === id; })[0]; h += '<li><small>' + dd.period + ' · ' + T.stds[dd.std].short + '</small>' + (genText(S.gen[id]) ? esc(genText(S.gen[id])) : '<em>아직 쓰지 않았어요</em>') + '</li>'; });
+    h += '</ol></div><div class="card"><p class="h4">✍️ 세 문장에 공통으로 들어 있는 생각을 이어서, 큰 질문에 한두 문장으로 답해요</p><p class="words">꼭 넣을 말: <span class="w" data-w="입자">입자</span> <span class="w" data-w="충돌">충돌</span></p><textarea id="bigtx" rows="3" maxlength="300" placeholder="보이지 않는 기체의 행동은 …">' + esc(S.bigtxt || '') + '</textarea><div class="btns"><button class="btn pri" data-act="bigsave">저장</button></div><p class="tiny" id="bigmsg" aria-live="polite"></p></div>';
+    if ((S.bigtxt || '').trim().length >= 15) h += '<div class="card gmodel"><p class="h4">🎓 이 단원의 핵심 아이디어</p><p>“' + esc(T.big.idea) + '”</p><p class="tiny">내 문장과 비교해 보세요. 개념 렌즈: ' + esc(T.big.lens) + '</p></div>';
+    return h;
+  };
+  AFTER.bigidea = function () { var ta = $('#bigtx'); function mk() { document.querySelectorAll('.words .w').forEach(function (w) { w.classList.toggle('in', ta.value.indexOf(w.dataset.w) >= 0); }); } ta.addEventListener('input', mk); mk(); };
+  DONE.bigidea = function () { return (S.bigtxt || '').trim().length >= 15; };
+  TODO.bigidea = '큰 질문에 답하는 문장을 15자 이상 써서 저장해요';
+
+
   // 연습 문제
   STEP.quiz = function (d, st, i) {
     var h = st.ids.map(function (id, j) { return mcq('p.' + id, T.pool[id], 'quiz', j + 1); }).join('');
@@ -1257,6 +1331,14 @@
       C2.checked = true; C2.ok = st.slots.every(function (s, j) { return C2.sel[j] === s.a; }); save();
       $('#stepbody').innerHTML = STEP.chain(d, st, i); if (C2.ok) sync('chain', S.chain); check();
     }
+    else if (act === 'gensave') { var gst = d.steps[cur.sl.si], gv = [].map.call(document.querySelectorAll('.gin'), function (x) { return x.value.trim(); }), g0 = S.gen[d.id] || {}; if (gv.some(function (x) { return x.length < 2; })) { $('#genmsg').textContent = '모든 칸을 채워 주세요.'; return; } var miss = gst.words.filter(function (w) { return gv.join(' ').indexOf(w) < 0; }); S.gen[d.id] = { parts: gv, text: genCompose(gst, gv), ck: g0.ck || {}, cmp: g0.cmp || false, at: Date.now() }; save(); syncThink(); rerender(); var gm = $('#genmsg'); if (gm) gm.textContent = miss.length ? '저장했어요. ‘' + miss.join('’, ‘') + '’도 넣으면 더 좋아요.' : '저장했어요. 아래에서 스스로 점검해요.'; check(); }
+    else if (act === 'genck') { var gg = S.gen[d.id]; if (!gg) return; gg.ck = gg.ck || {}; gg.ck[b.dataset.j] = b.checked; save(); var y5 = window.scrollY; rerender(); window.scrollTo(0, y5); }
+    else if (act === 'gencmp') { S.gen[d.id].cmp = true; save(); syncThink(); var y6 = window.scrollY; rerender(); window.scrollTo(0, y6); check(); }
+    else if (act === 'debpick') { S.deb[d.id] = S.deb[d.id] || {}; S.deb[d.id].pick = +b.dataset.j; var dt = $('#debtx'); if (dt) S.deb[d.id].why = dt.value; save(); var y7 = window.scrollY; rerender(); window.scrollTo(0, y7); }
+    else if (act === 'debsave') { S.deb[d.id] = S.deb[d.id] || {}; S.deb[d.id].why = $('#debtx').value.trim(); if (S.deb[d.id].pick == null) { $('#debmsg').textContent = '먼저 내 생각을 골라요.'; return; } save(); syncThink(); var y8 = window.scrollY; rerender(); window.scrollTo(0, y8); $('#debmsg').textContent = S.deb[d.id].why.length >= 10 ? '저장했어요.' : '까닭을 조금 더 자세히 써 보세요. (10자 이상)'; check(); }
+    else if (act === 'reflpick') { S.refl[d.id] = S.refl[d.id] || {}; S.refl[d.id].pick = +b.dataset.j; var rt = $('#refltx'); if (rt) S.refl[d.id].tx = rt.value; save(); rerender(); }
+    else if (act === 'reflsave') { S.refl[d.id] = S.refl[d.id] || {}; S.refl[d.id].tx = $('#refltx').value.trim(); save(); syncThink(); $('#reflmsg').textContent = S.refl[d.id].pick == null ? '위에서 하나를 골라요.' : S.refl[d.id].tx.length >= 5 ? '저장했어요.' : '한 줄을 써 주세요.'; check(); }
+    else if (act === 'bigsave') { S.bigtxt = $('#bigtx').value.trim(); save(); syncThink(); var y9 = window.scrollY; rerender(); window.scrollTo(0, y9); var bm = $('#bigmsg'); if (bm) bm.textContent = S.bigtxt.length >= 15 ? '저장했어요. 아래 핵심 아이디어와 비교해 보세요.' : '조금 더 자세히 써 보세요. (15자 이상)'; check(); }
     else if (act === 'saveline') { var v = $('#line').value.trim(); S.lines[d.id] = v; save(); sync('lines', S.lines); $('#linemsg').textContent = v.length >= 15 ? '저장했어요.' : '조금 더 자세히 써 보세요. (15자 이상)'; check(); }
     else if (act === 'booth') { var c2 = b.dataset.c, ix = S.booths.indexOf(c2); if (ix >= 0) S.booths.splice(ix, 1); else S.booths.push(c2); save(); $('#stepbody').innerHTML = STEP.booth(); syncProgress(); check(); }
     else if (act === 'exstart') examStart(T.exam, false);
@@ -1300,7 +1382,7 @@
     var okPin = sessionStorage.getItem('gastrip.tpin');
     var h = '<header class="dtop" style="--c:#1B1F3B"><a class="back" href="#home">← 학생 화면</a><div class="dhead"><span class="dic">🧑‍🏫</span><div><h1>선생님 화면</h1><p>통통 입자 여행 · 기체 안전 여행사</p></div></div></header><main class="dmain teacher">';
     if (!okPin) { app.innerHTML = h + '<div class="card"><h3>비밀번호</h3><div class="row3"><label>교사 비밀번호<input id="tpin" type="text" class="secret" inputmode="numeric" autocomplete="off" data-lpignore="true" data-1p-ignore></label></div><button class="btn pri" data-act="tlogin">들어가기</button><p class="tiny" id="tmsg">' + (CFG.API_URL ? '구글 스크립트(Code.gs)에 정해 둔 교사 비밀번호예요.' : 'config.js의 TEACHER_PIN 값이에요. 처음 값은 0000입니다.') + '</p></div></main>'; return; }
-    var tabs = [['guide', '수업 안내'], ['class', '반 현황'], ['data', '실험 자료'], ['lines', '안내 한 줄'], ['snorkl', '스노클 과제'], ['setup', '설정 방법']];
+    var tabs = [['guide', '수업 안내'], ['class', '반 현황'], ['data', '실험 자료'], ['lines', '학생 글'], ['snorkl', '스노클 과제'], ['setup', '설정 방법']];
     h += '<nav class="ttabs">' + tabs.map(function (t) { return '<button data-act="ttab" data-t="' + t[0] + '" class="' + (TS.tab === t[0] ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</nav>';
     if (['class', 'data', 'lines'].indexOf(TS.tab) >= 0) {
       h += '<div class="card"><div class="row3"><label>반<input id="tcls" inputmode="numeric" maxlength="2" value="' + esc(TS.cls) + '"></label></div><button class="btn pri" data-act="tload"' + (CFG.API_URL ? '' : ' disabled') + '>불러오기</button><p class="tiny">' + (CFG.API_URL ? esc(TS.msg) : '반 자료를 모으려면 ‘설정 방법’ 탭의 구글 시트 연결이 필요해요. 연결 전에는 학생 기기에만 저장됩니다.') + '</p></div>';
@@ -1327,6 +1409,9 @@
       var h = '<div class="card"><h3>9차시 흐름</h3><table class="tbl"><thead><tr><th>차시</th><th>여행지</th><th>성취기준</th><th>받는 도장</th></tr></thead><tbody>';
       T.dests.forEach(function (d) { var st = d.steps.filter(function (s) { return s.stamp; }).map(function (s) { return T.kinds[s.stamp].name; }).join(', '); h += '<tr><td>' + d.period + '</td><td>' + d.icon + ' ' + d.place + '<br><small>' + d.title + '</small></td><td>' + (d.std ? T.stds[d.std].code : '전체') + '</td><td>' + (st || '–') + '</td></tr>'; });
       h += '</tbody></table></div><div class="card"><h3>도장과 성취수준</h3><table class="tbl"><thead><tr><th>도장</th><th>학생이 한 일</th><th>참고할 성취수준</th></tr></thead><tbody><tr><td>본 것</td><td>현상을 보고 변화 방향을 예측함</td><td>E·D</td></tr><tr><td>잰 것</td><td>자료를 표와 그래프로 나타내고 관계를 해석함</td><td>C·B</td></tr><tr><td>입자</td><td>입자 모형으로 변화의 까닭을 설명함</td><td>A (06-01은 C·A)</td></tr></tbody></table><p class="tiny">도장은 학생의 활동 완료를 뜻해요. 성취수준 판단은 ‘안내 한 줄’의 서술과 수업 관찰을 함께 보고 선생님이 확정해 주세요. ‘본 것’ 도장은 예측이 틀려도 찍힙니다. ‘잰 것’ 도장은 예시 자료로 연습해도 찍히며, 그 경우 ‘실험 자료’ 탭에는 나타나지 않습니다.</p></div>';
+      h += '<div class="card"><h3>개념기반 탐구 설계</h3><p><b>단원의 큰 질문</b> ' + esc(T.big.q) + '<br><b>핵심 아이디어</b> ' + esc(T.big.idea) + '<br><b>개념 렌즈</b> ' + esc(T.big.lens) + '</p><table class="tbl"><thead><tr><th>차시</th><th>개념적 질문</th><th>학생이 쓰는 문장</th><th>논쟁적 질문</th></tr></thead><tbody>';
+      T.dests.forEach(function (d) { if (!d.cq) return; var g = d.steps.filter(function (x) { return x.type === 'gen'; })[0], db = d.steps.filter(function (x) { return x.type === 'debate'; })[0]; h += '<tr><td>' + d.period + '</td><td>' + esc(d.cq) + '</td><td>' + (g ? (g.mode === 'tmp' ? '규칙 찾기 (임시 일반화)' : g.from ? '일반화 다듬기' : '일반화하기') + '<br><small>예시: ' + esc(g.model) + '</small>' : '') + '</td><td>' + (db ? esc(db.q) : '') + '</td></tr>'; });
+      h += '</tbody></table><p class="tiny">모든 차시는 탐구 질문으로 시작해 ‘돌아보기’(처음 예측과 지금 생각 비교)로 끝나요. 9차시 자격시험 앞에서 세 일반화를 이어 큰 질문에 답해요. 학생 글은 ‘학생 글’ 탭에서 볼 수 있어요.</p></div>';
       return h;
     },
     class: function () {
@@ -1347,7 +1432,19 @@
       return h + '<p class="tiny">예시 자료로 연습한 학생의 값은 빠져 있어요.</p></div>';
     },
     lines: function () {
-      var h = ''; T.dests.forEach(function (d) {
+      var h = '', who = function (s) { return '<b>' + esc(s.num) + ' ' + esc(s.name) + '</b> '; };
+      T.dests.forEach(function (d) {
+        var gst = d.steps.filter(function (x) { return x.type === 'gen'; })[0], dst = d.steps.filter(function (x) { return x.type === 'debate'; })[0], has = d.steps.some(function (x) { return x.type === 'reflect'; });
+        if (!gst && !dst && !has) return;
+        h += '<div class="card"><h3>' + d.icon + ' ' + d.period + ' ' + d.place + ' · 개념기반 탐구</h3>';
+        if (gst) { h += '<p class="tiny">🧭 ' + esc(gst.q) + '</p><h4>' + (gst.mode === 'tmp' ? '내가 찾은 규칙' : '일반화 문장') + '</h4><ul class="plain">'; var n1 = 0; students().forEach(function (s) { var g = s.think && s.think.gen && s.think.gen[d.id]; if (g && genText(g)) { n1++; h += '<li>' + who(s) + esc(genText(g)) + (g.cmp ? '' : ' <small>(비교 전)</small>') + '</li>'; } }); h += (n1 ? '' : '<li>아직 없어요.</li>') + '</ul>'; }
+        if (dst) { var cntp = dst.opts.map(function () { return 0; }), li = ''; students().forEach(function (s) { var v = s.think && s.think.deb && s.think.deb[d.id]; if (v && v.pick != null) { cntp[v.pick]++; li += '<li>' + who(s) + '<em>' + esc(dst.opts[v.pick]) + '</em> ' + esc(v.why || '') + '</li>'; } }); h += '<h4>생각 나누기: ' + esc(dst.q) + '</h4><p class="tiny">' + dst.opts.map(function (o, j) { return esc(o) + ' ' + cntp[j] + '명'; }).join(' · ') + '</p><ul class="plain">' + (li || '<li>아직 없어요.</li>') + '</ul>'; }
+        if (has) { var cr = REFL.map(function () { return 0; }), lr = ''; students().forEach(function (s) { var v = s.think && s.think.refl && s.think.refl[d.id]; if (v && v.pick != null) { cr[v.pick]++; lr += '<li>' + who(s) + '<em>' + REFL[v.pick] + '</em> ' + esc(v.tx || '') + '</li>'; } }); h += '<h4>돌아보기</h4><p class="tiny">' + REFL.map(function (o, j) { return o + ' ' + cr[j] + '명'; }).join(' · ') + '</p><ul class="plain">' + (lr || '<li>아직 없어요.</li>') + '</ul>'; }
+        h += '</div>';
+      });
+      var bl = ''; students().forEach(function (s) { var b = s.think && s.think.big; if (b) bl += '<li>' + who(s) + esc(b) + '</li>'; });
+      h += '<div class="card"><h3>🎓 큰 생각 잇기 (9차시)</h3><p class="tiny">🧭 ' + esc(T.big.q) + '</p><ul class="plain">' + (bl || '<li>아직 없어요.</li>') + '</ul></div><h3>여행 안내 한 줄</h3>';
+      T.dests.forEach(function (d) {
         if (!d.steps.some(function (s) { return s.type === 'line'; })) return;
         h += '<div class="card"><h3>' + d.icon + ' ' + d.place + '</h3><ul class="plain">'; var n = 0;
         students().forEach(function (s) { var t = s.lines && s.lines[d.id]; if (t) { n++; h += '<li><b>' + esc(s.num) + ' ' + esc(s.name) + '</b> ' + esc(t) + '</li>'; } });
