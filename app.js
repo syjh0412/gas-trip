@@ -276,7 +276,30 @@
     if (!st) return -1; var t = st.type;
     if (t === 'presslab' || t === 'data' || t === 'vac') return 1; if (t === 'sim' || t === 'pumpsim' || t === 'chain') return 2; if (t === 'line') return 3; if (t === 'booth') return 1; if (t === 'quiz' || t === 'exam') return 4; return -1;
   }
-  function roadHTML(sl, st) { var r = roadIdx(sl, st); if (r < 0) return ''; return '<ol class="road" aria-label="오늘의 길">' + ROAD.map(function (n, j) { return '<li class="' + (j < r ? 'past' : j === r ? 'now' : '') + '"' + (j === r ? ' aria-current="step"' : '') + '><button data-act="road" data-r="' + j + '">' + n + '</button></li>'; }).join('') + '</ol>'; }
+  function slStage(d, s) { return roadIdx(s, s.si != null ? d.steps[s.si] : null); }
+  function grpName(d, s) { var st = s.si != null ? d.steps[s.si] : null; if (s.k === 'ex') return '생활 속 예'; if (s.k === 'labs') return '실험 목록'; if (st && st.type === 'exp' && T.exps[st.code]) return T.exps[st.code].title; return st ? st.title : ''; }
+  function grpKey(s) { return s.si + (s.k === 'ex' ? 'x' : s.k === 'labs' ? 'l' : ''); }
+  function roadHTML(sl, st) {
+    var r = roadIdx(sl, st); if (r < 0) return '';
+    var d = cur.dest, all = cur.slides || [], cnt = [0, 0, 0, 0, 0];
+    all.forEach(function (s) { var x = slStage(d, s); if (x >= 0) cnt[x]++; });
+    var h = '<ol class="road" aria-label="오늘의 길">' + ROAD.map(function (n, j) { return '<li class="' + (j < r ? 'past' : j === r ? 'now' : '') + (cnt[j] ? '' : ' none') + '"' + (j === r ? ' aria-current="step"' : '') + '><button data-act="road" data-r="' + j + '">' + n + (cnt[j] ? ' <small>' + cnt[j] + '장</small>' : '') + '</button></li>'; }).join('') + '</ol>';
+    var gs = [], gm = {};
+    all.forEach(function (s, x) { if (slStage(d, s) !== r) return; var key = grpKey(s); if (!gm[key]) { gm[key] = { name: grpName(d, s), first: x, idx: [] }; gs.push(gm[key]); } gm[key].idx.push(x); });
+    if (gs.length > 1 || (gs[0] && gs[0].idx.length > 1)) {
+      h += '<div class="subroad" aria-label="' + ROAD[r] + ' 구성">' + gs.map(function (g, gi) {
+        var here = g.idx.indexOf(cur.slide), done = g.idx.every(function (x) { return slideDone(d, all[x]); });
+        var num = r === 1 && gs.length > 1 ? ROAD[r] + (gi + 1) + ' · ' : '';
+        return '<button class="' + (here >= 0 ? 'on' : '') + (done ? ' ok' : '') + '" data-act="roadg" data-t="' + g.first + '">' + (done ? '✓ ' : '') + num + esc(g.name) + ' <small>' + (here >= 0 ? (here + 1) + '/' : '') + g.idx.length + '장</small></button>';
+      }).join('') + '</div>';
+    }
+    return h;
+  }
+  function slideGo(t) {
+    var d = cur.dest, sl = cur.slides; if (!d || !sl || t === cur.slide) return;
+    if (!isT()) for (var y = 0; y < t; y++) if (!slideDone(d, sl[y])) { chip('앞 단계를 먼저 마쳐야 갈 수 있어요'); if (y < cur.slide) location.hash = '#d/' + d.id + '/' + y; return; }
+    location.hash = '#d/' + d.id + '/' + t;
+  }
   function roadGo(j) {
     var d = cur.dest, sl = cur.slides; if (!d || !sl) return;
     var t = -1; for (var x = 0; x < sl.length; x++) if (roadIdx(sl[x], sl[x].si != null ? d.steps[sl[x].si] : null) === j) { t = x; break; }
@@ -1108,6 +1131,7 @@
     else if (act === 'lab') { S.lab.press[b.dataset.k] = b.dataset.v; drawLab(d, st, i); check(); }
     else if (act === 'labreplay') drawLab(d, st, i);
     else if (act === 'road') roadGo(+b.dataset.r);
+    else if (act === 'roadg') slideGo(+b.dataset.t);
     else if (act === 'sblank') { b.classList.add('on'); b.removeAttribute('data-act'); if (!document.querySelector('.blank[data-act=sblank]')) { S.seen['sum.' + d.id] = 1; save(); mile('sum.' + d.id, 2); } }
     else if (act === 'extab') { S.seen[pfx(d, i) + 'xi'] = +b.dataset.j; save(); if (sim) { sim.stop(); sim = null; } document.querySelectorAll('.extabs button').forEach(function (x2) { x2.classList.toggle('on', x2 === b); }); exSimInit(d, st, i); }
     else if (act === 'expdone') { S.seen[pfx(d, i) + 'ea'] = 1; save(); b.outerHTML = '<span class="tag okt">✓ 실험 완료</span>'; check(); }
