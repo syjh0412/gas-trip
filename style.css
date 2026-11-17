@@ -305,6 +305,6 @@ a.rk { text-decoration: none; }
 .exnote { font-size: 17px; line-height: 1.55; }
 
 .road { display: flex; gap: 4px; list-style: none; margin: 0 0 10px; padding: 0; counter-reset: rd; }
-.road li { flex: 1; text-align: center; font-size: 13px; font-weight: 700; padding: 4px 0; border-radius: 999px; background: #E9ECF5; color: #8A90B0; }
-.road li.past { background: #C9D4FF; color: #2F4BD8; } .road li.now { background: var(--ink); color: #fff; }
+.road li { flex: 1; } .road button { width: 100%; font: inherit; text-align: center; font-size: 13px; font-weight: 700; padding: 6px 0; border: 0; border-radius: 999px; background: #E9ECF5; color: #8A90B0; cursor: pointer; }
+.road li.past button { background: #C9D4FF; color: #2F4BD8; } .road li.now button { background: var(--ink); color: #fff; } .road button:hover { outline: 2px solid var(--ink); }
 .sumcard { text-align: left; max-width: 640px; margin: 16px auto; } .sumcard ol { margin: 6px 0 0; padding-left: 22px; font-size: 18px; line-height: 1.7; }
