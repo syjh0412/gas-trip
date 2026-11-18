@@ -354,3 +354,5 @@ a.rk { text-decoration: none; }
 .gnote { margin: 0; padding-left: 22px; line-height: 1.55; } .gnote li { margin-bottom: 8px; } .gnote small { display: block; font-weight: 800; color: var(--muted); } .gnote em { color: #9AA1C4; } .gnote li.big { color: #3B4BA8; font-weight: 700; }
 .mygen { background: #FFF9DB; } .mygen p { font-weight: 700; font-size: 17px; margin: 6px 0 0; }
 
+
+.dtx em.dcq { font-weight: 700; color: #3B4BA8; line-height: 1.4; }

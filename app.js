@@ -330,7 +330,7 @@
     P.trip += '<ol class="route">';
     T.dests.forEach(function (d) {
       var p = destProgress(d), tot = d.steps.length, fin = p >= tot;
-      P.trip += '<li><a class="dcard' + (fin ? ' fin' : '') + '" href="#d/' + d.id + '" style="--c:' + d.color + '"><span class="dic">' + d.icon + '</span><span class="dtx"><small>' + d.period + ' · ' + d.page + '</small><b>' + d.place + '</b><em>' + d.title + '</em></span><span class="dpg">' + (fin ? '완료' : p + '/' + tot) + '</span></a></li>';
+      P.trip += '<li><a class="dcard' + (fin ? ' fin' : '') + '" href="#d/' + d.id + '" style="--c:' + d.color + '"><span class="dic">' + d.icon + '</span><span class="dtx"><small>' + d.period + ' · ' + d.page + '</small><b>' + d.place + '</b><em' + (d.cq ? ' class="dcq" title="' + esc(d.title) + '">🧭 ' + d.cq : '>' + d.title) + '</em></span><span class="dpg">' + (fin ? '완료' : p + '/' + tot) + '</span></a></li>';
     });
     P.trip += '</ol>';
     var got = BADGES.filter(function (b) { return S.badges[b.id]; }).length;
