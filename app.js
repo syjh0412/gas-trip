@@ -403,7 +403,7 @@
     var gs = d.steps.filter(function (x) { return x.type === 'gen'; })[0], my = gs && genText(S.gen[d.id]), full = gs && gs.mode !== 'tmp';
     var mine = my ? '<article class="bigcard mygen"><h3>📒 ' + (full ? '내가 만든 일반화' : '내가 찾은 규칙') + '</h3><p>“' + esc(my) + '”</p></article>' : '';
     if (!d.sum) return mine;
-    if (full) return mine + '<article class="bigcard sumcard"><h3>가이드 노트와 비교해요</h3><ol>' + d.sum.map(function (l) { return '<li>' + esc(l).replace(/\[([^\]]+)\]/g, '<b>$1</b>') + '</li>'; }).join('') + '</ol></article>';
+    if (full) return mine + '<article class="bigcard sumcard"><h3>📘 가이드 노트 · 오늘 배운 것</h3>' + (mine ? '<p class="tiny">이 세 줄이 선배 가이드가 정리한 노트예요. 위의 내 문장과 비교해서 빠진 것이 있는지 찾아봐요.</p>' : '<p class="tiny">이 세 줄이 선배 가이드가 정리한 노트예요. ‘일반화하기’에서 내 문장을 쓰면 위에 함께 보여요.</p>') + '<ol>' + d.sum.map(function (l) { return '<li>' + esc(l).replace(/\[([^\]]+)\]/g, '<b>$1</b>') + '</li>'; }).join('') + '</ol></article>';
     var k = 'sum.' + d.id, done = S.seen[k];
     return mine + '<article class="bigcard sumcard"><h3>오늘 배운 것</h3><ol>' + d.sum.map(function (l) { return '<li>' + esc(l).replace(/\[([^\]]+)\]/g, function (m, w) { return done ? '<b class="blank on">' + w + '</b>' : '<b class="blank" data-act="sblank" role="button" tabindex="0">' + w + '</b>'; }) + '</li>'; }).join('') + '</ol>' + (done ? '' : '<p class="tiny">노란 칸을 눌러 확인해요.</p>') + '</article>';
   }
