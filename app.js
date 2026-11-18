@@ -673,6 +673,7 @@
   // 입자 모형
   STEP.sim = function (d, st, i) {
     var ctl = st.mode === 'box' ? '<label class="sl">입자 수 <output id="simo">25개</output><input type="range" id="simr" min="10" max="60" step="5" value="25"></label>'
+      : st.mode === 'syringe' ? '<label class="sl">주사기 부피 <output id="simo">20 mL</output><input type="range" id="simr" min="7" max="20" step="1" value="20" aria-label="주사기 부피. 왼쪽으로 옮기면 피스톤을 밀어요"></label><p class="tiny" style="margin:4px 0 0">◀ 왼쪽으로 옮기면 피스톤을 밀어요</p>'
       : st.mode === 'boyle' ? '<label class="sl">바깥 압력 <output id="simo">1.0기압</output><input type="range" id="simr" min="0.5" max="2" step="0.1" value="1"></label>'
         : '<label class="sl">온도 <output id="simo">20 ℃</output><input type="range" id="simr" min="0" max="80" step="5" value="20"></label>';
     return '<div class="simbox card"><canvas id="simc" width="640" height="320" role="img" aria-label="입자 모형. 노란 입자들이 용기 안에서 움직이며 벽에 충돌한다."></canvas><div class="simctl">' + ctl + '<p id="simst" class="simst" aria-live="polite"></p></div><div id="simg" class="gauges"></div></div><div class="qcol">' + itemsHTML(d, st, i, 'retry') + '</div>';
@@ -684,7 +685,7 @@
   function Sim(cv, mode) {
     var ctx = cv.getContext('2d'), W = 640, H = 320, self = this, run = true;
     var dpr = Math.min(2, window.devicePixelRatio || 1); cv.width = W * dpr; cv.height = H * dpr; ctx.scale(dpr, dpr);
-    var x0 = 50, y0 = mode === 'box' ? 40 : 60, bh = mode === 'box' ? 240 : 200, w = mode === 'box' ? 540 : 270, tw = w, R = 7, V0 = 2.4, sp = 1, P = 1, Tc = 20, ps = [], hits = [], wall = [[], [], [], []], frame = 0;
+    var VV = 20, x0 = mode === 'syringe' ? 70 : 50, y0 = mode === 'box' ? 40 : 60, bh = mode === 'box' ? 240 : 200, w = mode === 'box' ? 540 : 270, tw = w, R = 7, V0 = 2.4, sp = 1, P = 1, Tc = 20, ps = [], hits = [], wall = [[], [], [], []], frame = 0;
     function add(n) { while (ps.length < n) { var a = Math.random() * 6.283; ps.push({ x: x0 + R + Math.random() * (w - 2 * R), y: y0 + R + Math.random() * (bh - 2 * R), vx: Math.cos(a), vy: Math.sin(a) }); } ps.length = n; }
     add(mode === 'box' ? 25 : 28);
     var r = $('#simr'), out = $('#simo');
@@ -692,6 +693,7 @@
       var v = parseFloat(r.value);
       if (mode === 'box') { add(v); out.textContent = v + '개'; }
       else if (mode === 'boyle') { P = v; tw = 270 / P; out.textContent = v.toFixed(1) + '기압'; }
+      else if (mode === 'syringe') { VV = v; tw = 19 * v; out.textContent = v + ' mL'; }
       else { Tc = v; sp = Math.sqrt((273 + v) / 293); tw = 270 * (273 + v) / 293; out.textContent = v + ' ℃'; }
     }
     r.addEventListener('input', ctl); ctl(); w = tw;
@@ -714,7 +716,13 @@
       ctx.clearRect(0, 0, W, H);
       ctx.fillStyle = '#fff'; ctx.strokeStyle = '#1B1F3B'; ctx.lineWidth = 4;
       ctx.fillRect(x0, y0, w, bh); ctx.strokeRect(x0, y0, w, bh);
-      if (mode !== 'box') {
+      if (mode === 'syringe') {
+        ctx.fillStyle = '#1B1F3B'; ctx.fillRect(x0 + w, y0 - 8, 14, bh + 16); ctx.fillRect(x0 + w + 14, y0 + bh / 2 - 7, 70, 14); ctx.fillRect(x0 + w + 84, y0 + bh / 2 - 34, 12, 68);
+        ctx.fillStyle = '#868E96'; ctx.fillRect(x0 - 26, y0 + bh / 2 - 12, 22, 24); ctx.font = '700 13px sans-serif'; ctx.fillStyle = '#1B1F3B'; ctx.textAlign = 'center'; ctx.fillText('막음', x0 - 15, y0 + bh / 2 + 34);
+        for (var mm = 0; mm <= 20; mm++) { var tx = x0 + mm * 19; ctx.beginPath(); ctx.moveTo(tx, y0 + bh + 4); ctx.lineTo(tx, y0 + bh + (mm % 5 === 0 ? 16 : 10)); ctx.lineWidth = 2; ctx.strokeStyle = '#1B1F3B'; ctx.stroke(); if (mm % 5 === 0) ctx.fillText(mm, tx, y0 + bh + 32); }
+        ctx.fillText('mL', x0 + 20 * 19 + 28, y0 + bh + 32); ctx.textAlign = 'left';
+        if (tw < 19 * 20 - 1) { ctx.fillStyle = '#A61E6E'; ctx.font = '700 14px sans-serif'; ctx.fillText('◀ 미는 힘', x0 + w + 100, y0 + bh / 2 - 44); }
+      } else if (mode !== 'box') {
         ctx.fillStyle = '#1B1F3B'; ctx.fillRect(x0 + w, y0 - 8, 14, bh + 16); ctx.fillRect(x0 + w + 14, y0 + bh / 2 - 7, 60, 14);
         var na = mode === 'boyle' ? Math.round(P * 3) : 3; ctx.strokeStyle = '#A61E6E'; ctx.fillStyle = '#A61E6E'; ctx.lineWidth = 3;
         for (var k = 0; k < na; k++) { var ay = y0 + (k + 1) * bh / (na + 1) + (k >= na / 2 ? 14 : -14), ax = x0 + w + 96; ctx.beginPath(); ctx.moveTo(ax + 34, ay); ctx.lineTo(ax, ay); ctx.stroke(); ctx.beginPath(); ctx.moveTo(ax - 8, ay); ctx.lineTo(ax + 4, ay - 7); ctx.lineTo(ax + 4, ay + 7); ctx.fill(); }
@@ -731,6 +739,11 @@
       if (frame % 12 === 0) {
         var g = '', vol = w / 270;
         if (mode === 'box') { g = bar('입자 수', ps.length / 60 * 100, ps.length + '개') + bar('충돌 횟수 (3초)', hits.length / 3.2, hits.length + '번'); $('#simst').textContent = '네 벽의 숫자를 비교해 보세요.'; }
+        else if (mode === 'syringe') {
+          var pv = 20 / (w / 19);
+          g = bar('주사기 속 부피', w / 19 / 20 * 100, (w / 19).toFixed(0) + ' mL') + bar('충돌 횟수 (3초)', hits.length / 3.2, hits.length + '번') + bar('기체의 압력', pv / 3 * 100, '약 ' + pv.toFixed(1) + '기압') + bar('입자 수 · 크기 · 빠르기', 47, '그대로');
+          $('#simst').textContent = moving ? '피스톤이 움직이는 중…' : VV === 20 ? '처음 상태예요. 피스톤을 밀어 부피를 줄여 보세요.' : '공간이 좁아져 같은 수의 입자가 벽에 더 자주 부딪혀요 → 압력이 커져요';
+        }
         else if (mode === 'boyle') {
           g = bar('기체의 부피', vol * 50, lv(vol)) + bar('충돌 횟수 (3초)', hits.length / 3.2, hits.length + '번') + bar('입자의 운동 빠르기', 50, '그대로') + bar('입자 수', 47, '28개 그대로');
           $('#simst').textContent = moving ? (tw < w ? '바깥 압력이 더 커요 → 피스톤이 안으로 밀려요' : '기체의 압력이 더 커요 → 피스톤이 밖으로 밀려요') : '바깥 압력 = 기체의 압력 → 피스톤이 멈췄어요';
