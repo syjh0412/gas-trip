@@ -673,12 +673,41 @@
   // 입자 모형
   STEP.sim = function (d, st, i) {
     var ctl = st.mode === 'box' ? '<label class="sl">입자 수 <output id="simo">25개</output><input type="range" id="simr" min="10" max="60" step="5" value="25"></label>'
-      : st.mode === 'syringe' ? '<label class="sl">주사기 부피 <output id="simo">20 mL</output><input type="range" id="simr" min="7" max="20" step="1" value="20" aria-label="주사기 부피. 왼쪽으로 옮기면 피스톤을 밀어요"></label><p class="tiny" style="margin:4px 0 0">◀ 왼쪽으로 옮기면 피스톤을 밀어요</p>'
+      : st.mode === 'syringe' ? '<label class="sl">주사기 부피 <output id="simo">20 mL</output><input type="range" id="simr" min="7" max="20" step="1" value="20" aria-label="주사기 부피. 왼쪽으로 옮기면 피스톤을 밀어요"></label><p class="tiny" style="margin:4px 0 0">◀ 왼쪽으로 옮기면 피스톤을 밀어요 <span class="hint3d" id="hint3d" hidden>· 그림을 옆으로 끌면 주사기를 돌려 볼 수 있어요</span></p><button type="button" class="btn sm snd" id="simsnd" hidden aria-pressed="true">🔊 충돌 소리 켜짐</button>'
       : st.mode === 'boyle' ? '<label class="sl">바깥 압력 <output id="simo">1.0기압</output><input type="range" id="simr" min="0.5" max="2" step="0.1" value="1"></label>'
         : '<label class="sl">온도 <output id="simo">20 ℃</output><input type="range" id="simr" min="0" max="80" step="5" value="20"></label>';
-    return '<div class="simbox card"><canvas id="simc" width="640" height="320" role="img" aria-label="입자 모형. 노란 입자들이 용기 안에서 움직이며 벽에 충돌한다."></canvas><div class="simctl">' + ctl + '<p id="simst" class="simst" aria-live="polite"></p></div><div id="simg" class="gauges"></div></div><div class="qcol">' + itemsHTML(d, st, i, 'retry') + '</div>';
+    return '<div class="simbox card"><canvas id="simc" width="640" height="320" role="img" aria-label="입자 모형. 노란 입자들이 용기 안에서 움직이며 벽에 충돌한다."></canvas><div class="simctl">' + ctl + '<p id="simst" class="simst" aria-live="polite"></p></div><div id="simg" class="gauges"></div>' + (st.mode === 'syringe' ? '<div id="simx"></div>' : '') + '</div><div class="qcol">' + itemsHTML(d, st, i, 'retry') + '</div>';
   };
-  AFTER.sim = function (d, st) { sim = new Sim($('#simc'), st.mode); };
+  AFTER.sim = function (d, st) {
+    var s2 = sim = new Sim($('#simc'), st.mode);
+    if (st.mode === 'syringe') sim3d(s2);
+  };
+  // 3차시 주사기 모형: 3D로 바꿔 보여 주고, 안 되는 기기에서는 위의 2D 모형을 그대로 써요.
+  var load3d = null;
+  function sim3d(s2) {
+    if (!window.WebGLRenderingContext) return;
+    load3d = load3d || new Promise(function (ok, no) {
+      if (window.GasSim3D) return ok(window.GasSim3D);
+      var sc = document.createElement('script'); sc.type = 'module'; sc.src = 'sim3d.js';
+      sc.onload = function () { window.GasSim3D ? ok(window.GasSim3D) : no(); }; sc.onerror = no;
+      document.head.appendChild(sc);
+    });
+    load3d.then(function (m) {
+      var cv = $('#simc');
+      if (sim !== s2 || !cv) return;
+      var s3 = m.syringe3D({ canvas: cv, slider: $('#simr'), out: $('#simo'), status: $('#simst'), gauges: $('#simg'), extra: $('#simx'), sound: $('#simsnd'), data: boyleRows() });
+      if (!s3) return;
+      s2.stop(); sim = s3;
+      var h = $('#hint3d'); if (h) h.hidden = false;
+    }).catch(function (e) { load3d = null; if (window.console) console.warn('3D 모형을 쓰지 못해 2D 모형을 보여 줘요.', e); });
+  }
+  // 학생이 '자료 입력과 그래프'에 넣은 값 → [부피(mL), 압력(기압)]
+  function boyleRows() {
+    var D = S.data && S.data.boyle; if (!D || !D.rows) return null;
+    var f = D.unit === 'kPa' ? 1 / 101.325 : D.unit === 'hPa' ? 1 / 1013.25 : 1;
+    var rows = validRows(D).map(function (r) { return [r[0], r[1] * f]; }).filter(function (r) { return r[0] > 0 && r[1] > 0; });
+    return rows.length ? { rows: rows, sample: !!D.sample } : null;
+  }
   DONE.sim = function (d, st, i) { return allRight(pfx(d, i), st.items); };
   TODO.sim = '모형을 움직여 보고 질문에 답해요';
 

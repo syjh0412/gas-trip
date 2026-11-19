@@ -102,6 +102,12 @@ input, select, textarea { border: 2px solid var(--ink); border-radius: 10px; pad
 .simbox canvas { width: 100%; height: auto; display: block; background: #F3F5FB; border-radius: 12px; }
 .simctl { margin-top: 10px; } .sl { flex-direction: row; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 17px; } .sl output { background: var(--yel); border: 2px solid var(--ink); border-radius: 10px; padding: 0 10px; min-width: 84px; text-align: center; } .sl input { flex: 1 1 200px; padding: 0; min-height: 44px; border: 0; accent-color: var(--ink); }
 .simst { margin: 8px 0 0; font-weight: 700; min-height: 1.6em; }
+.sim3dcv { display: block; width: 100%; border-radius: 12px; cursor: grab; } .sim3dcv:active { cursor: grabbing; }
+.simctl .snd { margin-top: 8px; }
+.cmp { margin-top: 14px; padding-top: 12px; border-top: 2px dashed var(--line); } .cmp h4 { margin: 0 0 6px; }
+.cmpg { width: 100%; height: auto; display: block; }
+.cmplg { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 14px; font-weight: 700; margin-bottom: 4px; } .cmplg span { display: inline-flex; align-items: center; gap: 6px; }
+.cmplg i { display: inline-block; } .cmplg .dy { width: 13px; height: 13px; border-radius: 50%; background: var(--yel); border: 2.5px solid var(--ink); } .cmplg .db { width: 11px; height: 11px; background: #2F4BD8; transform: rotate(45deg); } .cmplg .dl { width: 22px; border-top: 2px dashed #9AA0BF; }
 .gauges { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px 16px; margin-top: 8px; } .g { display: grid; grid-template-columns: 1fr; font-size: 14px; } .g span { font-weight: 700; } .g b { font-size: 14px; } .gb { height: 12px; background: #E7EAFA; border-radius: 6px; overflow: hidden; border: 1.5px solid var(--ink); } .gb i { display: block; height: 100%; background: #2F4BD8; transition: width .3s; }
 
 /* 그래프 */
