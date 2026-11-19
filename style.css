@@ -362,3 +362,57 @@ a.rk { text-decoration: none; }
 
 
 .dtx em.dcq { font-weight: 700; color: #3B4BA8; line-height: 1.4; }
+
+/* 여권 도장 찍기 */
+.pst { --pw: min(94vw, 470px); position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgba(27,31,59,.6); animation: pstfade 3.4s both; cursor: pointer; padding: 16px; }
+@keyframes pstfade { 0% { opacity: 0; } 5% { opacity: 1; } 88% { opacity: 1; } 100% { opacity: 0; } }
+.pin { animation: pbin .35s ease-out both; }
+@keyframes pbin { from { transform: scale(.55) translateY(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+.pmove { animation: pbopen .55s .35s ease-in-out both; }
+@keyframes pbopen { from { transform: translateX(-25%); } to { transform: none; } }
+.pbook { position: relative; width: var(--pw); height: calc(var(--pw) * .66); perspective: 1800px; animation: pbshake .32s 1.46s both; }
+@keyframes pbshake { 0% { transform: none; } 30% { transform: translateY(5px) rotate(-.7deg); } 60% { transform: translateY(-2px) rotate(.4deg); } 100% { transform: none; } }
+.ppage, .pcover, .pleaf { position: absolute; top: 0; left: 50%; width: 50%; height: 100%; }
+.ppage { background: #FFFBEA; border: 3px solid var(--ink); border-left-width: 1.5px; border-radius: 0 14px 14px 0; padding: 10px 8px 8px; display: flex; flex-direction: column; box-shadow: 0 10px 0 rgba(0,0,0,.18); }
+.pph { margin: 0; text-align: center; font-family: var(--ft); font-size: clamp(14px, 3.6vw, 19px); line-height: 1.25; } .pph b { display: block; font-family: var(--fb); font-size: 11px; color: var(--muted); letter-spacing: .08em; }
+.pslots { flex: 1; display: flex; align-items: center; justify-content: space-around; gap: 2px; }
+.pslot { position: relative; display: flex; align-items: center; justify-content: center; }
+.pst .stamp { width: clamp(38px, 10vw, 54px); height: clamp(38px, 10vw, 54px); border-width: 2.5px; box-shadow: inset 0 0 0 2px #fff, inset 0 0 0 3.5px var(--c); }
+.pst .stamp b { font-size: clamp(11px, 2.8vw, 14px); } .pst .stamp small { display: none; }
+.pst .stamp.empty { box-shadow: none; }
+.pst .pslot.new .stamp { width: clamp(60px, 16vw, 86px); height: clamp(60px, 16vw, 86px); }
+.pst .pslot.new .stamp b { font-size: clamp(15px, 4vw, 21px); } .pst .pslot.new .stamp.hit small { display: block; font-size: clamp(8px, 2.1vw, 11px); }
+.pslot.new .stamp.empty { opacity: .5; }
+.pslot.new .stamp.hit { position: absolute; animation: stin .18s 1.46s ease-out both; }
+@keyframes stin { from { opacity: 0; transform: rotate(-8deg) scale(1.3); } to { opacity: 1; transform: rotate(-8deg) scale(1); } }
+.pslot .ring { position: absolute; left: 50%; top: 50%; width: 100%; height: 100%; border-radius: 50%; border: 3px solid var(--c); transform: translate(-50%, -50%) scale(.6); opacity: 0; animation: ring .5s 1.46s ease-out both; pointer-events: none; }
+@keyframes ring { 0% { opacity: .8; transform: translate(-50%, -50%) scale(.7); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.9); } }
+.stamper { position: absolute; left: 50%; bottom: 50%; width: 46px; height: 74px; opacity: 0; transform: translate(-50%, -120%); animation: stamper .8s 1.02s both; pointer-events: none; z-index: 2; }
+.stamper i { position: absolute; left: 50%; top: 0; width: 26px; height: 26px; margin-left: -13px; border-radius: 50%; background: #B07A3E; border: 3px solid var(--ink); }
+.stamper i::after { content: ''; position: absolute; left: 50%; top: 100%; width: 10px; height: 22px; margin-left: -5px; background: #B07A3E; border: 3px solid var(--ink); border-top: 0; }
+.stamper b { position: absolute; left: 0; right: 0; bottom: 0; height: 24px; border-radius: 8px 8px 4px 4px; background: var(--c); border: 3px solid var(--ink); }
+@keyframes stamper { 0% { opacity: 0; transform: translate(-50%, -150%); } 20% { opacity: 1; transform: translate(-50%, -120%); } 55% { opacity: 1; transform: translate(-50%, 18%); } 68% { opacity: 1; transform: translate(-50%, 18%); } 100% { opacity: 0; transform: translate(-50%, -150%); } }
+.ppf { margin: 0; text-align: center; font-size: 10px; letter-spacing: .12em; color: var(--muted); }
+.pcover, .pleaf { transform-origin: left center; transform-style: preserve-3d; }
+.pcover { z-index: 3; animation: pcopen .55s .35s ease-in-out both; }
+@keyframes pcopen { 0% { transform: rotateY(0); z-index: 3; } 49.9% { z-index: 3; } 50% { z-index: 1; } 100% { transform: rotateY(-180deg); z-index: 1; } }
+.pleaf { z-index: 2; animation: pflip .45s .92s ease-in-out both; }
+@keyframes pflip { from { transform: rotateY(0); } to { transform: rotateY(-180deg); } }
+.pface, .pback { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border: 3px solid var(--ink); }
+.pface { border-radius: 0 14px 14px 0; border-left-width: 1.5px; }
+.pback { transform: rotateY(180deg); border-radius: 14px 0 0 14px; border-right-width: 1.5px; background: #FFFBEA; box-shadow: 0 10px 0 rgba(0,0,0,.18); }
+.pcover .pface { background: var(--ink); color: var(--yel); box-shadow: inset 0 0 0 6px var(--ink), inset 0 0 0 8px var(--yel), 0 10px 0 rgba(0,0,0,.18); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; }
+.pcover .pface b { font-family: var(--ft); font-size: clamp(20px, 6vw, 32px); font-weight: 400; } .pcover .pface small { font-size: 10px; letter-spacing: .14em; opacity: .9; }
+.pemb { width: 44px; height: 44px; border-radius: 50%; border: 2.5px solid var(--yel); display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.pcover .pback { background: #E7EAFA; }
+.pleaf .pface.lines { background: #FFFBEA repeating-linear-gradient(transparent 0 22px, #E5DDBB 22px 23px); display: flex; align-items: flex-start; justify-content: center; padding-top: 10px; }
+.pleaf .pface.lines span { font-size: 10px; letter-spacing: .14em; color: var(--muted); background: #FFFBEA; padding: 0 6px; }
+.pid { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; text-align: center; padding: 6px; }
+.pid b { font-family: var(--ft); font-size: clamp(15px, 4vw, 20px); font-weight: 400; } .pid small { font-size: 11px; color: var(--muted); } .pid svg { max-width: 52px; height: auto; }
+.pmsg { margin: 0; background: #fff; border: 3px solid var(--ink); border-radius: 18px; padding: 10px 18px; text-align: center; font-size: 18px; animation: pmsg .3s 1.6s both; } .pmsg small { display: block; font-size: 13px; color: var(--muted); }
+@keyframes pmsg { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .pst, .pin, .pmove, .pbook, .pmsg, .pslot.new .stamp.hit { animation: none; }
+  .pcover { animation: none; transform: rotateY(-180deg); z-index: 1; } .pleaf { animation: none; transform: rotateY(-180deg); }
+  .stamper, .pslot .ring { display: none; }
+}

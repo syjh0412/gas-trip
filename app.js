@@ -92,10 +92,56 @@
     var b0 = rankIdx();
     S.stamps[std][kind] = Date.now(); save(); celDelay = 3300; mile('st.' + std + kind, 10); celDelay = 700;
     if (!isT() && rankIdx() > b0) setTimeout(function () { if (!$('.celeb')) celebrate(b0, rankIdx()); }, 3350);
-    var k = T.kinds[kind];
-    toast('<div class="stamp big" style="--c:' + k.color + '"><b>' + k.name + '</b><small>' + T.stds[std].short + '</small></div><p>여권에 <b>‘' + k.name + '’ 도장</b>이 찍혔어요!</p>');
+    stampCeremony(std, kind);
+  }
+  /* 도장 찍기: 여권이 펼쳐지고 → 한 장 넘어가고 → 도장이 "쾅" */
+  var busyUntil = 0, AC = null;
+  function ac() {
+    if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; } }
+    if (AC.state === 'suspended') AC.resume();
+    return AC.state === 'closed' ? null : AC;
+  }
+  function noiseBuf(a, sec, fade) { var b = a.createBuffer(1, Math.floor(a.sampleRate * sec), a.sampleRate), d = b.getChannelData(0); for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (fade ? 1 - i / d.length : 1); return b; }
+  function sndFlip() {
+    var a = ac(); if (!a) return; var t = a.currentTime, src = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain();
+    src.buffer = noiseBuf(a, 0.26, true); f.type = 'bandpass'; f.Q.value = 0.8; f.frequency.setValueAtTime(1600, t); f.frequency.linearRampToValueAtTime(3800, t + 0.22);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.16, t + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+    src.connect(f).connect(g).connect(a.destination); src.start(t);
+  }
+  function sndThud() {
+    var a = ac(); if (!a) return; var t = a.currentTime, o = a.createOscillator(), g = a.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(170, t); o.frequency.exponentialRampToValueAtTime(45, t + 0.18);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.55, t + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+    o.connect(g).connect(a.destination); o.start(t); o.stop(t + 0.3);
+    var src = a.createBufferSource(), f = a.createBiquadFilter(), g2 = a.createGain();
+    src.buffer = noiseBuf(a, 0.08, true); f.type = 'lowpass'; f.frequency.value = 900; g2.gain.value = 0.35;
+    src.connect(f).connect(g2).connect(a.destination); src.start(t);
+  }
+  function stampCeremony(std, kind) {
+    document.querySelectorAll('.pst').forEach(function (x) { x.remove(); });
+    var k = T.kinds[kind], sd = T.stds[std], reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var slots = ['see', 'meas', 'part'].map(function (kk) {
+      var kd = T.kinds[kk];
+      if (kk !== kind) return '<div class="pslot">' + stampHTML(std, kk, true) + '</div>';
+      return '<div class="pslot new" style="--c:' + kd.color + '"><div class="stamp empty"><b>' + kd.name + '</b></div><div class="stamp hit" style="--c:' + kd.color + '"><b>' + kd.name + '</b><small>' + sd.short + '</small></div><i class="ring"></i><div class="stamper" aria-hidden="true"><i></i><b></b></div></div>';
+    }).join('');
+    var nm = S.profile ? esc(S.profile.name) : '';
+    var el = document.createElement('div'); el.className = 'pst'; el.setAttribute('role', 'status');
+    el.innerHTML = '<div class="pin"><div class="pmove"><div class="pbook">' +
+      '<div class="ppage"><p class="pph"><b>' + sd.code + '</b>' + sd.short + '</p><div class="pslots">' + slots + '</div><p class="ppf">VISA · GAS SAFE TRAVEL</p></div>' +
+      '<div class="pcover"><div class="pface"><small>PARTICLE PASSPORT</small><span class="pemb" aria-hidden="true">✈</span><b>입자 여권</b><small>기체 안전 여행사</small></div><div class="pback"></div></div>' +
+      '<div class="pleaf"><div class="pface lines"><span>TRAVEL RECORD</span></div><div class="pback pid">' + mascot(52) + '<b>' + nm + '</b><small>통통 입자 여행 가이드</small><small>도장 ' + stampCount() + ' / 9</small></div></div>' +
+      '</div></div></div><p class="pmsg">여권에 <b>‘' + k.name + '’ 도장</b>이 찍혔어요! <small>' + sd.short + '</small></p>';
+    document.body.appendChild(el);
+    var T0 = 3400; busyUntil = Date.now() + T0;
+    function bye() { if (el.parentNode) el.remove(); busyUntil = 0; }
+    el.addEventListener('click', bye);
+    setTimeout(bye, T0);
+    if (!reduce) { setTimeout(sndFlip, 380); setTimeout(sndFlip, 920); setTimeout(sndThud, 1460); }
+    else sndThud();
   }
   function toast(html) {
+    var wait = busyUntil - Date.now(); if (wait > 0) { setTimeout(function () { toast(html); }, wait + 50); return; }
     document.querySelectorAll('.toast').forEach(function (x) { x.remove(); });
     var t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status'); t.innerHTML = html;
     document.body.appendChild(t); setTimeout(function () { t.classList.add('out'); }, 2600); setTimeout(function () { t.remove(); }, 3200);
@@ -673,18 +719,19 @@
   // 입자 모형
   STEP.sim = function (d, st, i) {
     var ctl = st.mode === 'box' ? '<label class="sl">입자 수 <output id="simo">25개</output><input type="range" id="simr" min="10" max="60" step="5" value="25"></label>'
-      : st.mode === 'syringe' ? '<label class="sl">주사기 부피 <output id="simo">20 mL</output><input type="range" id="simr" min="7" max="20" step="1" value="20" aria-label="주사기 부피. 왼쪽으로 옮기면 피스톤을 밀어요"></label><p class="tiny" style="margin:4px 0 0">◀ 왼쪽으로 옮기면 피스톤을 밀어요 <span class="hint3d" id="hint3d" hidden>· 그림을 옆으로 끌면 주사기를 돌려 볼 수 있어요</span></p><button type="button" class="btn sm snd" id="simsnd" hidden aria-pressed="true">🔊 충돌 소리 켜짐</button>'
+      : st.mode === 'syringe' ? '<label class="sl">주사기 부피 <output id="simo">20 mL</output><input type="range" id="simr" min="7" max="20" step="1" value="20" aria-label="주사기 부피. 왼쪽으로 옮기면 피스톤을 밀어요"></label><p class="tiny" style="margin:4px 0 0">◀ 왼쪽으로 옮기면 피스톤을 밀어요</p>'
       : st.mode === 'boyle' ? '<label class="sl">바깥 압력 <output id="simo">1.0기압</output><input type="range" id="simr" min="0.5" max="2" step="0.1" value="1"></label>'
         : '<label class="sl">온도 <output id="simo">20 ℃</output><input type="range" id="simr" min="0" max="80" step="5" value="20"></label>';
+    ctl += '<p class="tiny hint3d" id="hint3d" hidden>👆 그림을 옆으로 끌면 돌려 볼 수 있어요 (두 번 누르면 처음 방향)</p><button type="button" class="btn sm snd" id="simsnd" hidden aria-pressed="true">🔊 충돌 소리 켜짐</button>';
     return '<div class="simbox card"><canvas id="simc" width="640" height="320" role="img" aria-label="입자 모형. 노란 입자들이 용기 안에서 움직이며 벽에 충돌한다."></canvas><div class="simctl">' + ctl + '<p id="simst" class="simst" aria-live="polite"></p></div><div id="simg" class="gauges"></div>' + (st.mode === 'syringe' ? '<div id="simx"></div>' : '') + '</div><div class="qcol">' + itemsHTML(d, st, i, 'retry') + '</div>';
   };
   AFTER.sim = function (d, st) {
     var s2 = sim = new Sim($('#simc'), st.mode);
-    if (st.mode === 'syringe') sim3d(s2);
+    sim3d(s2, st.mode);
   };
-  // 3차시 주사기 모형: 3D로 바꿔 보여 주고, 안 되는 기기에서는 위의 2D 모형을 그대로 써요.
+  // 입자 모형(2·3·4·6차시): 3D로 바꿔 보여 주고, 안 되는 기기에서는 위의 2D 모형을 그대로 써요.
   var load3d = null;
-  function sim3d(s2) {
+  function sim3d(s2, mode) {
     if (!window.WebGLRenderingContext) return;
     load3d = load3d || new Promise(function (ok, no) {
       if (window.GasSim3D) return ok(window.GasSim3D);
@@ -695,7 +742,7 @@
     load3d.then(function (m) {
       var cv = $('#simc');
       if (sim !== s2 || !cv) return;
-      var s3 = m.syringe3D({ canvas: cv, slider: $('#simr'), out: $('#simo'), status: $('#simst'), gauges: $('#simg'), extra: $('#simx'), sound: $('#simsnd'), data: boyleRows() });
+      var s3 = (m.particles3D || m.syringe3D)({ mode: mode, canvas: cv, slider: $('#simr'), out: $('#simo'), status: $('#simst'), gauges: $('#simg'), extra: $('#simx'), sound: $('#simsnd'), data: mode === 'syringe' ? boyleRows() : null });
       if (!s3) return;
       s2.stop(); sim = s3;
       var h = $('#hint3d'); if (h) h.hidden = false;

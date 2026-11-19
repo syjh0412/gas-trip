@@ -332,5 +332,304 @@ export function syringe3D(o) {
   return { stop: stop };
 }
 
+
+/* ================= 2·4·6차시 입자 모형 (상자 / 세운 실린더) ================= */
+var PINK = 0xA61E6E, COLD = new THREE.Color(0x7FB3E6), WARM = new THREE.Color(0xFF5A1F);
+
+function label(txt, opt) {
+  opt = opt || {};
+  var c = document.createElement('canvas'), g = c.getContext('2d'), fs = opt.size || 44;
+  c.width = opt.w || 320; c.height = fs + 22;
+  var tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  var sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  var k = (opt.h || 0.42) / c.height; sp.scale.set(c.width * k, c.height * k, 1); sp.renderOrder = 4;
+  sp.set = function (t) {
+    if (t === sp._t) return; sp._t = t;
+    g.clearRect(0, 0, c.width, c.height);
+    g.font = '700 ' + fs + 'px "Noto Sans KR", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    if (opt.pill) { var w = Math.min(c.width - 4, g.measureText(t).width + 30); g.fillStyle = '#fff'; g.strokeStyle = '#1B1F3B'; g.lineWidth = 4; var x0 = (c.width - w) / 2, h = c.height - 6; g.beginPath(); g.roundRect ? g.roundRect(x0, 3, w, h, h / 2) : g.rect(x0, 3, w, h); g.fill(); g.stroke(); }
+    g.fillStyle = opt.color || '#1B1F3B'; g.fillText(t, c.width / 2, c.height / 2 + 2);
+    tex.needsUpdate = true;
+  };
+  sp.set(txt);
+  return sp;
+}
+
+// 공통 무대: 렌더러·카메라·조명·입자·반짝임·소리·돌려 보기·크기 맞추기
+function stage(o, cfg) {
+  var old = o.canvas, box = old.parentNode, renderer;
+  try { renderer = new THREE.WebGLRenderer({ antialias: true }); } catch (e) { return null; }
+  if (!renderer.getContext()) return null;
+  var S = { reduce: window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches, offs: [] };
+  var cv = renderer.domElement; cv.className = 'sim3dcv'; cv.setAttribute('role', 'img'); cv.setAttribute('aria-label', cfg.aria);
+  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1)); renderer.setClearColor(BG, 1);
+  old.style.display = 'none'; box.insertBefore(cv, old);
+  var scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(32, 2, 0.1, 100);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xC9CEE8, 1.1));
+  var sun = new THREE.DirectionalLight(0xffffff, 1.6); sun.position.set(3, 8, 5); scene.add(sun);
+  var rig = new THREE.Group(); scene.add(rig);
+  (function () {
+    var c = document.createElement('canvas'); c.width = c.height = 128; var g = c.getContext('2d');
+    var gr = g.createRadialGradient(64, 64, 2, 64, 64, 64); gr.addColorStop(0, 'rgba(27,31,59,0.24)'); gr.addColorStop(0.6, 'rgba(27,31,59,0.08)'); gr.addColorStop(1, 'rgba(27,31,59,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    var sh = new THREE.Mesh(new THREE.PlaneGeometry(cfg.shadow[0], cfg.shadow[1]), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(c), transparent: true, depthWrite: false }));
+    sh.rotation.x = -Math.PI / 2; sh.position.set(cfg.target[0], cfg.floorY, 0); scene.add(sh);
+  })();
+
+  // 입자 (최대 개수만큼 만들어 두고 count로 조절)
+  var NM = cfg.nmax;
+  S.fill = new THREE.InstancedMesh(new THREE.SphereGeometry(PR * cfg.pscale, 16, 12), new THREE.MeshStandardMaterial({ color: YEL, emissive: YEL, emissiveIntensity: 0.28, roughness: 0.45 }), NM);
+  S.edge = new THREE.InstancedMesh(new THREE.SphereGeometry(PR * cfg.pscale * 1.22, 12, 10), new THREE.MeshBasicMaterial({ color: INK, side: THREE.BackSide }), NM);
+  rig.add(S.fill); rig.add(S.edge);
+  var mtx = new THREE.Matrix4(), q0 = new THREE.Quaternion(), sv = new THREE.Vector3(), pv = new THREE.Vector3();
+  S.draw = function (P, now) {
+    for (var i = 0; i < P.length; i++) {
+      var p = P[i], e = now - p.hit, k = 1;
+      if (!S.reduce && e < 170) { var t = e / 170; k = 1 + 0.55 * Math.sin(t * Math.PI) * (1 - t); }
+      pv.set(p.x, p.y, p.z); sv.set(k, k, k); mtx.compose(pv, q0, sv); S.fill.setMatrixAt(i, mtx); S.edge.setMatrixAt(i, mtx);
+    }
+    S.fill.count = S.edge.count = P.length;
+    S.fill.instanceMatrix.needsUpdate = true; S.edge.instanceMatrix.needsUpdate = true;
+  };
+
+  // 충돌 반짝임
+  var ftex = flashTexture(), flashes = [], fi = 0;
+  for (var k = 0; k < 48; k++) { var fs = new THREE.Sprite(new THREE.SpriteMaterial({ map: ftex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); fs.visible = false; fs.renderOrder = 3; rig.add(fs); flashes.push({ s: fs, t0: 0, on: false, m: 1 }); }
+  S.flash = function (x, y, z, now, m) { if (S.reduce) return; var f = flashes[fi]; fi = (fi + 1) % flashes.length; f.s.position.set(x, y, z); f.t0 = now; f.on = true; f.m = m || 1; f.s.visible = true; };
+  function flashTick(now) { for (var j = 0; j < flashes.length; j++) { var f = flashes[j]; if (!f.on) continue; var u = (now - f.t0) / 230; if (u >= 1) { f.on = false; f.s.visible = false; continue; } var sz = (0.12 + u * 0.55) * f.m; f.s.scale.set(sz, sz, 1); f.s.material.opacity = 1 - u; } }
+
+  // 소리: r(충돌 빈도, 기준 1)과 pitch(음 높이, 기준 1)
+  var actx = null, soundOn = true, lastSnd = 0, sb = o.sound;
+  function audio() { if (!actx) { try { actx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { soundOn = false; } } if (actx && actx.state === 'suspended') actx.resume(); }
+  S.pop = function (now, r, pitch) {
+    if (!soundOn || !actx || actx.state !== 'running') return;
+    r = Math.max(0.2, Math.min(r, 3)); pitch = pitch == null ? r : pitch;
+    if (now - lastSnd < Math.max(22, 95 - r * 24)) return; lastSnd = now;
+    var t0 = actx.currentTime, osc = actx.createOscillator(), gn = actx.createGain(), f0 = 330 + Math.max(0, Math.min(pitch, 3)) * 150;
+    osc.type = 'sine'; osc.frequency.setValueAtTime(f0, t0); osc.frequency.exponentialRampToValueAtTime(f0 * 0.35, t0 + 0.05);
+    gn.gain.setValueAtTime(0.0001, t0); gn.gain.exponentialRampToValueAtTime(0.06 + Math.min(r, 3) * 0.03, t0 + 0.008); gn.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.09);
+    osc.connect(gn).connect(actx.destination); osc.start(t0); osc.stop(t0 + 0.1);
+  };
+  function paintSound() { if (sb) { sb.textContent = soundOn ? '🔊 충돌 소리 켜짐' : '🔇 충돌 소리 꺼짐'; sb.setAttribute('aria-pressed', soundOn ? 'true' : 'false'); } }
+  function onSound() { soundOn = !soundOn; if (soundOn) audio(); paintSound(); }
+  if (sb) { sb.hidden = false; sb.addEventListener('click', onSound); paintSound(); }
+  function firstTouch() { if (soundOn) audio(); }
+  box.addEventListener('pointerdown', firstTouch);
+  S.touch = firstTouch;
+
+  // 끌어서 돌려 보기 (두 번 누르면 처음 방향)
+  var drag = null, yaw = cfg.yaw, pitch = cfg.pitch, yawT = yaw, pitchT = pitch;
+  cv.style.touchAction = 'pan-y';
+  cv.addEventListener('pointerdown', function (e) { drag = { x: e.clientX, y: e.clientY, yaw: yawT, pitch: pitchT }; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', function (e) { if (!drag) return; yawT = Math.max(-1.2, Math.min(1.2, drag.yaw + (e.clientX - drag.x) * 0.008)); pitchT = Math.max(-0.25, Math.min(0.6, drag.pitch + (e.clientY - drag.y) * 0.004)); });
+  function endDrag() { drag = null; } cv.addEventListener('pointerup', endDrag); cv.addEventListener('pointercancel', endDrag);
+  cv.addEventListener('dblclick', function () { yawT = cfg.yaw; pitchT = cfg.pitch; });
+
+  function fit() {
+    var w = box.clientWidth || 600, h = Math.round(Math.max(200, Math.min(cfg.hmax, w * (w < 560 ? cfg.ratio[1] : cfg.ratio[0]))));
+    renderer.setSize(w, h, false); cv.style.width = '100%'; cv.style.height = h + 'px';
+    camera.aspect = w / h;
+    var tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), z = Math.max(cfg.half[0] / (tanV * camera.aspect), cfg.half[1] / tanV) + cfg.depth;
+    camera.position.set(cfg.target[0], cfg.target[1] + z * 0.22, z); camera.lookAt(cfg.target[0], cfg.target[1], 0);
+    camera.updateProjectionMatrix();
+  }
+  var ro = window.ResizeObserver ? new ResizeObserver(fit) : null;
+  if (ro) ro.observe(box); else window.addEventListener('resize', fit);
+  fit();
+
+  S.scene = scene; S.rig = rig; S.box = box;
+  S.bar = function (name, val, txt) { return '<div class="g"><span>' + name + '</span><div class="gb"><i style="width:' + Math.max(4, Math.min(100, val)) + '%"></i></div><b>' + txt + '</b></div>'; };
+  var run = true, last = performance.now();
+  S.simT = 0; S.frame = 0;
+  S.start = function (step) {
+    function loop(now) {
+      if (!run) return;
+      if (!document.body.contains(cv)) { S.stop(); return; }
+      requestAnimationFrame(loop);
+      var dt = Math.min(0.034, (now - last) / 1000); last = now; S.frame++; S.simT += dt * 1000;
+      step(dt, now);
+      flashTick(now);
+      yaw += (yawT - yaw) * 0.15; pitch += (pitchT - pitch) * 0.15; rig.rotation.y = yaw; rig.rotation.x = pitch;
+      renderer.render(scene, camera);
+    }
+    requestAnimationFrame(loop);
+  };
+  S.stop = function () {
+    if (!run) return; run = false;
+    if (ro) ro.disconnect(); else window.removeEventListener('resize', fit);
+    S.offs.forEach(function (f) { f(); });
+    if (sb) sb.removeEventListener('click', onSound);
+    box.removeEventListener('pointerdown', firstTouch);
+    if (actx) { try { actx.close(); } catch (e) { } }
+    scene.traverse(function (ob) { if (ob.geometry) ob.geometry.dispose(); if (ob.material) { if (ob.material.map) ob.material.map.dispose(); ob.material.dispose(); } });
+    renderer.dispose();
+  };
+  return S;
+}
+
+function randDir(speed) {
+  var d = new THREE.Vector3(1, 1, 1);
+  do d.set(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1); while (d.lengthSq() > 1 || d.lengthSq() < 0.01);
+  return d.normalize().multiplyScalar(speed);
+}
+function lv(x) { return x < 0.8 ? '작음' : x > 1.25 ? '큼' : '보통'; }
+
+/* 2차시: 풍선 속을 확대한 상자 — 입자 수를 바꾸면 네 벽의 충돌 횟수가 어떻게 될까 */
+function box3D(o) {
+  var HB = 2;                    // 상자 반쪽 길이 (정육면체)
+  var NMX = 60, SP = 3.0;
+  var S = stage(o, { aria: '풍선 속을 확대한 상자 모형. 노란 입자들이 모든 방향으로 움직이며 여섯 벽에 충돌한다. 위·아래·왼쪽·오른쪽 벽에 3초 동안 충돌한 횟수가 표시된다.', nmax: NMX, pscale: 1.25, shadow: [7, 3], floorY: -2.6, target: [0, 0.1], half: [3.9, 3.1], depth: 2.2, ratio: [0.62, 0.86], hmax: 430, yaw: -0.42, pitch: 0.28 });
+  if (!S) return null;
+  var THREEg = THREE, rig = S.rig;
+  var glass = new THREEg.Mesh(new THREEg.BoxGeometry(HB * 2 + 0.1, HB * 2 + 0.1, HB * 2 + 0.1), new THREEg.MeshStandardMaterial({ color: 0xBFD8FF, transparent: true, opacity: 0.16, roughness: 0.1, side: THREEg.DoubleSide, depthWrite: false }));
+  glass.renderOrder = 2; rig.add(glass);
+  var edges = new THREEg.LineSegments(new THREEg.EdgesGeometry(new THREEg.BoxGeometry(HB * 2 + 0.1, HB * 2 + 0.1, HB * 2 + 0.1)), new THREEg.LineBasicMaterial({ color: INK }));
+  rig.add(edges);
+  // 이름표가 붙은 네 벽은 살짝 색을 입혀 구분
+  var wallMat = new THREEg.MeshBasicMaterial({ color: BLUE, transparent: true, opacity: 0.07, side: THREEg.DoubleSide, depthWrite: false });
+  [[0, HB, 0, -Math.PI / 2, 0], [0, -HB, 0, Math.PI / 2, 0], [-HB, 0, 0, 0, Math.PI / 2], [HB, 0, 0, 0, -Math.PI / 2]].forEach(function (w) {
+    var m = new THREEg.Mesh(new THREEg.PlaneGeometry(HB * 2, HB * 2), wallMat); m.position.set(w[0], w[1], w[2]); m.rotation.set(w[3], w[4], 0); m.renderOrder = 1; rig.add(m);
+  });
+  var L = { top: label('위 0번', { pill: 1, h: 0.58 }), bot: label('아래 0번', { pill: 1, h: 0.58 }), left: label('왼쪽 0번', { pill: 1, h: 0.58 }), right: label('오른쪽 0번', { pill: 1, h: 0.58 }) };
+  L.top.position.set(0, HB + 0.62, 0); L.bot.position.set(0, -HB - 0.62, 0); L.left.position.set(-HB - 1.25, 0, 0); L.right.position.set(HB + 1.35, 0, 0);
+  Object.keys(L).forEach(function (k) { rig.add(L[k]); });
+
+  var P = [], W = { top: [], bot: [], left: [], right: [], other: [] };
+  function setN(n) {
+    while (P.length < n) { var d = randDir(SP); P.push({ x: (Math.random() * 2 - 1) * (HB - PR * 2), y: (Math.random() * 2 - 1) * (HB - PR * 2), z: (Math.random() * 2 - 1) * (HB - PR * 2), vx: d.x, vy: d.y, vz: d.z, hit: -1e9 }); }
+    P.length = n;
+  }
+  function onSlide() { var n = +o.slider.value; setN(n); o.out.textContent = n + '개'; S.touch(); }
+  o.slider.addEventListener('input', onSlide); S.offs.push(function () { o.slider.removeEventListener('input', onSlide); });
+  setN(+o.slider.value || 25);
+  var lim = HB - PR * 1.25, ref = 25 * SP / 2 / (2 * HB) * 6;  // 입자 25개일 때 여섯 벽 전체 충돌 빈도(대략) = 소리 기준
+
+  S.start(function (dt, now) {
+    var T = S.simT;
+    for (var i = 0; i < P.length; i++) {
+      var p = P[i];
+      p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+      if (p.x < -lim) { p.x = -lim; if (p.vx < 0) { p.vx = -p.vx; p.hit = now; W.left.push(T); S.flash(-HB, p.y, p.z, now); S.pop(now, rate / ref); } }
+      if (p.x > lim) { p.x = lim; if (p.vx > 0) { p.vx = -p.vx; p.hit = now; W.right.push(T); S.flash(HB, p.y, p.z, now); S.pop(now, rate / ref); } }
+      if (p.y < -lim) { p.y = -lim; if (p.vy < 0) { p.vy = -p.vy; p.hit = now; W.bot.push(T); S.flash(p.x, -HB, p.z, now); S.pop(now, rate / ref); } }
+      if (p.y > lim) { p.y = lim; if (p.vy > 0) { p.vy = -p.vy; p.hit = now; W.top.push(T); S.flash(p.x, HB, p.z, now); S.pop(now, rate / ref); } }
+      if (p.z < -lim) { p.z = -lim; if (p.vz < 0) { p.vz = -p.vz; p.hit = now; W.other.push(T); S.flash(p.x, p.y, -HB, now); S.pop(now, rate / ref); } }
+      if (p.z > lim) { p.z = lim; if (p.vz > 0) { p.vz = -p.vz; p.hit = now; W.other.push(T); S.flash(p.x, p.y, HB, now); S.pop(now, rate / ref); } }
+    }
+    S.draw(P, now);
+    var c = {}; Object.keys(W).forEach(function (k) { var a = W[k]; while (a.length && a[0] < T - 3000) a.shift(); c[k] = a.length; });
+    var all = c.top + c.bot + c.left + c.right + c.other; rate = all / 3;
+    if (S.frame % 12 === 0) {
+      L.top.set('위 ' + c.top + '번'); L.bot.set('아래 ' + c.bot + '번'); L.left.set('왼쪽 ' + c.left + '번'); L.right.set('오른쪽 ' + c.right + '번');
+      var four = c.top + c.bot + c.left + c.right, top = NMX * SP / 2 / (2 * HB) * 4 * 3;
+      o.gauges.innerHTML = S.bar('입자 수', P.length / NMX * 100, P.length + '개') + S.bar('네 벽 충돌 횟수 (3초)', four / top * 100, four + '번');
+      o.status.textContent = '네 벽의 숫자를 비교해 보세요.';
+    }
+  });
+  var rate = 0;
+  return { stop: S.stop };
+}
+
+/* 4차시(바깥 압력)·6차시(온도): 교과서 그림처럼 세운 실린더와 위에서 누르는 피스톤 */
+function cyl3D(o, mode) {
+  var RC = 1.45, YB = -2.3, HW = 5.3, NP = 40, V0 = 2.7;
+  var L1 = mode === 'boyle' ? 2.4 : 2.9;     // 1기압·20 ℃일 때 기체 기둥 높이
+  var GAPc = 0.02;
+  var S = stage(o, { aria: mode === 'boyle' ? '세운 실린더 속 입자 모형. 위에서 바깥 압력이 피스톤을 누르고, 노란 입자들이 피스톤과 벽에 충돌한다. 바깥 압력을 바꾸면 피스톤이 움직이다가 멈춘다.' : '세운 실린더 속 입자 모형. 아래 가열판의 온도를 바꾸면 노란 입자의 빠르기가 달라지고, 피스톤이 움직이다가 멈춘다.', nmax: NP, pscale: 1.25, shadow: [5, 3.2], floorY: YB - 0.75, target: [0.35, 0.65], half: [3.3, 3.8], depth: 2.4, ratio: [0.66, 0.95], hmax: 470, yaw: -0.3, pitch: 0.16 });
+  if (!S) return null;
+  var rig = S.rig;
+  var inkMat = new THREE.MeshStandardMaterial({ color: INK, roughness: 0.55 }), pinkMat = new THREE.MeshStandardMaterial({ color: PINK, roughness: 0.5 });
+  var glass = new THREE.Mesh(new THREE.CylinderGeometry(RC + 0.05, RC + 0.05, HW, 48, 1, true), new THREE.MeshStandardMaterial({ color: 0xBFD8FF, transparent: true, opacity: 0.18, roughness: 0.1, side: THREE.DoubleSide, depthWrite: false }));
+  glass.position.y = YB + HW / 2; glass.renderOrder = 2; rig.add(glass);
+  var rimGeo = new THREE.TorusGeometry(RC + 0.05, 0.035, 8, 48); rimGeo.rotateX(Math.PI / 2);
+  var rim = new THREE.Mesh(rimGeo, inkMat); rim.position.y = YB + HW; rig.add(rim);
+  var base = new THREE.Mesh(new THREE.CylinderGeometry(RC + 0.12, RC + 0.12, 0.18, 48), inkMat); base.position.y = YB - 0.09; rig.add(base);
+  var heat = null, heatMat = null, tLab = null;
+  if (mode === 'charles') {
+    heatMat = new THREE.MeshStandardMaterial({ color: 0xFF7A3D, emissive: 0xFF5A1F, emissiveIntensity: 0.3, roughness: 0.6 });
+    heat = new THREE.Mesh(new THREE.CylinderGeometry(RC + 0.35, RC + 0.45, 0.32, 48), heatMat); heat.position.y = YB - 0.36; rig.add(heat);
+    tLab = label('온도 20 ℃', { pill: 1, w: 360, h: 0.56 }); tLab.position.set(RC + 1.9, YB - 0.3, 0); rig.add(tLab);
+  }
+  // 피스톤 (위아래로 움직임)
+  var piston = new THREE.Group(); rig.add(piston);
+  var disc = new THREE.Mesh(new THREE.CylinderGeometry(RC - 0.01, RC - 0.01, 0.3, 48), inkMat); disc.position.y = 0.15; piston.add(disc);
+  var knob = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.35, 16), inkMat); knob.position.y = 0.45; piston.add(knob);
+  var arrows = new THREE.Group(); piston.add(arrows);
+  var pLab = label(mode === 'boyle' ? '바깥 압력' : '바깥 압력 (일정)', { color: '#A61E6E', w: 440, pill: 1, h: 0.5 }); piston.add(pLab);
+  var shaftG = new THREE.CylinderGeometry(0.07, 0.07, 0.7, 12), headG = new THREE.ConeGeometry(0.2, 0.32, 16); headG.rotateX(Math.PI);
+  var nArrow = -1;
+  function setArrows(n) {
+    if (n === nArrow) return; nArrow = n;
+    while (arrows.children.length) arrows.remove(arrows.children[0]);
+    for (var i = 0; i < n; i++) {
+      var a = new THREE.Group(), sh = new THREE.Mesh(shaftG, pinkMat), hd = new THREE.Mesh(headG, pinkMat);
+      sh.position.y = 0.66; hd.position.y = 0.16; a.add(sh); a.add(hd);
+      var ang = n === 1 ? 0 : (i / n) * Math.PI * 2, rr = n === 1 ? 0 : (n <= 3 ? 0.75 : 0.85);
+      a.position.set(Math.sin(ang) * rr, 0.62, Math.cos(ang) * rr); arrows.add(a);
+    }
+    pLab.position.set(0, 1.62, 0);
+  }
+
+  var P = [], sp = 1, tL = L1, L = L1, Pex = 1, Tc = 20;
+  for (var i = 0; i < NP; i++) {
+    var a = Math.random() * Math.PI * 2, rr = Math.sqrt(Math.random()) * (RC - PR * 1.5), d = randDir(V0);
+    P.push({ x: rr * Math.cos(a), z: rr * Math.sin(a), y: YB + PR + Math.random() * (L1 - 2 * PR), vx: d.x, vy: d.y, vz: d.z, hit: -1e9 });
+  }
+  var sumVy = P.reduce(function (t, p) { return t + Math.abs(p.vy); }, 0), ref = sumVy / L1;  // 처음(1기압·20 ℃) 위아래 벽 충돌 빈도
+  function onSlide(ev) {
+    var v = parseFloat(o.slider.value);
+    if (mode === 'boyle') { Pex = v; tL = L1 / v; o.out.textContent = v.toFixed(1) + '기압'; setArrows(Math.max(1, Math.round(v * 3))); }
+    else {
+      var nsp = Math.sqrt((273 + v) / 293), k = nsp / sp; sp = nsp; Tc = v;
+      P.forEach(function (p) { p.vx *= k; p.vy *= k; p.vz *= k; });
+      tL = L1 * (273 + v) / 293; o.out.textContent = v + ' ℃'; setArrows(3);
+      tLab.set('온도 ' + v + ' ℃');
+      var h = v / 80; heatMat.color.lerpColors(COLD, WARM, h); heatMat.emissive.lerpColors(COLD, WARM, h); heatMat.emissiveIntensity = 0.12 + h * 0.8;
+    }
+    if (ev) S.touch();
+  }
+  o.slider.addEventListener('input', onSlide); S.offs.push(function () { o.slider.removeEventListener('input', onSlide); });
+  onSlide(); L = tL;
+  var hits = [], lim = RC - PR * 1.25, rate = 0;
+
+  S.start(function (dt, now) {
+    var T = S.simT, moving = Math.abs(tL - L) > 0.01;
+    if (moving) L += (tL - L) * (1 - Math.exp(-dt * 1.8)); else L = tL;
+    var top = YB + L; piston.position.y = top;
+    var strong = sp * sp, fm = mode === 'charles' ? 0.6 + 0.5 * strong : 1;
+    var r = rate / ref, pitch = mode === 'charles' ? 0.4 + (strong - 0.93) * 4 : r;
+    for (var i = 0; i < P.length; i++) {
+      var p = P[i];
+      p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+      var r2 = p.x * p.x + p.z * p.z;
+      if (r2 > lim * lim) { var rr = Math.sqrt(r2), nx = p.x / rr, nz = p.z / rr, dn = p.vx * nx + p.vz * nz; if (dn > 0) { p.vx -= 2 * dn * nx; p.vz -= 2 * dn * nz; p.hit = now; S.flash(nx * RC, p.y, nz * RC, now, fm); S.pop(now, r, pitch); } p.x = nx * lim; p.z = nz * lim; }
+      if (p.y < YB + GAPc) { p.y = YB + GAPc; if (p.vy < 0) { p.vy = -p.vy; p.hit = now; hits.push(T); S.flash(p.x, YB, p.z, now, fm); S.pop(now, r, pitch); } }
+      if (p.y > top - GAPc) { p.y = top - GAPc; if (p.vy > 0) { p.vy = -p.vy; p.hit = now; hits.push(T); S.flash(p.x, top, p.z, now, fm); S.pop(now, r, pitch); } }
+    }
+    S.draw(P, now);
+    while (hits.length && hits[0] < T - 3000) hits.shift();
+    var c15 = 0; for (var h = hits.length - 1; h >= 0 && hits[h] > T - 1500; h--) c15++; rate = c15 / 1.5;
+    if (S.frame % 12 === 0) {
+      var vol = L / L1, c3 = hits.length, g;
+      if (mode === 'boyle') {
+        g = S.bar('기체의 부피', vol * 50, lv(vol)) + S.bar('피스톤·바닥에 충돌한 횟수 (3초)', c3 / (ref * 2 * 3) * 100, c3 + '번') + S.bar('입자의 운동 빠르기', 50, '그대로') + S.bar('입자 수', 47, NP + '개 그대로');
+        o.status.textContent = moving ? (tL < L ? '바깥 압력이 더 커요 → 피스톤이 안으로 밀려요' : '기체의 압력이 더 커요 → 피스톤이 밖으로 밀려요') : '바깥 압력 = 기체의 압력 → 피스톤이 멈췄어요';
+      } else {
+        g = S.bar('입자의 운동 빠르기', strong * 50, lv(strong)) + S.bar('충돌 세기', strong * 50, lv(strong)) + S.bar('기체의 부피', vol * 50, lv(vol)) + S.bar('입자 수', 47, NP + '개 그대로');
+        o.status.textContent = moving ? (tL > L ? '입자가 벽을 더 세게 밀어요 → 피스톤이 밖으로 밀려요' : '입자가 벽을 약하게 밀어요 → 피스톤이 안으로 밀려요') : '바깥 압력 = 기체의 압력 → 피스톤이 멈췄어요';
+      }
+      o.gauges.innerHTML = g;
+    }
+  });
+  return { stop: S.stop };
+}
+
+export function particles3D(o) {
+  if (o.mode === 'syringe') return syringe3D(o);
+  if (o.mode === 'box') return box3D(o);
+  if (o.mode === 'boyle' || o.mode === 'charles') return cyl3D(o, o.mode);
+  return null;
+}
+
 // app.js가 <script type="module">로 불러온 뒤 찾을 수 있게
-window.GasSim3D = { syringe3D: syringe3D };
+window.GasSim3D = { syringe3D: syringe3D, particles3D: particles3D };
