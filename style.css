@@ -416,3 +416,14 @@ a.rk { text-decoration: none; }
   .pcover { animation: none; transform: rotateY(-180deg); z-index: 1; } .pleaf { animation: none; transform: rotateY(-180deg); }
   .stamper, .pslot .ring { display: none; }
 }
+
+/* 교사 실시간 현황판 */
+.lsum{margin:0 0 8px;font-size:15px}
+.lchips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.lchip{background:#EEF1FF;border-radius:999px;padding:3px 10px;font-size:13px}
+.lcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px}
+.lc{border:2px solid #cfd4ea;border-radius:12px;padding:8px 10px;background:#fff;display:flex;flex-direction:column;gap:3px}
+.lc b{font-size:15px}.lc span{font-size:13px;line-height:1.35}.lc small{font-size:12px;color:#555}
+.lc.on{border-color:#2f9e44;background:#f1fbf3}.lc.idle{border-color:#f0a500;background:#fff9e8}
+.lc.away{border-color:#7b83b8;background:#f1f2fa}.lc.off{border-color:#bbb;background:#f3f3f3;opacity:.75}
+.lc.long{border-color:#e8590c;background:#fff1e8}

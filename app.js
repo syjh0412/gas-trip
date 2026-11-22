@@ -179,7 +179,9 @@
 
   /* ---------- 라우팅 ---------- */
   var cur = { dest: null, step: 0 }, sim = null;
+  var LIVE_T = null;
   function route() {
+    clearInterval(LIVE_T);
     if (sim) { sim.stop(); sim = null; }
     if (SENS.dev && !/^#d\/T3\//.test(location.hash)) sDisconnect();
     MCQ = {};
@@ -192,6 +194,23 @@
     viewHome(h[1]);
   }
   window.addEventListener('hashchange', function () { route(); window.scrollTo(0, 0); });
+
+  /* ---------- 실시간 현황판용: 지금 어느 화면인지 가볍게 알린다 (화면 그림은 보내지 않음) ---------- */
+  var LIVE = { last: '', key: '', since: 0, sent: 0 };
+  function liveLabel() {
+    if (cur && cur.dest) { var d = cur.dest, st = cur.step != null ? d.steps[cur.step] : null; return d.icon + ' ' + d.place + ' · ' + (st ? st.title : '시작') + ' (' + ((cur.slide || 0) + 1) + '/' + (cur.slides ? cur.slides.length : '?') + ')'; }
+    return '🗺️ 여행 지도';
+  }
+  function liveTick() {
+    if (!CFG.API_URL || !S.profile || isT() || !sessionStorage.getItem('gastrip.in')) return;
+    var lb = liveLabel(), now = Date.now(), vis = document.visibilityState !== 'hidden';
+    if (lb !== LIVE.last) { LIVE.last = lb; LIVE.since = now; }
+    var key = lb + '|' + vis, due = key !== LIVE.key ? now - LIVE.sent > 15000 : now - LIVE.sent > 60000;
+    if (!due) return;
+    LIVE.key = key; LIVE.sent = now;
+    sync('live', { w: lb, since: LIVE.since, t: now, v: vis ? 1 : 0, m: S.miles });
+  }
+  setInterval(liveTick, 5000); document.addEventListener('visibilitychange', liveTick);
 
   /* ---------- 등록 ---------- */
   var SCENE = '<svg class="skyscene" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' +
@@ -1471,13 +1490,30 @@
     var okPin = sessionStorage.getItem('gastrip.tpin');
     var h = '<header class="dtop" style="--c:#1B1F3B"><a class="back" href="#home">← 학생 화면</a><div class="dhead"><span class="dic">🧑‍🏫</span><div><h1>대표님 사무실</h1><p>통통 입자 여행 · 기체 안전 여행사</p></div></div></header><main class="dmain teacher">';
     if (!okPin) { app.innerHTML = h + '<div class="card"><h3>비밀번호</h3><div class="row3"><label>교사 비밀번호<input id="tpin" type="text" class="secret" inputmode="numeric" autocomplete="off" data-lpignore="true" data-1p-ignore></label></div><button class="btn pri" data-act="tlogin">들어가기</button><p class="tiny" id="tmsg">' + (CFG.API_URL ? '구글 스크립트(Code.gs)에 정해 둔 교사 비밀번호예요.' : 'config.js의 TEACHER_PIN 값이에요. 처음 값은 0000입니다.') + '</p></div></main>'; return; }
-    var tabs = [['guide', '수업 안내'], ['class', '반 현황'], ['data', '실험 자료'], ['lines', '학생 글'], ['snorkl', '스노클 과제'], ['setup', '설정 방법']];
+    var tabs = [['guide', '수업 안내'], ['live', '실시간'], ['class', '반 현황'], ['data', '실험 자료'], ['lines', '학생 글'], ['snorkl', '스노클 과제'], ['setup', '설정 방법']];
     h += '<nav class="ttabs">' + tabs.map(function (t) { return '<button data-act="ttab" data-t="' + t[0] + '" class="' + (TS.tab === t[0] ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</nav>';
-    if (['class', 'data', 'lines'].indexOf(TS.tab) >= 0) {
+    if (['live', 'class', 'data', 'lines'].indexOf(TS.tab) >= 0) {
       h += '<div class="card"><div class="row3"><label>반<input id="tcls" inputmode="numeric" maxlength="2" value="' + esc(TS.cls) + '"></label></div><button class="btn pri" data-act="tload"' + (CFG.API_URL ? '' : ' disabled') + '>불러오기</button><p class="tiny">' + (CFG.API_URL ? esc(TS.msg) : '반 자료를 모으려면 ‘설정 방법’ 탭의 구글 시트 연결이 필요해요. 연결 전에는 학생 기기에만 저장됩니다.') + '</p></div>';
       if (TS.rows) h += TVIEW[TS.tab]();
     } else h += TVIEW[TS.tab]();
     app.innerHTML = h + '</main>';
+    clearInterval(LIVE_T); if (TS.tab === 'live' && TS.cls && TS.rows && CFG.API_URL) LIVE_T = setInterval(liveRefresh, 15000);
+  }
+  function liveRefresh() {
+    if (!$('#livegrid')) { clearInterval(LIVE_T); return; }
+    tpost({ action: 'rows', cls: TS.cls, pin: sessionStorage.getItem('gastrip.tpin') }).then(function (res) { if (res.error) throw new Error(res.error); TS.rows = res.rows || []; if (!$('#livegrid')) return; $('#livegrid').innerHTML = liveHTML(); $('#livemsg').textContent = '마지막 갱신 ' + new Date().toLocaleTimeString('ko-KR') + ' · 15초마다 자동으로 바뀌어요'; }).catch(function () { var m = $('#livemsg'); if (m) m.textContent = '갱신하지 못했어요. 다음 주기에 다시 시도해요.'; });
+  }
+  function liveHTML() {
+    var now = Date.now(), L = students().filter(function (x) { return x.live && x.live.t; }), cnt = { on: 0, idle: 0, off: 0, away: 0 }, place = {};
+    var cards = L.map(function (x) {
+      var v = x.live, age = now - v.t, st = age > 300000 ? 'off' : (v.v === 0 ? 'away' : age > 100000 ? 'idle' : 'on'), dwell = Math.floor((now - (v.since || v.t)) / 60000), long = st === 'on' && dwell >= 5;
+      cnt[st]++; if (st === 'on') { var pl = String(v.w).split(' · ')[0]; place[pl] = (place[pl] || 0) + 1; }
+      var lab = { on: long ? '⏳ ' + dwell + '분째 이 화면' : '🟢 진행 중' + (dwell >= 1 ? ' · ' + dwell + '분째' : ''), idle: '🟡 ' + Math.floor(age / 60000) + '분 전부터 조용', away: '🌙 화면이 꺼짐·다른 앱', off: '⚪ 연결 끊김 (' + Math.floor(age / 60000) + '분 전)' }[st];
+      return '<div class="lc ' + st + (long ? ' long' : '') + '"><b>' + esc(x.num) + ' ' + esc(x.name) + '</b><span>' + esc(v.w) + '</span><small>' + lab + ' · ' + (v.m || 0) + '마일</small></div>';
+    });
+    if (!L.length) return '<p class="tiny">아직 접속한 학생이 없어요. 학생이 들어오면 1분 안에 나타나요.</p>';
+    var chips = Object.keys(place).map(function (k) { return '<span class="lchip">' + esc(k) + ' ' + place[k] + '명</span>'; }).join('');
+    return '<p class="lsum"><b>🟢 ' + cnt.on + '</b> 진행 · 🟡 ' + cnt.idle + ' 조용 · 🌙 ' + cnt.away + ' 꺼짐 · ⚪ ' + cnt.off + ' 끊김</p><div class="lchips">' + chips + '</div><div class="lcards">' + cards.join('') + '</div>';
   }
   TEACH.tlogin = function () { var v = $('#tpin').value.trim(); $('#tmsg').textContent = '확인 중…'; checkPin(v, function () { sessionStorage.setItem('gastrip.tpin', v); viewTeacher(); }, function (why) { $('#tmsg').innerHTML = '<b class="warn">' + (why || '비밀번호가 달라요.') + '</b>'; }); };
   TEACH.tlogout = function () { var g = isG(); sessionStorage.removeItem('gastrip.tpin'); sessionStorage.removeItem('gastrip.guest'); if (S.profile && S.profile.cls === '0') { S.profile = null; if (!g) save(); } location.hash = ''; location.reload(); };
@@ -1494,6 +1530,7 @@
   function byKey(keys) { return TS.rows.filter(function (r) { return keys.indexOf(r.key) >= 0; }); }
   function students() { var m = {}; TS.rows.forEach(function (r) { var id = r.num; m[id] = m[id] || { num: r.num, name: r.name }; m[id][r.key] = r.val; }); return Object.keys(m).map(function (k) { return m[k]; }).sort(function (a, b) { return a.num - b.num; }); }
   var TVIEW = {
+    live: function () { return '<div class="card"><p class="tiny" id="livemsg">반을 쓰고 ‘불러오기’를 누르면 15초마다 자동으로 갱신돼요. 학생 화면 그림이 아니라 ‘지금 어느 여행지·단계에 있는지’를 보여 줘요.</p><div id="livegrid">' + liveHTML() + '</div></div>'; },
     guide: function () {
       var h = '<div class="card"><h3>9차시 흐름</h3><table class="tbl"><thead><tr><th>차시</th><th>여행지</th><th>성취기준</th><th>받는 도장</th></tr></thead><tbody>';
       T.dests.forEach(function (d) { var st = d.steps.filter(function (s) { return s.stamp; }).map(function (s) { return T.kinds[s.stamp].name; }).join(', '); h += '<tr><td>' + d.period + '</td><td>' + d.icon + ' ' + d.place + '<br><small>' + d.title + '</small></td><td>' + (d.std ? T.stds[d.std].code : '전체') + '</td><td>' + (st || '–') + '</td></tr>'; });
