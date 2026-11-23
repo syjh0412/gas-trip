@@ -438,3 +438,15 @@ a.rk { text-decoration: none; }
 .lcol{max-height:70vh;overflow-y:auto;overscroll-behavior:contain}
 .lcols{align-items:stretch}
 .lcol h4{z-index:1}.lcol .lq{margin:0 0 6px;color:#555}
+
+/* 그래프 점 찍기: 가로 화면에서는 표(왼쪽)와 그래프(오른쪽)를 나란히 */
+@media (orientation: landscape) and (min-width: 900px) {
+  .dsplit { display: grid; grid-template-columns: minmax(250px, 1fr) minmax(0, 2.1fr); gap: 12px; align-items: start; }
+  .dsplit > .card { margin: 0 0 14px; min-width: 0; }
+  .dsplit > .card:first-child { position: sticky; top: 8px; }
+  .dsplit .tbl th, .dsplit .tbl td { padding: 5px 6px; font-size: 14px; }
+  .dsplit .gwrap svg { max-height: calc(100vh - 330px); width: 100%; }
+  .dsplit { scroll-margin-top: 6px; }
+  .dsplit .gmsg { margin: 0 0 6px; padding: 6px 10px; font-size: 16px; }
+  .dsplit > .card { padding-top: 10px; padding-bottom: 10px; } .dsplit h3 { margin: 0 0 6px; }
+}

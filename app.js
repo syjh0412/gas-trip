@@ -1117,7 +1117,7 @@
     }).catch(function () { var m3 = $('#gmsg2b'); if (m3) m3.textContent = '자료를 모으지 못했어요. 잠시 뒤에 다시 눌러 보세요.'; });
   }
   STEP.data = function (d, st, i) { return '<div id="databox"></div>'; };
-  AFTER.data = function (d, st, i) { drawData(d, st, i); };
+  AFTER.data = function (d, st, i) { drawData(d, st, i); var D = S.data[st.kind], ds = $('.dsplit'); if (ds && D && D.locked && D.placed < validRows(D).length && ds.scrollIntoView) setTimeout(function () { ds.scrollIntoView({ block: 'start' }); }, 60); };
   function drawData(d, st, i) {
     var kind = st.kind, K = KIND[kind], D = getData(kind), u = units(kind, D), h = '';
     if (!D.locked) {
@@ -1130,7 +1130,7 @@
       $('#databox').innerHTML = h; sPaint(); return;
     }
     var rows = validRows(D), xi = K.x, yi = K.y;
-    h += '<div class="card"><h3>① ' + (CFG.API_URL && !D.sample && !D.avg ? '내 측정값' : '우리 모둠 자료') + (D.sample ? ' <span class="tag">예시 자료</span>' : '') + (D.avg ? ' <span class="tag">모둠원 ' + (D.gather ? D.gather.members.length : '') + '명 평균</span>' : '') + ' <button class="linkbtn" data-act="unlock">다시 측정하기</button></h3><table class="tbl"><thead><tr><th>번호</th><th>' + K.cols[0] + ' (' + u[0] + ')</th><th>' + K.cols[1] + ' (' + u[1] + ')</th>' + (kind === 'boyle' ? '<th>압력 × 부피</th>' : '') + '</tr></thead><tbody>' +
+    h += '<div class="dsplit"><div class="card"><h3>① ' + (CFG.API_URL && !D.sample && !D.avg ? '내 측정값' : '우리 모둠 자료') + (D.sample ? ' <span class="tag">예시 자료</span>' : '') + (D.avg ? ' <span class="tag">모둠원 ' + (D.gather ? D.gather.members.length : '') + '명 평균</span>' : '') + ' <button class="linkbtn" data-act="unlock">다시 측정하기</button></h3><table class="tbl"><thead><tr><th>번호</th><th>' + K.cols[0] + ' (' + u[0] + ')</th><th>' + K.cols[1] + ' (' + u[1] + ')</th>' + (kind === 'boyle' ? '<th>압력 × 부피</th>' : '') + '</tr></thead><tbody>' +
       rows.map(function (r, j) { return '<tr class="' + (j === D.placed ? 'cur' : '') + '"><td>' + (j + 1) + (j < D.placed ? ' ✓' : '') + '</td><td>' + r[0] + '</td><td>' + r[1] + '</td>' + (kind === 'boyle' ? '<td>' + (+(r[0] * r[1]).toPrecision(3)) + '</td>' : '') + '</tr>'; }).join('') + '</tbody></table></div>';
     var done = D.placed >= rows.length, tr = done && D.trendOK, cur0 = done ? null : rows[D.placed];
     var needG = !!CFG.API_URL && !D.sample, mem = (D.gather && D.gather.members) || [], others = mem.filter(function (m) { return String(m.num) !== String(S.profile.num); });
@@ -1144,7 +1144,7 @@
     h += '<div class="card"><h3>② 그래프에 점 찍기</h3><p id="gmsg" class="gmsg" aria-live="polite">' + gm + '</p>' +
       '<div class="gwrap">' + graphSVG(ax, rows, xi, yi, D.placed, kind, K, u, done, ser) + '</div>' +
       (gs ? '<div class="clegend"><span class="me"><i style="background:#2F4BD8"></i>나</span>' + ser.map(function (q) { return '<span><i style="background:' + q.color + '"></i>' + esc(q.label) + '</span>'; }).join('') + '</div>' : '') +
-      (!done && D.fails >= 3 ? '<button class="btn sm" data-act="autoplace">이 점은 도움 받기</button>' : '') + '</div>';
+      (!done && D.fails >= 3 ? '<button class="btn sm" data-act="autoplace">이 점은 도움 받기</button>' : '') + '</div></div>';
     if (done && needG) {
       h += '<div class="card gath"><h3>③ 모둠원 자료 모으기</h3><p class="tiny" style="margin:0 0 8px">모둠원이 각자 잰 값을 표로 모아요. 모둠원이 ‘표 완성’을 누르면 그 친구의 자료가 올라와요.</p>' +
         (D.group ? '' : '<div class="row3"><label>모둠<input id="dgroup2" inputmode="numeric" maxlength="2" placeholder="예: 3"></label></div>') +
@@ -1445,7 +1445,7 @@
     else if (act === 'lock') {
       readRows(st.kind); var D2 = S.data[st.kind], rows = validRows(D2);
       if (rows.length < 4) { $('#dmsg').innerHTML = '<b class="warn">숫자로 된 측정값이 4개 이상 필요해요.</b> 지금은 ' + rows.length + '개예요.'; return; }
-      D2.locked = true; D2.gshow = 0; D2.placed = 0; D2.fails = 0; D2.missed = 0; D2.miss = null; D2.trendOK = 0; D2.trendPick = null; save(); if (!D2.sample && !D2.avg) sync(st.kind, { group: D2.group, unit: D2.unit, rows: rows, sample: false }); drawData(d, st, i); check(); var gmv = $('#gmsg'); if (gmv && gmv.scrollIntoView) gmv.scrollIntoView({ block: 'start' });
+      D2.locked = true; D2.gshow = 0; D2.placed = 0; D2.fails = 0; D2.missed = 0; D2.miss = null; D2.trendOK = 0; D2.trendPick = null; save(); if (!D2.sample && !D2.avg) sync(st.kind, { group: D2.group, unit: D2.unit, rows: rows, sample: false }); drawData(d, st, i); check(); var gmv = $('.dsplit') || $('#gmsg'); if (gmv && gmv.scrollIntoView) gmv.scrollIntoView({ block: 'start' });
     }
     else if (act === 'unlock') { if (!confirmBox(b, '한 번 더 누르면 표가 비워지고 처음부터 다시 측정해요')) return; var D3 = S.data[st.kind]; D3.locked = false; D3.gshow = 0; D3.placed = 0; D3.sample = false; D3.avg = 0; D3.rows = []; D3.gather = null; D3.trendOK = 0; D3.trendPick = null; D3.miss = null; save(); drawData(d, st, i); check(); }
     else if (act === 'trend') { var D5 = S.data[st.kind], rt = st.kind === 'boyle' ? 'inv' : 'upi'; D5.trendPick = b.dataset.v; if (b.dataset.v === rt) { D5.trendOK = 1; mile('trend.' + st.kind, 4); } save(); drawData(d, st, i); check(); var tb = document.querySelector('.trendopts'); if (tb && D5.trendOK) tb.closest('.card').scrollIntoView({ block: 'start' }); }
