@@ -458,3 +458,4 @@ a.rk { text-decoration: none; }
 .vsplit { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; } .vsplit > div { min-width: 0; }
 @media (min-width: 760px) { .vsplit { grid-template-columns: minmax(230px, 1fr) minmax(0, 1.7fr); } .vsplit .tbl th, .vsplit .tbl td { padding: 5px 6px; font-size: 14px; } }
 .vgwrap { max-width: 720px; margin: 0 auto; }
+.gextra { margin-top: 10px; padding-top: 10px; border-top: 2px dashed #cfd4ea; } .ginx { width: 100%; box-sizing: border-box; font: inherit; padding: 10px 12px; border: 2px solid #c9cfe8; border-radius: 12px; resize: vertical; }
