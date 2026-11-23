@@ -552,11 +552,18 @@
     cur.locked = !ok && !isT() && !(st && st.free && sl.k === 'whole');
     cur.why = sl.k === 'card' ? '노란 빈칸을 모두 눌러 확인하세요' : (sl.k === 'q' || sl.k === 'pq') ? '질문에 답하면 넘어갈 수 있어요' : (st ? TODO[st.type] : '');
     if (sl.k === 'expa' || sl.k === 'expb') cur.why = sl.k === 'expa' ? '실험을 마치면 ‘우리 모둠 실험 완료’를 눌러요' : '질문에 답하고, 설명을 끝까지 보고, 빈칸을 눌러요';
-    if (st && st.type === 'vac' && !ok && vacOwn(d, st, sl.si) && !dataDoneIn(d)) cur.why = '감압 용기는 끝! 이제 실험 바구니를 바꿔 앞 장의 주사기 측정을 끝내야 넘어갈 수 있어요';
+    if (st && !ok && !isT() && (st.type === 'vac' || st.type === 'sim' || st.type === 'pumpsim')) { // 2팀 교대 실험: 한 실험만 끝내도 그 실험의 입자 모형과 '입자로 설명하기'로 갈 수 있다
+      var dd = dataDoneIn(d), vd = vacDoneIn(d), pass = st.type === 'vac' ? (dd ? '주사기 실험을 끝냈으니 넘어가도 돼요. 감압 용기 측정은 실험 바구니를 바꾼 뒤 돌아와서 해요' : '') :
+        st.type === 'sim' ? (vd && !dd ? '감압 용기 팀은 넘어가서 펌프 모형부터 해도 돼요. 주사기 속 입자 모형은 주사기 실험을 한 뒤 돌아와서 해요' : '') :
+        (dd && !vd ? '주사기 팀은 넘어가서 ‘입자로 설명하기’를 해도 돼요. 펌프 모형은 감압 용기 실험을 한 뒤 돌아와서 해요' : '');
+      if (pass) { cur.locked = false; hk.className = 'hintkey lockmsg'; hk.textContent = pass; nx.classList.remove('lock'); nx.setAttribute('aria-disabled', false); return; }
+      if (st.type === 'vac') cur.why = '주사기 실험이나 감압 용기 실험 중 하나를 끝내면 넘어갈 수 있어요';
+    }
     if (st && st.free && sl.k === 'whole' && !ok && !isT()) { var hk0 = $('#hintkey'); if (hk0) { hk0.className = 'hintkey lockmsg'; hk0.textContent = '감압 용기 먼저 하는 팀은 넘어가도 돼요. 주사기 측정은 실험 바구니를 바꾼 뒤 꼭 돌아와서 해요'; } nx.classList.remove('lock'); nx.setAttribute('aria-disabled', false); return; }
     nx.classList.toggle('lock', cur.locked); nx.setAttribute('aria-disabled', cur.locked);
     hk.className = 'hintkey' + (cur.locked ? ' lockmsg' : ok && sl.k !== 'hero' && sl.k !== 'clear' && sl.k !== 'ex' && sl.k !== 'labs' ? ' okmsg' : '');
     hk.textContent = cur.locked ? '🔒 ' + cur.why : (hk.className.indexOf('okmsg') > 0 ? '✓ 완료 · ' : '') + '← → 키 · 밀어서 넘기기';
+    if (st && st.type === 'vac' && ok && !isT() && !dataDoneIn(d)) hk.textContent = '✓ 감압 용기 완료 · 넘어가도 돼요. 주사기 측정은 실험 바구니를 바꾼 뒤 돌아와서 해요';
   }
   var STEP = {}, AFTER = {}, DONE = {}, TODO = {};
   function pfx(d, i) { return d.id + '.' + i + '.'; }
@@ -917,8 +924,9 @@
     }).catch(function () { var m3 = $('#vgmsg'); if (m3) m3.textContent = '자료를 모으지 못했어요. 잠시 뒤에 다시 눌러 보세요.'; });
   }
   function vacOwn(d, st, i) { var V = S.lab.vac; return !!(V && V.rows.length >= 6 && allRight(pfx(d, i), st.items)); }
+  function vacDoneIn(d) { for (var k = 0; k < d.steps.length; k++) if (d.steps[k].type === 'vac') return vacOwn(d, d.steps[k], k); return false; }
   function dataDoneIn(d) { for (var k = 0; k < d.steps.length; k++) if (d.steps[k].type === 'data' && !DONE.data(d, d.steps[k], k)) return false; return true; }
-  DONE.vac = function (d, st, i) { return vacOwn(d, st, i) && dataDoneIn(d); };
+  DONE.vac = function (d, st, i) { return vacOwn(d, st, i); };
   TODO.vac = '펌프질 10번까지(2번마다) 기압을 기록하고 질문에 답해요';
 
   // 펌프 속 입자 모형
