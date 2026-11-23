@@ -1079,7 +1079,14 @@
     list.forEach(function (r) { var k = xKey(kind, r[0]); (by[k] = by[k] || []).push(+r[1]); });
     return Object.keys(by).map(function (k) { var a = by[k]; return [+k, a.reduce(function (t, v) { return t + v; }, 0) / a.length, a.length]; }).sort(function (a, b) { return a[0] - b[0]; });
   }
-  function recOK(v, D) { return v && v.rows && v.rows.length && !v.sample && !v.avg && (!D || v.unit === D.unit); }
+  var UF = { '기압': 1, 'kPa': 101.325, 'hPa': 1013.25 };
+  function gkey(g) { return String(g == null ? '' : g).replace(/모둠|조|\s/g, '').replace(/^0+(?=\d)/, '').toLowerCase(); }
+  function recOK(v, D) { return v && v.rows && v.rows.length && !v.sample && !v.avg && (!D || String(v.unit || '').toLowerCase() === String(D.unit || '').toLowerCase() || (UF[v.unit] && UF[D.unit])); }
+  function normRows(kind, v, D) { // 다른 단위로 올린 압력은 내 단위로 바꿔 준다
+    if (kind !== 'boyle' || !D || v.unit === D.unit || !UF[v.unit] || !UF[D.unit]) return v.rows;
+    var f = UF[D.unit] / UF[v.unit]; return v.rows.map(function (r) { return [r[0], Math.round(r[1] * f * 100) / 100]; });
+  }
+  var GAUTO = {};
   function memberTable(kind, g) {
     var h = '';
       var K = KIND[kind], xs = {}; g.members.forEach(function (m) { m.rows.forEach(function (r) { xs[xKey(kind, r[0])] = 1; }); });
@@ -1098,14 +1105,15 @@
     return h + '</div>';
   }
   function gather(d, st, i) {
-    var kind = st.kind; readRows(kind); var D = S.data[kind], m = $('#gmsg2b'), own = validRows(D);
+    var kind = st.kind; if (!S.data[kind].locked) readRows(kind); var D = S.data[kind], m = $('#gmsg2b'), own = validRows(D);
     if (!D.group) { m.innerHTML = '<b class="warn">먼저 위의 ‘모둠’ 칸에 모둠 번호를 쓰세요.</b>'; var gi = $('#dgroup'); if (gi) gi.focus(); return; }
     m.textContent = '내 값을 올리고 모둠 자료를 모으는 중…';
-    var up = own.length && !D.sample ? tpost({ cls: S.profile.cls, num: S.profile.num, name: S.profile.name, key: kind, val: { group: D.group, unit: D.unit, rows: own, sample: false } }).catch(function () { }) : Promise.resolve();
+    var up = own.length && !D.sample && !D.avg ? tpost({ cls: S.profile.cls, num: S.profile.num, name: S.profile.name, key: kind, val: { group: D.group, unit: D.unit, rows: own, sample: false } }).catch(function () { }) : Promise.resolve();
     up.then(function () { return apiGet({ cls: S.profile.cls, key: kind }); }).then(function (res) {
-      var mem = (res.rows || []).filter(function (r) { return recOK(r.val, D) && String(r.val.group) === String(D.group); }).map(function (r) { return { label: r.num + '번' + (String(r.num) === String(S.profile.num) ? '(나)' : ''), rows: r.val.rows, num: r.num }; }).sort(function (a, b) { return a.num - b.num; });
+      var okr = (res.rows || []).filter(function (r) { return recOK(r.val, D); }), mem = okr.filter(function (r) { return gkey(r.val.group) === gkey(D.group); }).map(function (r) { return { label: r.num + '번' + (String(r.num) === String(S.profile.num) ? '(나)' : ''), rows: normRows(kind, r.val, D), num: r.num }; }).sort(function (a, b) { return a.num - b.num; }), others = {}; okr.forEach(function (r) { var g = String(r.val.group || '(없음)'); if (gkey(g) !== gkey(D.group)) others[g] = (others[g] || 0) + 1; });
       D.gather = { members: mem, t: Date.now() }; save(); drawData(d, st, i);
-      var m2 = $('#gmsg2b'); if (m2) m2.textContent = mem.length ? D.group + '모둠 ' + mem.length + '명의 자료를 모았어요. 아직 안 올린 모둠원이 있으면 잠시 뒤 다시 불러오세요.' : '아직 올라온 자료가 없어요. 표에 측정값을 넣고 다시 눌러 보세요.';
+      var oth = Object.keys(others).length ? ' (다른 모둠 번호로 올라온 자료: ' + Object.keys(others).map(function (g) { return g + '모둠 ' + others[g] + '명'; }).join(', ') + ' — 모둠 번호가 같은지 확인해요.)' : '';
+      var m2 = $('#gmsg2b'); if (m2) m2.textContent = (mem.length ? D.group + '모둠 ' + mem.length + '명의 자료를 모았어요. 아직 안 올린 모둠원이 있으면 모둠원이 ‘표 완성’을 누른 뒤 다시 불러오세요.' : '아직 올라온 자료가 없어요. 표에 측정값을 넣고 다시 눌러 보세요.') + (mem.length < 2 ? oth : '');
     }).catch(function () { var m3 = $('#gmsg2b'); if (m3) m3.textContent = '자료를 모으지 못했어요. 잠시 뒤에 다시 눌러 보세요.'; });
   }
   STEP.data = function (d, st, i) { return '<div id="databox"></div>'; };
@@ -1125,7 +1133,10 @@
     var rows = validRows(D), xi = K.x, yi = K.y;
     h += '<div class="card"><h3>① 우리 모둠 자료' + (D.sample ? ' <span class="tag">예시 자료</span>' : '') + (D.avg ? ' <span class="tag">모둠원 ' + (D.gather ? D.gather.members.length : '') + '명 평균</span>' : '') + ' <button class="linkbtn" data-act="unlock">다시 측정하기</button></h3><table class="tbl"><thead><tr><th>번호</th><th>' + K.cols[0] + ' (' + u[0] + ')</th><th>' + K.cols[1] + ' (' + u[1] + ')</th>' + (kind === 'boyle' ? '<th>압력 × 부피</th>' : '') + '</tr></thead><tbody>' +
       rows.map(function (r, j) { return '<tr class="' + (j === D.placed ? 'cur' : '') + '"><td>' + (j + 1) + (j < D.placed ? ' ✓' : '') + '</td><td>' + r[0] + '</td><td>' + r[1] + '</td>' + (kind === 'boyle' ? '<td>' + (+(r[0] * r[1]).toPrecision(3)) + '</td>' : '') + '</tr>'; }).join('') + '</tbody></table></div>'
-    if (D.avg && D.gather && D.gather.members.length) h += '<div class="card gath"><h3>👥 모둠원별 측정값과 평균</h3><p class="tiny" style="margin:0 0 8px">위 그래프의 점은 모둠원 값의 <b>평균</b>이에요. 누구의 값이 얼마였는지 아래 표에서 비교해 보세요.</p>' + memberTable(kind, D.gather) + '</div>';
+    if (CFG.API_URL && D.group) {
+      h += '<div class="card gath"><h3>👥 모둠원별 측정값</h3><p class="tiny" style="margin:0 0 8px">' + (D.avg ? '위 그래프의 점은 모둠원 값의 <b>평균</b>이에요. ' : '') + '모둠원이 ‘표 완성’을 누를수록 이 표에 자료가 늘어나요.</p><div class="btns"><button class="btn sm" data-act="gather">' + (D.gather ? '다시 불러오기' : '모둠원 자료 보기') + '</button></div><p class="tiny" id="gmsg2b" aria-live="polite"></p>' + (D.gather && D.gather.members.length ? memberTable(kind, D.gather) : '') + '</div>';
+      var gk = kind + '|' + D.group; if (!GAUTO[gk] && !D.sample) { GAUTO[gk] = 1; setTimeout(function () { if ($('#gmsg2b')) gather(d, st, i); }, 50); }
+    }
     var ax = axes(rows, xi, yi, kind), done = D.placed >= rows.length, tr = done && D.trendOK, cur0 = done ? null : rows[D.placed];
     graphSVG.extra = { trend: tr, miss: !done && D.miss ? D.miss : null, guide: !done && D.fails >= 2 ? cur0[xi] : null, guideY: !done && D.fails >= 3 ? cur0[yi] : null };
     var gm = done ? (tr ? '경향선을 그렸어요. 이론값과 비교해 보세요.' : '점을 모두 찍었어요. 이제 점들이 보여 주는 <b>경향</b>을 찾아요.') :
@@ -1471,7 +1482,7 @@
     msg.textContent = (scope === 'grade' ? '1학년 전체' : '우리 반') + ' 자료를 불러오는 중…';
     apiGet({ cls: scope === 'grade' ? 'all' : S.profile.cls, key: kind }).then(function (res) {
       var D = S.data[kind], K = KIND[kind], rows = validRows(D), grp = {};
-      (res.rows || []).forEach(function (r) { var v = r.val; if (!recOK(v, D)) return; var c = scope === 'grade' ? String(r.cls) : String(S.profile.cls), g = v.group ? String(v.group) : r.num + '번', id = c + '|' + g; (grp[id] = grp[id] || { cls: c, group: g, list: [], n: 0 }); grp[id].list = grp[id].list.concat(v.rows); grp[id].n++; });
+      (res.rows || []).forEach(function (r) { var v = r.val; if (!recOK(v, D)) return; var c = scope === 'grade' ? String(r.cls) : String(S.profile.cls), g = v.group ? String(v.group) : r.num + '번', id = c + '|' + g; (grp[id] = grp[id] || { cls: c, group: g, list: [], n: 0 }); grp[id].list = grp[id].list.concat(normRows(kind, v, D)); grp[id].n++; });
       var ids = Object.keys(grp).sort(function (a, b) { var A = grp[a], B = grp[b]; return (A.cls - B.cls) || (parseFloat(A.group) - parseFloat(B.group)) || (A.group < B.group ? -1 : 1); });
       if (!ids.length) { msg.textContent = '아직 올라온 자료가 없어요.'; return; }
       var classes = []; ids.forEach(function (id) { if (classes.indexOf(grp[id].cls) < 0) classes.push(grp[id].cls); });
