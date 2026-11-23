@@ -1260,7 +1260,7 @@
   // 여행 안내 한 줄
   STEP.line = function (d, st) {
     var v = S.lines[d.id] || '', sn = CFG.SNORKL && CFG.SNORKL[d.id];
-    return '<div class="card"><p class="prompt">' + st.prompt + '</p><p class="words">꼭 넣을 말: ' + st.words.map(function (w) { return '<span class="w" data-w="' + w + '">' + w + '</span>'; }).join(' ') + '</p><textarea id="line" rows="4" maxlength="300" placeholder="여기에 써 보세요" aria-label="여행 안내 한 줄">' + esc(v) + '</textarea><div class="btns"><button class="btn pri" data-act="saveline">저장</button>' + (sn ? '<a class="btn" target="_blank" rel="noopener" href="' + esc(sn) + '">스노클에서 말로 설명하기</a>' : '') + '</div><p class="tiny" id="linemsg">' + (v ? '저장되어 있어요. 고쳐서 다시 저장할 수 있어요.' : '15자 이상 써서 저장하면 완료돼요.') + '</p></div>' + (isT() && st.model ? '<div class="card gmodel tmodel"><p class="tiny">🎓 모범답안 (선생님 화면에서만 보여요)</p><p>“' + esc(st.model) + '”</p></div>' : '');
+    return '<div class="card"><p class="prompt">' + st.prompt + '</p><p class="words">꼭 넣을 말: ' + st.words.map(function (w) { return '<span class="w" data-w="' + w + '">' + w + '</span>'; }).join(' ') + '</p><textarea id="line" rows="4" maxlength="300" placeholder="여기에 써 보세요" aria-label="여행 안내 한 줄">' + esc(v) + '</textarea><div class="btns"><button class="btn pri" data-act="saveline">저장</button>' + (sn ? '<a class="btn" target="_blank" rel="noopener" href="' + esc(sn) + '">스노클에서 말로 설명하기</a>' : '') + '</div><p class="tiny" id="linemsg">' + (v ? '저장되어 있어요. 고쳐서 다시 저장할 수 있어요.' : '15자 이상 써서 저장하면 완료돼요.') + '</p></div>' + (isT() && st.model ? '<div class="card gmodel tmodel"><p class="tiny">🎓 모범답안 (선생님 화면에서만 보여요)</p>' + modelHTML(st) + '</div>' : '');
   };
   AFTER.line = function (d, st) { var ta = $('#line'); function mk() { document.querySelectorAll('.words .w').forEach(function (w) { w.classList.toggle('in', ta.value.indexOf(w.dataset.w) >= 0); }); } ta.addEventListener('input', mk); mk(); };
   DONE.line = function (d) { return (S.lines[d.id] || '').trim().length >= 15; };
@@ -1270,6 +1270,7 @@
   function rerender() { var d = cur.dest, si = cur.sl.si, st = d.steps[si], sb = $('#stepbody'); if (!sb) return; sb.innerHTML = STEP[st.type](d, st, si); if (AFTER[st.type]) AFTER[st.type](d, st, si); }
   function syncThink() { sync('think', { gen: S.gen, deb: S.deb, refl: S.refl, big: S.bigtxt }); }
   function genCompose(st, v) { return st.parts.map(function (p, j) { var x = (v[j] || '').trim(); if (!x) return ''; return (p.pre || '') + x + (p.post || ''); }).filter(Boolean).reduce(function (a, x) { if (a && /^왜냐하면/.test(x) && !/[.,]$/.test(a)) a += '.'; return a ? a + ' ' + x : x; }, '').replace(/\s+/g, ' ').replace(/([^.])$/, '$1.').trim(); }
+  function modelHTML(st) { return st.model2 ? '<p><b>문장 1</b> “' + esc(st.model) + '”</p><p><b>문장 2 (다른 조건)</b> “' + esc(st.model2) + '”</p>' : '<p>“' + esc(st.model) + '”</p>'; }
   function genText(g) { return g ? (g.text || (g.parts ? g.parts.join(' ') : '')) : ''; }
   function ownPairs(kind) {
     var D = S.data && S.data[kind]; if (!D) return ''; var r = validRows(D); if (r.length < 2) return '';
@@ -1285,12 +1286,12 @@
     h += '<div class="card"><p class="h4">🔎 증거로 쓸 사례</p><ul class="gcases">' + st.cases.map(function (c) { return '<li>' + esc(c) + '</li>'; }).join('') + (st.own ? ownPairs(st.own) : '') + '</ul></div>';
     h += '<div class="card"><p class="h4">✍️ ' + (tmp ? '사례들에 공통으로 들어맞는 규칙을 한 문장으로 써요' : '모든 사례에 들어맞는 일반화 문장을 써요') + '</p><div class="gparts">' + st.parts.map(function (pt, j) { return '<label class="gpart"><span class="glab">' + (j + 1) + '. ' + esc(pt.lab) + '</span><span class="grow">' + (pt.pre ? '<em>' + esc(pt.pre) + '</em>' : '') + '<input class="gin" data-j="' + j + '" maxlength="120" placeholder="' + esc(pt.ph) + '" value="' + esc(vals[j] || '') + '">' + (pt.post ? '<em>' + esc(pt.post) + '</em>' : '') + '</span></label>'; }).join('') + (st.extra ? '<label class="gpart gextra"><span class="glab">➕ ' + esc(st.extra.lab) + '</span><textarea class="ginx" id="ginx" rows="2" maxlength="240" placeholder="' + esc(st.extra.ph) + '">' + esc(g.extra || '') + '</textarea></label>' : '') + '</div>' +
       '<p class="words">꼭 넣을 말: ' + st.words.map(function (w) { return '<span class="w" data-w="' + w + '">' + w + '</span>'; }).join(' ') + '</p><p class="gprev" id="gprev"></p><div class="btns"><button class="btn pri" data-act="gensave">저장</button>' + ((CFG.SNORKL && CFG.SNORKL[d.id]) ? '<a class="btn" target="_blank" rel="noopener" href="' + esc(CFG.SNORKL[d.id]) + '">스노클에서 말로 설명하기</a>' : '') + '</div><p class="tiny" id="genmsg" aria-live="polite"></p></div>';
-    if (isT()) h += '<div class="card gmodel tmodel"><p class="tiny">🎓 모범답안 (선생님 화면에서만 보여요)</p><p>“' + esc(st.model) + '”</p></div>';
+    if (isT()) h += '<div class="card gmodel tmodel"><p class="tiny">🎓 모범답안 (선생님 화면에서만 보여요)</p>' + modelHTML(st) + '</div>';
     if (g.parts) {
       var ck = g.ck || {}, items = ['개념 두 가지 이상을 이어서 썼다', '증거로 쓴 사례 모두에 들어맞는다'].concat(tmp ? [] : ['입자로 까닭을 설명했다']);
       h += '<div class="card gcheck"><p class="h4">✅ 스스로 점검하고 짝과 비교해요</p>' + items.map(function (t, j) { return '<label class="gck"><input type="checkbox" data-act="genck" data-j="' + j + '"' + (ck[j] ? ' checked' : '') + '> ' + t + '</label>'; }).join('') +
         '<p class="tiny">짝의 문장과 비교해서 빠진 말이 있으면 위 칸을 고쳐 다시 저장해요.</p>' +
-        (g.cmp ? '<div class="gmodel"><p class="tiny">🎓 선배 가이드의 문장 · 내 문장과 무엇이 같고 무엇이 다른가요?</p><p>“' + esc(st.model) + '”</p></div>' : '<button class="btn" data-act="gencmp"' + (Object.keys(ck).filter(function (k) { return ck[k]; }).length < items.length ? ' disabled' : '') + '>선배 가이드의 문장과 비교하기</button>') + '</div>';
+        (g.cmp ? '<div class="gmodel"><p class="tiny">🎓 선배 가이드의 문장 · 내 문장과 무엇이 같고 무엇이 다른가요?</p>' + modelHTML(st) + '</div>' : '<button class="btn" data-act="gencmp"' + (Object.keys(ck).filter(function (k) { return ck[k]; }).length < items.length ? ' disabled' : '') + '>선배 가이드의 문장과 비교하기</button>') + '</div>';
     }
     return h;
   };
