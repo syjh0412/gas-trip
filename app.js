@@ -473,9 +473,13 @@
     return mine + '<article class="bigcard sumcard"><h3>오늘 배운 것</h3><ol>' + d.sum.map(function (l) { return '<li>' + esc(l).replace(/\[([^\]]+)\]/g, function (m, w) { return done ? '<b class="blank on">' + w + '</b>' : '<b class="blank" data-act="sblank" role="button" tabindex="0">' + w + '</b>'; }) + '</li>'; }).join('') + '</ol>' + (done ? '' : '<p class="tiny">노란 칸을 눌러 확인해요.</p>') + '</article>';
   }
   function isDone(d, i) { return !!(S.done[d.id] && S.done[d.id][i]); }
+  function stepOrder(d) { // 'after'가 있는 단계는 그 번호 단계 바로 뒤에 보여 준다 (단계 번호 자체는 그대로)
+    var o = []; d.steps.forEach(function (st, si) { if (st.after == null) { o.push(si); d.steps.forEach(function (s2, j) { if (s2.after === si) o.push(j); }); } }); return o;
+  }
+  function ckey(d, st) { return d.id + (st && st.ck ? '.' + st.ck : ''); }
   function buildSlides(d) {
     var a = [{ k: 'hero' }];
-    d.steps.forEach(function (st, si) {
+    stepOrder(d).forEach(function (si) { var st = d.steps[si];
       if (st.type === 'predict') st.items.forEach(function (it, j) { a.push({ k: 'q', si: si, j: j, n: st.items.length }); });
       else if (st.type === 'cards') { st.cards.forEach(function (c, j) { a.push({ k: 'card', si: si, j: j, n: st.cards.length }); }); if (st.examples) a.push({ k: 'ex', si: si }); if (st.labs) a.push({ k: 'labs', si: si }); }
       else if (st.type === 'quiz') st.ids.forEach(function (id, j) { a.push({ k: 'pq', si: si, j: j, id: id, n: st.ids.length }); });
@@ -552,10 +556,10 @@
     cur.locked = !ok && !isT() && !(st && st.free && sl.k === 'whole');
     cur.why = sl.k === 'card' ? '노란 빈칸을 모두 눌러 확인하세요' : (sl.k === 'q' || sl.k === 'pq') ? '질문에 답하면 넘어갈 수 있어요' : (st ? TODO[st.type] : '');
     if (sl.k === 'expa' || sl.k === 'expb') cur.why = sl.k === 'expa' ? '실험을 마치면 ‘우리 모둠 실험 완료’를 눌러요' : '질문에 답하고, 설명을 끝까지 보고, 빈칸을 눌러요';
-    if (st && !ok && !isT() && (st.type === 'vac' || st.type === 'sim' || st.type === 'pumpsim')) { // 2팀 교대 실험: 한 실험만 끝내도 그 실험의 입자 모형과 '입자로 설명하기'로 갈 수 있다
+    if (st && !ok && !isT() && (st.type === 'vac' || st.team)) { // 2팀 교대 실험: 한 실험만 끝내도 그 실험의 입자 모형과 '입자로 설명하기'로 갈 수 있다
       var dd = dataDoneIn(d), vd = vacDoneIn(d), pass = st.type === 'vac' ? (dd ? '주사기 실험을 끝냈으니 넘어가도 돼요. 감압 용기 측정은 실험 바구니를 바꾼 뒤 돌아와서 해요' : '') :
-        st.type === 'sim' ? (vd && !dd ? '감압 용기 팀은 넘어가서 펌프 모형부터 해도 돼요. 주사기 속 입자 모형은 주사기 실험을 한 뒤 돌아와서 해요' : '') :
-        (dd && !vd ? '주사기 팀은 넘어가서 ‘입자로 설명하기’를 해도 돼요. 펌프 모형은 감압 용기 실험을 한 뒤 돌아와서 해요' : '');
+        st.team === 'syr' ? (vd && !dd ? '감압 용기 팀은 넘어가서 펌프 모형부터 해도 돼요. 주사기 쪽 모형과 설명은 주사기 실험을 한 뒤 돌아와서 해요' : '') :
+        (dd && !vd ? '주사기 팀은 넘어가도 돼요. 펌프 쪽 모형과 설명은 감압 용기 실험을 한 뒤 돌아와서 해요' : '');
       if (pass) { cur.locked = false; hk.className = 'hintkey lockmsg'; hk.textContent = pass; nx.classList.remove('lock'); nx.setAttribute('aria-disabled', false); return; }
       if (st.type === 'vac') cur.why = '주사기 실험이나 감압 용기 실험 중 하나를 끝내면 넘어갈 수 있어요';
     }
@@ -1239,7 +1243,7 @@
 
   // 입자로 설명하기 (변화 사슬)
   STEP.chain = function (d, st, i) {
-    var C = S.chain[d.id] = S.chain[d.id] || { sel: [], ok: false };
+    var C = S.chain[ckey(d, st)] = S.chain[ckey(d, st)] || { sel: [], ok: false };
     var h = '<div class="card chain"><p class="scene"><b>상황</b> ' + st.scene + '</p><ol class="links">';
     st.slots.forEach(function (sl, j) {
       h += '<li><span class="ll">' + sl.label + '</span><div class="copts">' + sl.opts.map(function (o, k) {
@@ -1250,7 +1254,7 @@
     h += '</ol>' + (C.ok ? '<p class="fb ok"><b>설명이 완성됐어요.</b> 위에서부터 이어서 소리 내어 읽어 보세요.</p>' : '<button class="btn pri" data-act="chaincheck">설명 확인하기</button>' + (C.checked ? '<p class="fb no">빨간 칸을 다시 골라 보세요. 입자의 수와 크기는 변하지 않는다는 점을 떠올려요.</p>' : '')) + '</div>';
     return h;
   };
-  DONE.chain = function (d) { return !!(S.chain[d.id] && S.chain[d.id].ok); };
+  DONE.chain = function (d, st) { var C = S.chain[ckey(d, st)]; return !!(C && C.ok); };
   TODO.chain = '네 칸을 모두 골라 설명을 완성해요';
 
   // 여행 안내 한 줄
@@ -1473,9 +1477,9 @@
       DA.rows = av.map(function (r) { return [String(r[0]), String(+r[1].toFixed(2))]; }); DA.avg = 1; DA.sample = false;
       DA.locked = true; DA.placed = 0; DA.fails = 0; DA.missed = 0; DA.miss = null; DA.trendOK = 0; DA.trendPick = null; save(); drawData(d, st, i); check(); window.scrollTo(0, 0); var sb2 = $('#stgbody'); if (sb2) sb2.scrollTop = 0;
     }
-    else if (act === 'chain') { var C = S.chain[d.id]; C.sel[+b.dataset.j] = +b.dataset.k; C.checked = false; save(); $('#stepbody').innerHTML = STEP.chain(d, st, i); }
+    else if (act === 'chain') { var C = S.chain[ckey(d, st)]; C.sel[+b.dataset.j] = +b.dataset.k; C.checked = false; save(); $('#stepbody').innerHTML = STEP.chain(d, st, i); }
     else if (act === 'chaincheck') {
-      var C2 = S.chain[d.id];
+      var C2 = S.chain[ckey(d, st)];
       if (st.slots.some(function (s, j) { return C2.sel[j] == null; })) { toast('<p>네 칸을 모두 골라요.</p>'); return; }
       C2.checked = true; C2.ok = st.slots.every(function (s, j) { return C2.sel[j] === s.a; }); save();
       $('#stepbody').innerHTML = STEP.chain(d, st, i); if (C2.ok) sync('chain', S.chain); check();
