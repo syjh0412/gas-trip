@@ -894,10 +894,11 @@
         var mx = 0; G.forEach(function (m) { m.rows.forEach(function (r) { mx = Math.max(mx, r[0]); }); });
         var av = []; for (var k = 0; k <= mx; k++) { var vs = G.map(function (m) { var c = m.rows.filter(function (r) { return r[0] === k; })[0]; return c ? c[1] : null; }).filter(function (v) { return v != null; }); if (vs.length) av.push([k, vs.reduce(function (t, v) { return t + v; }, 0) / vs.length, vs.length]); }
         var ser = G.map(function (m, j) { return { rows: m.rows, color: GCOL[j % GCOL.length], label: m.label }; });
-        gb.innerHTML = '<h4 class="gh4">' + esc(String(V.group)) + '모둠 ' + G.length + '명 비교</h4><div class="vsplit"><div><div class="scroll"><table class="tbl gtab"><thead><tr><th>펌프질 횟수</th>' + G.map(function (m) { return '<th>' + esc(m.label) + '</th>'; }).join('') + '<th class="avg">평균</th></tr></thead><tbody>' +
-          av.map(function (r) { return '<tr><td>' + (r[0] ? r[0] + '번' : '처음') + '</td>' + G.map(function (m) { var c = m.rows.filter(function (x) { return x[0] === r[0]; })[0]; return '<td>' + (c ? c[1].toFixed(2) : '–') + '</td>'; }).join('') + '<td class="avg">' + r[1].toFixed(2) + '</td></tr>'; }).join('') + '</tbody></table></div></div><div>' + vacGraph(av.map(function (r) { return [r[0], r[1]]; }), ser) +
-          '<div class="clegend">' + ser.map(function (q) { return '<span><i style="background:' + q.color + '"></i>' + esc(q.label) + '</span>'; }).join('') + '<span><i style="background:#2F4BD8"></i><b>모둠 평균</b></span></div></div></div>' +
-          '<div class="btns"><button class="btn sm" data-act="vmine">모둠 비교 닫기</button></div>';
+        gb.innerHTML = '<h4 class="gh4">' + esc(String(V.group)) + '모둠 ' + G.length + '명의 기록</h4><div class="scroll"><table class="tbl gtab"><thead><tr><th>펌프질 횟수</th>' + G.map(function (m) { return '<th>' + esc(m.label) + '</th>'; }).join('') + '<th class="avg">평균</th></tr></thead><tbody>' +
+          av.map(function (r) { return '<tr><td>' + (r[0] ? r[0] + '번' : '처음') + '</td>' + G.map(function (m) { var c = m.rows.filter(function (x) { return x[0] === r[0]; })[0]; return '<td>' + (c ? c[1].toFixed(2) : '–') + '</td>'; }).join('') + '<td class="avg">' + r[1].toFixed(2) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
+          (V.gshow ? '<h4 class="gh4" id="vgg">📈 우리 모둠 그래프 <small>모둠원마다 다른 색 · 파란 선은 모둠 평균</small></h4><div class="vgwrap">' + vacGraph(av.map(function (r) { return [r[0], r[1]]; }), ser) + '</div>' +
+            '<div class="clegend">' + ser.map(function (q) { return '<span><i style="background:' + q.color + '"></i>' + esc(q.label) + '</span>'; }).join('') + '<span><i style="background:#2F4BD8"></i><b>모둠 평균</b></span></div>' : '') +
+          '<div class="btns">' + (V.gshow ? '' : '<button class="btn pri" data-act="vgshow">📈 그래프 불러오기 · 모둠 그래프 열기</button>') + '<button class="btn sm" data-act="vmine">모둠 자료 닫기</button></div>';
       } else gb.innerHTML = '';
     }
     $('#vacq').innerHTML = rows.length >= 6 ? itemsHTML(d, st, i, 'retry') : '<p class="hint">펌프질 ' + (5 * VSTEP) + '번까지(기록 6개) 하면 질문이 나와요. (지금 기록 ' + rows.length + '개)</p>';
@@ -1413,7 +1414,8 @@
     else if (act === 'vrec') { var vk = sNow(); if (vk == null) return; vacPush(vk / 101.325); drawVac(d, st, i); check(); }
     else if (act === 'vadd') { var vi = $('#vacin'), vv2 = parseFloat(vi.value); if (!(vv2 > 0 && vv2 < 1.3)) { chip('0에서 1.3 사이의 기압을 써요'); return; } vacPush(vv2); vi.value = ''; drawVac(d, st, i); check(); }
     else if (act === 'vgather') vGather(d, st, i);
-    else if (act === 'vmine') { vacS().gather = null; save(); drawVac(d, st, i); }
+    else if (act === 'vmine') { vacS().gather = null; vacS().gshow = 0; save(); drawVac(d, st, i); }
+    else if (act === 'vgshow') { vacS().gshow = 1; save(); drawVac(d, st, i); var vg = $('#vgg'); if (vg && vg.scrollIntoView) vg.scrollIntoView({ block: 'start' }); }
     else if (act === 'vundo') { vacS().rows.pop(); save(); drawVac(d, st, i); check(); }
     else if (act === 'vclear') { if (!confirmBox(b, '한 번 더 누르면 기록이 모두 지워져요')) return; var VV = vacS(); VV.rows = []; VV.sample = false; save(); b.removeAttribute('data-sure'); b.textContent = '처음부터 다시'; drawVac(d, st, i); check(); }
     else if (act === 'vsample') { var VS = vacS(); VS.rows = VACS.map(function (r) { return r.slice(); }); VS.sample = true; save(); drawVac(d, st, i); check(); }
