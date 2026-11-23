@@ -1485,7 +1485,7 @@
     if (!CFG.API_URL) return (v === String(CFG.TEACHER_PIN || '0000') ? ok : bad)();
     tpost({ action: 'rows', pin: v }).then(function (r) { (r && !r.error ? ok : bad)(); }).catch(function () { bad('서버에 연결하지 못했어요.'); });
   }
-  var TEACH = {}, TS = { tab: 'guide', rows: null, cls: '', msg: '', all: null, allBusy: false, allErr: '', lp: '', lc: '' };
+  var TEACH = {}, TS = { tab: 'guide', rows: null, cls: '', msg: '', all: null, allBusy: false, allErr: '', lcls: '', lk: '' };
   function viewTeacher() {
     cur = { dest: null, step: 0 };
     var okPin = sessionStorage.getItem('gastrip.tpin');
@@ -1506,8 +1506,8 @@
     tpost({ action: 'rows', cls: 'all', pin: sessionStorage.getItem('gastrip.tpin') }).then(function (res) { if (res.error) throw new Error(res.error); TS.all = res.rows || []; }).catch(function (e) { TS.allErr = '불러오지 못했어요. (' + e.message + ')'; }).then(function () { TS.allBusy = false; if (TS.tab === 'lines') viewTeacher(); });
   }
   TEACH.lreload = function () { TS.all = null; TS.allErr = ''; viewTeacher(); };
-  TEACH.lptab = function (b) { TS.lp = b.dataset.p; TS.lc = ''; viewTeacher(); };
-  TEACH.lctab = function (b) { TS.lc = b.dataset.c; viewTeacher(); };
+  TEACH.lcls = function (b) { TS.lcls = b.dataset.c; viewTeacher(); };
+  TEACH.lkind = function (b) { TS.lk = b.dataset.k; viewTeacher(); };
   function linePeriods() {
     var out = [];
     T.dests.forEach(function (d) {
@@ -1530,24 +1530,24 @@
     if (k === 'big') return th.big ? esc(th.big) : '';
     return '';
   }
+  var LKINDS = [['gen', '일반화·규칙 문장'], ['deb', '생각 나누기'], ['refl', '돌아보기'], ['line', '여행 안내 한 줄'], ['big', '큰 생각 잇기']];
   function linesView() {
     var h = '<div class="card"><button class="btn sm" data-act="lreload">다시 불러오기</button> <span class="tiny">' + (TS.allBusy ? '모든 반 글을 불러오는 중…' : esc(TS.allErr || (TS.all ? '모든 반 글을 한꺼번에 불러왔어요. (' + students(TS.all).length + '명 기록)' : ''))) + '</span></div>';
     if (!CFG.API_URL) return h + '<div class="card"><p class="tiny">학생 글을 모으려면 ‘설정 방법’ 탭의 구글 시트 연결이 필요해요.</p></div>';
     if (!TS.all) return h;
-    var P = linePeriods(), p = P.filter(function (x) { return x.id === TS.lp; })[0] || P[0], it = p.items.filter(function (x) { return x.k === TS.lc; })[0] || p.items[0];
     var all = students(TS.all).filter(function (s) { var c = Number(s.cls); return c >= 1 && c <= 20; }), cls = ['1', '2', '3', '4'];
     all.forEach(function (s) { if (cls.indexOf(s.cls) < 0) cls.push(s.cls); }); cls.sort(function (a, b) { return a - b; });
-    h += '<nav class="ttabs">' + P.map(function (x) { return '<button data-act="lptab" data-p="' + x.id + '" class="' + (x.id === p.id ? 'on' : '') + '">' + x.label + '</button>'; }).join('') + '</nav>';
-    h += '<nav class="ttabs sub">' + p.items.map(function (x) { return '<button data-act="lctab" data-c="' + x.k + '" class="' + (x.k === it.k ? 'on' : '') + '">' + x.label + '</button>'; }).join('') + '</nav>';
-    h += '<div class="card"><p class="tiny">🧭 ' + esc(it.q) + '</p></div>';
-    var cnt = it.opts ? it.opts.map(function () { return 0; }) : null;
-    var cols = cls.map(function (c) {
-      var li = '', n = 0;
-      all.filter(function (s) { return s.cls === c; }).forEach(function (s) { var t = lineText(s, p.id, it.k, it); if (!t) return; n++; if (cnt) { var v = s.think && s.think.deb && s.think.deb[p.id]; if (v && v.pick != null) cnt[v.pick]++; } li += '<li><b>' + esc(s.num) + ' ' + esc(s.name) + '</b> ' + t + '</li>'; });
-      return '<section class="lcol"><h4>' + esc(c) + '반 <small>' + n + '명</small></h4><ul class="plain">' + (li || '<li class="none">아직 없어요.</li>') + '</ul></section>';
+    var cc = cls.indexOf(TS.lcls) >= 0 ? TS.lcls : cls[0], kk = LKINDS.filter(function (x) { return x[0] === TS.lk; })[0] || LKINDS[0], k = kk[0];
+    h += '<nav class="ttabs">' + cls.map(function (c) { return '<button data-act="lcls" data-c="' + c + '" class="' + (c === cc ? 'on' : '') + '">' + c + '반</button>'; }).join('') + '</nav>';
+    h += '<nav class="ttabs sub">' + LKINDS.map(function (x) { return '<button data-act="lkind" data-k="' + x[0] + '" class="' + (x[0] === k ? 'on' : '') + '">' + x[1] + '</button>'; }).join('') + '</nav>';
+    var mine = all.filter(function (s) { return s.cls === cc; });
+    var P = linePeriods().map(function (p) { return { p: p, it: p.items.filter(function (x) { return x.k === k; })[0] }; }).filter(function (x) { return x.it; });
+    var cols = P.map(function (x) {
+      var p = x.p, it = x.it, li = '', n = 0, cnt = it.opts ? it.opts.map(function () { return 0; }) : null;
+      mine.forEach(function (s) { var t = lineText(s, p.id, k, it); if (!t) return; n++; if (cnt) { var v = s.think && s.think.deb && s.think.deb[p.id]; if (v && v.pick != null) cnt[v.pick]++; } li += '<li><b>' + esc(s.num) + ' ' + esc(s.name) + '</b> ' + t + '</li>'; });
+      return '<section class="lcol"><h4>' + p.label + ' <small>' + n + '명</small></h4><p class="tiny lq">🧭 ' + esc(it.q) + '</p>' + (cnt ? '<p class="tiny">' + it.opts.map(function (o, j) { return esc(o) + ' ' + cnt[j] + '명'; }).join(' · ') + '</p>' : '') + '<ul class="plain">' + (li || '<li class="none">아직 없어요.</li>') + '</ul></section>';
     });
-    if (cnt) h += '<p class="tiny">' + it.opts.map(function (o, j) { return esc(o) + ' ' + cnt[j] + '명'; }).join(' · ') + '</p>';
-    return h + '<div class="lcols" style="--n:' + cls.length + '">' + cols.join('') + '</div>';
+    return h + '<div class="lcols" style="--n:' + cols.length + '">' + cols.join('') + '</div>';
   }
   function liveRefresh() {
     if (!$('#livegrid')) { clearInterval(LIVE_T); return; }

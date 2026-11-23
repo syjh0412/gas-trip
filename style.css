@@ -437,3 +437,4 @@ a.rk { text-decoration: none; }
 /* 학생 글: 컬럼마다 따로 스크롤 */
 .lcol{max-height:70vh;overflow-y:auto;overscroll-behavior:contain}
 .lcols{align-items:stretch}
+.lcol h4{z-index:1}.lcol .lq{margin:0 0 6px;color:#555}
