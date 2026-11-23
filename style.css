@@ -451,4 +451,5 @@ a.rk { text-decoration: none; }
   .dsplit > .card { padding-top: 10px; padding-bottom: 10px; } .dsplit h3 { margin: 0 0 6px; }
 }
 .gh4 { margin: 16px 0 6px; scroll-margin-top: 8px; } .gh4 small { font-weight: 400; color: #555; font-size: 13px; }
-#cgraph { scroll-margin-top: 8px; } .gwrap3 circle.gc { stroke: #fff; stroke-width: 1; }
+.cpair { scroll-margin-top: 8px; display: grid; grid-template-columns: 1fr; gap: 12px; } .cpair > div { min-width: 0; } .cpair > div:empty { display: none; }
+@media (min-width: 900px) { .cpair { grid-template-columns: 1fr 1fr; } .cpair > div:empty { display: block; } .cpair .gh4 { margin-top: 10px; font-size: 16px; } } .gwrap3 svg { width: 100%; height: auto; } .gwrap3 circle.gc { stroke: #fff; stroke-width: 1; }
