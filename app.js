@@ -1136,27 +1136,26 @@
     var needG = !!CFG.API_URL && !D.sample, mem = (D.gather && D.gather.members) || [], others = mem.filter(function (m) { return String(m.num) !== String(S.profile.num); });
     var gs = done && needG && D.gshow && others.length > 0, ser = gs ? others.map(function (m, j) { return { rows: m.rows, color: GCOL[j % GCOL.length], label: m.label }; }) : null;
     var allp = gs ? rows.concat.apply(rows, others.map(function (m) { return m.rows; })) : rows, showT = done && (!needG || D.gshow || D.trendOK);
-    var ax = axes(allp, xi, yi, kind), n3 = needG ? '④' : '③', n4 = needG ? '⑤' : '④';
-    graphSVG.extra = { trend: tr, trendRows: gs ? allp : null, miss: !done && D.miss ? D.miss : null, guide: !done && D.fails >= 2 ? cur0[xi] : null, guideY: !done && D.fails >= 3 ? cur0[yi] : null };
-    var gm = done ? (tr ? '경향선을 그렸어요. 이론값과 비교해 보세요.' : !showT ? '내 점을 모두 찍었어요. 아래 <b>③</b>에서 모둠원 자료를 모으고, 그래프로 불러와요.' : gs ? '모둠원 ' + others.length + '명의 점을 함께 나타냈어요. 이제 점들이 보여 주는 <b>경향</b>을 찾아요.' : '점을 모두 찍었어요. 이제 점들이 보여 주는 <b>경향</b>을 찾아요.') :
+    var ax = axes(rows, xi, yi, kind), n3 = needG ? '④' : '③', n4 = needG ? '⑤' : '④';
+    graphSVG.extra = { trend: tr && !gs, miss: !done && D.miss ? D.miss : null, guide: !done && D.fails >= 2 ? cur0[xi] : null, guideY: !done && D.fails >= 3 ? cur0[yi] : null };
+    var gm = done ? (tr ? (gs ? '경향선은 아래 <b>모둠 그래프</b>에 그렸어요. 이론값과 비교해 보세요.' : '경향선을 그렸어요. 이론값과 비교해 보세요.') : !showT ? '내 점을 모두 찍었어요. 아래 <b>③</b>에서 모둠원 자료를 모으고, 그래프로 불러와요.' : gs ? '내 그래프를 완성했어요. 아래 <b>모둠 그래프</b>에서 모두의 점을 보고 <b>경향</b>을 찾아요.' : '점을 모두 찍었어요. 이제 점들이 보여 주는 <b>경향</b>을 찾아요.') :
       D.fails ? '<b class="warn">그 자리가 아니에요.</b> 점 찍을 위치를 다시 확인해 보세요. 가로축에서 <b>' + cur0[xi] + '</b>을(를) 먼저 찾고, 그 위로 올라가 세로축 <b>' + cur0[yi] + '</b> 높이를 눌러요.' + (D.fails >= 2 ? ' (분홍 점선이 가로축 ' + cur0[xi] + '의 자리예요.)' : '') :
       '<b>' + (D.placed + 1) + '번</b> 자료 (' + K.cols[xi] + ' ' + cur0[xi] + ', ' + K.cols[yi] + ' ' + cur0[yi] + ')의 자리를 그래프에서 눌러 보세요.';
     h += '<div class="card"><h3>② 그래프에 점 찍기</h3><p id="gmsg" class="gmsg" aria-live="polite">' + gm + '</p>' +
-      '<div class="gwrap">' + graphSVG(ax, rows, xi, yi, D.placed, kind, K, u, done, ser) + '</div>' +
-      (gs ? '<div class="clegend"><span class="me"><i style="background:#2F4BD8"></i>나</span>' + ser.map(function (q) { return '<span><i style="background:' + q.color + '"></i>' + esc(q.label) + '</span>'; }).join('') + '</div>' : '') +
+      '<div class="gwrap">' + graphSVG(ax, rows, xi, yi, D.placed, kind, K, u, done, null) + '</div>' +
       (!done && D.fails >= 3 ? '<button class="btn sm" data-act="autoplace">이 점은 도움 받기</button>' : '') + '</div></div>';
     if (done && needG) {
       h += '<div class="card gath"><h3>③ 모둠원 자료 모으기</h3><p class="tiny" style="margin:0 0 8px">모둠원이 각자 잰 값을 표로 모아요. 모둠원이 ‘표 완성’을 누르면 그 친구의 자료가 올라와요.</p>' +
         (D.group ? '' : '<div class="row3"><label>모둠<input id="dgroup2" inputmode="numeric" maxlength="2" placeholder="예: 3"></label></div>') +
         '<div class="btns"><button class="btn ' + (D.gather ? 'sm' : 'pri') + '" data-act="gather">' + (D.gather ? '표 다시 불러오기' : '모둠원 자료 모으기') + '</button></div><p class="tiny" id="gmsg2b" aria-live="polite"></p>' +
         (mem.length ? memberTable(kind, D.gather) : '') +
-        (D.gather ? (D.gshow ? '<p class="tiny">' + (others.length ? '✓ 모둠원 ' + others.length + '명의 점을 위 그래프에 나타냈어요. 표를 다시 불러오면 그래프도 함께 바뀌어요.' : '모둠원 자료 없이 내 자료로 계속해요. 모둠원 자료가 올라오면 ‘표 다시 불러오기’를 눌러요.') + '</p>' :
-          '<div class="btns"><button class="btn pri" data-act="gshow">' + (others.length ? '📈 그래프 불러오기 · 모둠원 점 나타내기' : '모둠원 자료 없이 계속하기') + '</button></div>') : '') + '</div>';
+        (D.gather ? (D.gshow ? (gs ? (function () { graphSVG.extra = { trend: tr, trendRows: allp }; return '<h4 class="gh4">📈 우리 모둠 그래프 <small>내 점(파랑)과 모둠원 ' + others.length + '명의 점</small></h4><div class="gwrap gwrap2">' + graphSVG(axes(allp, xi, yi, kind), rows, xi, yi, rows.length, kind, K, u, true, ser).replace('id="gsvg"', 'id="gsvg2"') + '</div><div class="clegend"><span class="me"><i style="background:#2F4BD8"></i>나</span>' + ser.map(function (q) { return '<span><i style="background:' + q.color + '"></i>' + esc(q.label) + '</span>'; }).join('') + '</div><p class="tiny">' + (tr ? '경향선은 내 점과 모둠원 점 모두를 보고 그렸어요.' : '표를 다시 불러오면 이 그래프도 함께 바뀌어요. 아래 ④에서 경향선을 그려요.') + '</p>'; })() : '<p class="tiny">모둠원 자료 없이 내 자료로 계속해요. 모둠원 자료가 올라오면 ‘표 다시 불러오기’를 눌러요.</p>') :
+          '<div class="btns"><button class="btn pri" data-act="gshow">' + (others.length ? '📈 그래프 불러오기 · 모둠 그래프 열기' : '모둠원 자료 없이 계속하기') + '</button></div>') : '') + '</div>';
       var gk = kind + '|' + D.group; if (D.group && !GAUTO[gk]) { GAUTO[gk] = 1; setTimeout(function () { if ($('#gmsg2b')) gather(d, st, i); }, 50); }
     }
     if (showT) {
       var right = kind === 'boyle' ? 'inv' : 'upi', topts = [['upi', '오른쪽 위로 곧게 올라간다'], ['down', '오른쪽 아래로 곧게 내려간다'], ['inv', '오른쪽 아래로 휘어지며 내려간다'], ['flat', '가로로 평평하다']];
-      h += '<div class="card"><h3>' + n3 + ' 경향선 그리기</h3><p>' + (gs ? '내 점과 모둠원의 점을 모두 함께 보세요. ' : '') + '그래프는 점을 찍는 것으로 끝나지 않아요. 점 하나하나보다 <b>점들이 모여서 보여 주는 모양(경향)</b>이 중요해요. 점들은 어떤 선을 따라 놓여 있나요?</p>' +
+      h += '<div class="card"><h3>' + n3 + ' 경향선 그리기</h3><p>' + (gs ? '위 <b>모둠 그래프</b>에서 내 점과 모둠원의 점을 모두 함께 보세요. 알맞은 모양을 고르면 모둠 그래프에 경향선이 그려져요. ' : '') + '그래프는 점을 찍는 것으로 끝나지 않아요. 점 하나하나보다 <b>점들이 모여서 보여 주는 모양(경향)</b>이 중요해요. 점들은 어떤 선을 따라 놓여 있나요?</p>' +
         '<div class="opts figs trendopts">' + topts.map(function (o) { var c = 'opt' + (D.trendPick === o[0] ? (o[0] === right ? ' ok' : ' no') : ''); return '<button class="' + c + '" data-act="trend" data-v="' + o[0] + '"' + (tr ? ' disabled' : '') + '>' + figSVG(o[0], K.cols[xi], K.cols[yi]) + '<span class="tl">' + o[1] + '</span></button>'; }).join('') + '</div>' +
         (D.trendPick && !tr ? '<p class="fb no">점들을 한 번 더 보세요. 점 몇 개만 보지 말고 처음부터 끝까지 어떻게 이어지는지 손가락으로 따라가 보세요.</p>' : '');
       if (tr) {
@@ -1448,12 +1447,12 @@
       D2.locked = true; D2.gshow = 0; D2.placed = 0; D2.fails = 0; D2.missed = 0; D2.miss = null; D2.trendOK = 0; D2.trendPick = null; save(); if (!D2.sample && !D2.avg) sync(st.kind, { group: D2.group, unit: D2.unit, rows: rows, sample: false }); drawData(d, st, i); check(); var gmv = $('.dsplit') || $('#gmsg'); if (gmv && gmv.scrollIntoView) gmv.scrollIntoView({ block: 'start' });
     }
     else if (act === 'unlock') { if (!confirmBox(b, '한 번 더 누르면 표가 비워지고 처음부터 다시 측정해요')) return; var D3 = S.data[st.kind]; D3.locked = false; D3.gshow = 0; D3.placed = 0; D3.sample = false; D3.avg = 0; D3.rows = []; D3.gather = null; D3.trendOK = 0; D3.trendPick = null; D3.miss = null; save(); drawData(d, st, i); check(); }
-    else if (act === 'trend') { var D5 = S.data[st.kind], rt = st.kind === 'boyle' ? 'inv' : 'upi'; D5.trendPick = b.dataset.v; if (b.dataset.v === rt) { D5.trendOK = 1; mile('trend.' + st.kind, 4); } save(); drawData(d, st, i); check(); var tb = document.querySelector('.trendopts'); if (tb && D5.trendOK) tb.closest('.card').scrollIntoView({ block: 'start' }); }
+    else if (act === 'trend') { var D5 = S.data[st.kind], rt = st.kind === 'boyle' ? 'inv' : 'upi'; D5.trendPick = b.dataset.v; if (b.dataset.v === rt) { D5.trendOK = 1; mile('trend.' + st.kind, 4); } save(); drawData(d, st, i); check(); var tb = $('.gh4') || (document.querySelector('.trendopts') && document.querySelector('.trendopts').closest('.card')); if (tb && D5.trendOK) tb.scrollIntoView({ block: 'start' }); }
     else if (act === 'autoplace') { var D4 = S.data[st.kind]; D4.placed++; D4.fails = 0; D4.missed = 1; D4.miss = null; save(); drawData(d, st, i); check(); }
     else if (act === 'classdata') { classData(st.kind, 'class'); }
     else if (act === 'gradedata') { classData(st.kind, 'grade'); }
     else if (act === 'gather') { gather(d, st, i); }
-    else if (act === 'gshow') { var DG = S.data[st.kind]; DG.gshow = 1; save(); drawData(d, st, i); check(); var gw = $('#gmsg'); if (gw && gw.scrollIntoView) gw.scrollIntoView({ block: 'start' }); }
+    else if (act === 'gshow') { var DG = S.data[st.kind]; DG.gshow = 1; save(); drawData(d, st, i); check(); var gw = $('.gh4') || $('#gmsg'); if (gw && gw.scrollIntoView) gw.scrollIntoView({ block: 'start' }); }
     else if (act === 'useavg') {
       var DA = S.data[st.kind], av = avgRows(st.kind, [].concat.apply([], DA.gather.members.map(function (m) { return m.rows; })));
       if (av.length < 4) { toast('<p>평균을 낼 자료가 4개 이상 필요해요.</p>'); return; }
@@ -1499,7 +1498,7 @@
       var series = ids.map(function (id, j) { var G = grp[id], col = scope === 'grade' ? GCOL[classes.indexOf(G.cls) % GCOL.length] : GCOL[j % GCOL.length], me = G.cls === String(S.profile.cls) && G.group === String(D.group);
         return { rows: avgRows(kind, G.list).map(function (r) { return [r[0], r[1]]; }), color: col, label: scope === 'grade' ? G.cls + '반 ' + G.group + '모둠' : G.group + '모둠' + (me ? '(우리)' : ''), n: G.n, me: me }; });
       var all = rows.concat.apply(rows, series.map(function (sr) { return sr.rows; }));
-      graphSVG.extra = { trend: !!D.trendOK }; $('.gwrap').innerHTML = graphSVG(axes(all, K.x, K.y, kind), rows, K.x, K.y, rows.length, kind, K, units(kind, D), true, series);
+      graphSVG.extra = { trend: !!D.trendOK }; ($('.gwrap2') || $('.gwrap')).innerHTML = graphSVG(axes(all, K.x, K.y, kind), rows, K.x, K.y, rows.length, kind, K, units(kind, D), true, series);
       leg.innerHTML = scope === 'grade' ? classes.map(function (c, j) { return '<span><i style="background:' + GCOL[j % GCOL.length] + '"></i>' + c + '반 (' + series.filter(function (sr) { return sr.label.indexOf(c + '반') === 0; }).length + '모둠)</span>'; }).join('') :
         series.map(function (sr) { return '<span' + (sr.me ? ' class="me"' : '') + '><i style="background:' + sr.color + '"></i>' + esc(sr.label) + ' · ' + sr.n + '명</span>'; }).join('');
       msg.textContent = scope === 'grade' ? classes.length + '개 반, ' + series.length + '개 모둠의 평균을 반마다 다른 색으로 그렸어요. 반이 달라도 같은 경향이 나타나는지 보세요.' : series.length + '개 모둠의 평균을 모둠마다 다른 색으로 그렸어요. 우리 모둠의 점(파란색)과 비교해 보세요.';
