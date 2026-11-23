@@ -427,3 +427,10 @@ a.rk { text-decoration: none; }
 .lc.on{border-color:#2f9e44;background:#f1fbf3}.lc.idle{border-color:#f0a500;background:#fff9e8}
 .lc.away{border-color:#7b83b8;background:#f1f2fa}.lc.off{border-color:#bbb;background:#f3f3f3;opacity:.75}
 .lc.long{border-color:#e8590c;background:#fff1e8}
+
+/* 학생 글: 차시·내용 탭 + 반별 컬럼 */
+.ttabs.sub button{min-height:38px;font-size:14px;border-color:#7b83b8}
+.lcols{display:grid;grid-template-columns:repeat(var(--n,4),minmax(240px,1fr));gap:10px;overflow-x:auto;align-items:start}
+.lcol{background:#fff;border:2px solid #cfd4ea;border-radius:12px;padding:8px 10px;min-width:0}
+.lcol h4{margin:0 0 6px;position:sticky;top:0;background:#fff}.lcol h4 small{font-weight:400;color:#666}
+.lcol li{margin-bottom:8px;line-height:1.45;overflow-wrap:anywhere}.lcol li.none{color:#888}

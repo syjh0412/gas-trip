@@ -1485,7 +1485,7 @@
     if (!CFG.API_URL) return (v === String(CFG.TEACHER_PIN || '0000') ? ok : bad)();
     tpost({ action: 'rows', pin: v }).then(function (r) { (r && !r.error ? ok : bad)(); }).catch(function () { bad('서버에 연결하지 못했어요.'); });
   }
-  var TEACH = {}, TS = { tab: 'guide', rows: null, cls: '', msg: '' };
+  var TEACH = {}, TS = { tab: 'guide', rows: null, cls: '', msg: '', all: null, allBusy: false, allErr: '', lp: '', lc: '' };
   function viewTeacher() {
     cur = { dest: null, step: 0 };
     var okPin = sessionStorage.getItem('gastrip.tpin');
@@ -1493,12 +1493,61 @@
     if (!okPin) { app.innerHTML = h + '<div class="card"><h3>비밀번호</h3><div class="row3"><label>교사 비밀번호<input id="tpin" type="text" class="secret" inputmode="numeric" autocomplete="off" data-lpignore="true" data-1p-ignore></label></div><button class="btn pri" data-act="tlogin">들어가기</button><p class="tiny" id="tmsg">' + (CFG.API_URL ? '구글 스크립트(Code.gs)에 정해 둔 교사 비밀번호예요.' : 'config.js의 TEACHER_PIN 값이에요. 처음 값은 0000입니다.') + '</p></div></main>'; return; }
     var tabs = [['guide', '수업 안내'], ['live', '실시간'], ['class', '반 현황'], ['data', '실험 자료'], ['lines', '학생 글'], ['snorkl', '스노클 과제'], ['setup', '설정 방법']];
     h += '<nav class="ttabs">' + tabs.map(function (t) { return '<button data-act="ttab" data-t="' + t[0] + '" class="' + (TS.tab === t[0] ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</nav>';
-    if (['live', 'class', 'data', 'lines'].indexOf(TS.tab) >= 0) {
+    if (['live', 'class', 'data'].indexOf(TS.tab) >= 0) {
       h += '<div class="card"><div class="row3"><label>반<input id="tcls" inputmode="numeric" maxlength="2" value="' + esc(TS.cls) + '"></label></div><button class="btn pri" data-act="tload"' + (CFG.API_URL ? '' : ' disabled') + '>불러오기</button><p class="tiny">' + (CFG.API_URL ? esc(TS.msg) : '반 자료를 모으려면 ‘설정 방법’ 탭의 구글 시트 연결이 필요해요. 연결 전에는 학생 기기에만 저장됩니다.') + '</p></div>';
       if (TS.rows) h += TVIEW[TS.tab]();
     } else h += TVIEW[TS.tab]();
     app.innerHTML = h + '</main>';
+    if (TS.tab === 'lines' && CFG.API_URL && !TS.all && !TS.allBusy && !TS.allErr) loadLinesAll();
     clearInterval(LIVE_T); if (TS.tab === 'live' && TS.cls && TS.rows && CFG.API_URL) LIVE_T = setInterval(liveRefresh, 15000);
+  }
+  function loadLinesAll() {
+    TS.allBusy = true; TS.allErr = '';
+    tpost({ action: 'rows', cls: 'all', pin: sessionStorage.getItem('gastrip.tpin') }).then(function (res) { if (res.error) throw new Error(res.error); TS.all = res.rows || []; }).catch(function (e) { TS.allErr = '불러오지 못했어요. (' + e.message + ')'; }).then(function () { TS.allBusy = false; if (TS.tab === 'lines') viewTeacher(); });
+  }
+  TEACH.lreload = function () { TS.all = null; TS.allErr = ''; viewTeacher(); };
+  TEACH.lptab = function (b) { TS.lp = b.dataset.p; TS.lc = ''; viewTeacher(); };
+  TEACH.lctab = function (b) { TS.lc = b.dataset.c; viewTeacher(); };
+  function linePeriods() {
+    var out = [];
+    T.dests.forEach(function (d) {
+      var gst = d.steps.filter(function (x) { return x.type === 'gen'; })[0], dst = d.steps.filter(function (x) { return x.type === 'debate'; })[0], ln = d.steps.filter(function (x) { return x.type === 'line'; })[0], it = [];
+      if (gst) it.push({ k: 'gen', label: gst.mode === 'tmp' ? '규칙 찾기' : '일반화 문장', q: gst.q });
+      if (dst) it.push({ k: 'deb', label: '생각 나누기', q: dst.q, opts: dst.opts });
+      if (d.steps.some(function (x) { return x.type === 'reflect'; })) it.push({ k: 'refl', label: '돌아보기', q: '처음 예측과 지금 생각을 비교해 보세요.' });
+      if (ln) it.push({ k: 'line', label: '여행 안내 한 줄', q: ln.prompt });
+      if (it.length) out.push({ id: d.id, label: d.period + ' ' + d.icon + ' ' + d.place, items: it });
+    });
+    out.push({ id: 'big', label: '🎓 큰 생각 잇기', items: [{ k: 'big', label: '큰 생각 잇기', q: T.big.q }] });
+    return out;
+  }
+  function lineText(s, pid, k, it) {
+    var th = s.think || {}, v;
+    if (k === 'gen') { var g = th.gen && th.gen[pid]; return genText(g) ? esc(genText(g)) + (g.cmp ? '' : ' <small>(비교 전)</small>') : ''; }
+    if (k === 'deb') { v = th.deb && th.deb[pid]; return v && v.pick != null ? '<em>' + esc(it.opts[v.pick]) + '</em> ' + esc(v.why || '') : ''; }
+    if (k === 'refl') { v = th.refl && th.refl[pid]; return v && v.pick != null ? '<em>' + REFL[v.pick] + '</em> ' + esc(v.tx || '') : ''; }
+    if (k === 'line') return s.lines && s.lines[pid] ? esc(s.lines[pid]) : '';
+    if (k === 'big') return th.big ? esc(th.big) : '';
+    return '';
+  }
+  function linesView() {
+    var h = '<div class="card"><button class="btn sm" data-act="lreload">다시 불러오기</button> <span class="tiny">' + (TS.allBusy ? '모든 반 글을 불러오는 중…' : esc(TS.allErr || (TS.all ? '모든 반 글을 한꺼번에 불러왔어요. (' + students(TS.all).length + '명 기록)' : ''))) + '</span></div>';
+    if (!CFG.API_URL) return h + '<div class="card"><p class="tiny">학생 글을 모으려면 ‘설정 방법’ 탭의 구글 시트 연결이 필요해요.</p></div>';
+    if (!TS.all) return h;
+    var P = linePeriods(), p = P.filter(function (x) { return x.id === TS.lp; })[0] || P[0], it = p.items.filter(function (x) { return x.k === TS.lc; })[0] || p.items[0];
+    var all = students(TS.all).filter(function (s) { var c = Number(s.cls); return c >= 1 && c <= 20; }), cls = ['1', '2', '3', '4'];
+    all.forEach(function (s) { if (cls.indexOf(s.cls) < 0) cls.push(s.cls); }); cls.sort(function (a, b) { return a - b; });
+    h += '<nav class="ttabs">' + P.map(function (x) { return '<button data-act="lptab" data-p="' + x.id + '" class="' + (x.id === p.id ? 'on' : '') + '">' + x.label + '</button>'; }).join('') + '</nav>';
+    h += '<nav class="ttabs sub">' + p.items.map(function (x) { return '<button data-act="lctab" data-c="' + x.k + '" class="' + (x.k === it.k ? 'on' : '') + '">' + x.label + '</button>'; }).join('') + '</nav>';
+    h += '<div class="card"><p class="tiny">🧭 ' + esc(it.q) + '</p></div>';
+    var cnt = it.opts ? it.opts.map(function () { return 0; }) : null;
+    var cols = cls.map(function (c) {
+      var li = '', n = 0;
+      all.filter(function (s) { return s.cls === c; }).forEach(function (s) { var t = lineText(s, p.id, it.k, it); if (!t) return; n++; if (cnt) { var v = s.think && s.think.deb && s.think.deb[p.id]; if (v && v.pick != null) cnt[v.pick]++; } li += '<li><b>' + esc(s.num) + ' ' + esc(s.name) + '</b> ' + t + '</li>'; });
+      return '<section class="lcol"><h4>' + esc(c) + '반 <small>' + n + '명</small></h4><ul class="plain">' + (li || '<li class="none">아직 없어요.</li>') + '</ul></section>';
+    });
+    if (cnt) h += '<p class="tiny">' + it.opts.map(function (o, j) { return esc(o) + ' ' + cnt[j] + '명'; }).join(' · ') + '</p>';
+    return h + '<div class="lcols" style="--n:' + cls.length + '">' + cols.join('') + '</div>';
   }
   function liveRefresh() {
     if (!$('#livegrid')) { clearInterval(LIVE_T); return; }
@@ -1529,7 +1578,7 @@
     var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + out.map(function (l) { return l.join(','); }).join('\n')], { type: 'text/csv' })); a.download = TS.cls + '반_실험자료.csv'; a.click();
   };
   function byKey(keys) { return TS.rows.filter(function (r) { return keys.indexOf(r.key) >= 0; }); }
-  function students() { var m = {}; TS.rows.forEach(function (r) { var id = r.num; m[id] = m[id] || { num: r.num, name: r.name }; m[id][r.key] = r.val; }); return Object.keys(m).map(function (k) { return m[k]; }).sort(function (a, b) { return a.num - b.num; }); }
+  function students(rows) { var m = {}; (rows || TS.rows || []).forEach(function (r) { var id = r.cls + '|' + r.num; m[id] = m[id] || { cls: String(r.cls), num: r.num, name: r.name }; m[id][r.key] = r.val; }); return Object.keys(m).map(function (k) { return m[k]; }).sort(function (a, b) { return (a.cls - b.cls) || (a.num - b.num); }); }
   var TVIEW = {
     live: function () { return '<div class="card"><p class="tiny" id="livemsg">반을 쓰고 ‘불러오기’를 누르면 15초마다 자동으로 갱신돼요. 학생 화면 그림이 아니라 ‘지금 어느 여행지·단계에 있는지’를 보여 줘요.</p><div id="livegrid">' + liveHTML() + '</div></div>'; },
     guide: function () {
@@ -1558,26 +1607,7 @@
       });
       return h + '<p class="tiny">예시 자료로 연습한 학생의 값은 빠져 있어요.</p></div>';
     },
-    lines: function () {
-      var h = '', who = function (s) { return '<b>' + esc(s.num) + ' ' + esc(s.name) + '</b> '; };
-      T.dests.forEach(function (d) {
-        var gst = d.steps.filter(function (x) { return x.type === 'gen'; })[0], dst = d.steps.filter(function (x) { return x.type === 'debate'; })[0], has = d.steps.some(function (x) { return x.type === 'reflect'; });
-        if (!gst && !dst && !has) return;
-        h += '<div class="card"><h3>' + d.icon + ' ' + d.period + ' ' + d.place + ' · 개념기반 탐구</h3>';
-        if (gst) { h += '<p class="tiny">🧭 ' + esc(gst.q) + '</p><h4>' + (gst.mode === 'tmp' ? '내가 찾은 규칙' : '일반화 문장') + '</h4><ul class="plain">'; var n1 = 0; students().forEach(function (s) { var g = s.think && s.think.gen && s.think.gen[d.id]; if (g && genText(g)) { n1++; h += '<li>' + who(s) + esc(genText(g)) + (g.cmp ? '' : ' <small>(비교 전)</small>') + '</li>'; } }); h += (n1 ? '' : '<li>아직 없어요.</li>') + '</ul>'; }
-        if (dst) { var cntp = dst.opts.map(function () { return 0; }), li = ''; students().forEach(function (s) { var v = s.think && s.think.deb && s.think.deb[d.id]; if (v && v.pick != null) { cntp[v.pick]++; li += '<li>' + who(s) + '<em>' + esc(dst.opts[v.pick]) + '</em> ' + esc(v.why || '') + '</li>'; } }); h += '<h4>생각 나누기: ' + esc(dst.q) + '</h4><p class="tiny">' + dst.opts.map(function (o, j) { return esc(o) + ' ' + cntp[j] + '명'; }).join(' · ') + '</p><ul class="plain">' + (li || '<li>아직 없어요.</li>') + '</ul>'; }
-        if (has) { var cr = REFL.map(function () { return 0; }), lr = ''; students().forEach(function (s) { var v = s.think && s.think.refl && s.think.refl[d.id]; if (v && v.pick != null) { cr[v.pick]++; lr += '<li>' + who(s) + '<em>' + REFL[v.pick] + '</em> ' + esc(v.tx || '') + '</li>'; } }); h += '<h4>돌아보기</h4><p class="tiny">' + REFL.map(function (o, j) { return o + ' ' + cr[j] + '명'; }).join(' · ') + '</p><ul class="plain">' + (lr || '<li>아직 없어요.</li>') + '</ul>'; }
-        h += '</div>';
-      });
-      var bl = ''; students().forEach(function (s) { var b = s.think && s.think.big; if (b) bl += '<li>' + who(s) + esc(b) + '</li>'; });
-      h += '<div class="card"><h3>🎓 큰 생각 잇기 (9차시)</h3><p class="tiny">🧭 ' + esc(T.big.q) + '</p><ul class="plain">' + (bl || '<li>아직 없어요.</li>') + '</ul></div><h3>여행 안내 한 줄</h3>';
-      T.dests.forEach(function (d) {
-        if (!d.steps.some(function (s) { return s.type === 'line'; })) return;
-        h += '<div class="card"><h3>' + d.icon + ' ' + d.place + '</h3><ul class="plain">'; var n = 0;
-        students().forEach(function (s) { var t = s.lines && s.lines[d.id]; if (t) { n++; h += '<li><b>' + esc(s.num) + ' ' + esc(s.name) + '</b> ' + esc(t) + '</li>'; } });
-        h += (n ? '' : '<li>아직 없어요.</li>') + '</ul></div>';
-      }); return h;
-    },
+    lines: function () { return linesView(); },
     snorkl: function () {
       var h = '<div class="card"><p>스노클에 과제를 만들 때 아래 내용을 붙여 넣어 쓰세요. 과제 주소를 config.js의 SNORKL에 넣으면 학생 화면에 버튼이 생겨요.</p></div>';
       T.snorkl.forEach(function (s) {
