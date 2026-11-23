@@ -202,7 +202,7 @@
     return '🗺️ 여행 지도';
   }
   function liveTick() {
-    if (!CFG.API_URL || !S.profile || isT() || !sessionStorage.getItem('gastrip.in')) return;
+    if (!CFG.LIVE_MONITOR || !CFG.API_URL || !S.profile || isT() || !sessionStorage.getItem('gastrip.in')) return;
     var lb = liveLabel(), now = Date.now(), vis = document.visibilityState !== 'hidden';
     if (lb !== LIVE.last) { LIVE.last = lb; LIVE.since = now; }
     var key = lb + '|' + vis, due = key !== LIVE.key ? now - LIVE.sent > 15000 : now - LIVE.sent > 60000;
@@ -267,7 +267,7 @@
       if (!api) return enter(null);
       btn.disabled = true; btn.textContent = '확인 중…';
       tpost({ action: 'login', cls: c, num: n, name: nm, code: code }).then(function (r) {
-        if (r.error) { btn.disabled = false; btn.textContent = '여행사 입장'; m.innerHTML = '<b class="warn">' + esc(r.error) + '</b>'; return; }
+        if (r.error) { btn.disabled = false; btn.textContent = '여행사 입장'; m.innerHTML = '<b class="warn">' + (/lock|Exception/i.test(String(r.error)) ? '서버가 잠시 바빠요. 3~5초 뒤에 다시 눌러 주세요.' : esc(r.error)) + '</b>'; return; }
         enter(r);
       }).catch(function () { m.innerHTML = '<b class="warn">서버에 연결하지 못해 이 기기에만 저장해요.</b>'; enter(null); });
     });
@@ -1483,7 +1483,7 @@
   function tpost(o) { return fetch(CFG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(o) }).then(function (r) { return r.json(); }); }
   function checkPin(v, ok, bad) {
     if (!CFG.API_URL) return (v === String(CFG.TEACHER_PIN || '0000') ? ok : bad)();
-    tpost({ action: 'rows', pin: v }).then(function (r) { (r && !r.error ? ok : bad)(); }).catch(function () { bad('서버에 연결하지 못했어요.'); });
+    tpost({ action: 'rows', pin: v }).then(function (r) { if (r && !r.error) ok(); else if (r && /lock|Exception|시간/i.test(String(r.error))) bad('서버가 잠시 바빠요. 몇 초 뒤 다시 눌러 주세요.'); else bad(); }).catch(function () { bad('서버에 연결하지 못했어요.'); });
   }
   var TEACH = {}, TS = { tab: 'guide', rows: null, cls: '', msg: '', all: null, allBusy: false, allErr: '', lcls: '', lk: '' };
   function viewTeacher() {
@@ -1580,7 +1580,7 @@
   function byKey(keys) { return TS.rows.filter(function (r) { return keys.indexOf(r.key) >= 0; }); }
   function students(rows) { var m = {}; (rows || TS.rows || []).forEach(function (r) { var id = r.cls + '|' + r.num; m[id] = m[id] || { cls: String(r.cls), num: r.num, name: r.name }; m[id][r.key] = r.val; }); return Object.keys(m).map(function (k) { return m[k]; }).sort(function (a, b) { return (a.cls - b.cls) || (a.num - b.num); }); }
   var TVIEW = {
-    live: function () { return '<div class="card"><p class="tiny" id="livemsg">반을 쓰고 ‘불러오기’를 누르면 15초마다 자동으로 갱신돼요. 학생 화면 그림이 아니라 ‘지금 어느 여행지·단계에 있는지’를 보여 줘요.</p><div id="livegrid">' + liveHTML() + '</div></div>'; },
+    live: function () { return '<div class="card"><p class="tiny" id="livemsg">(현재 꺼져 있어요: 접속 신호가 서버 부담을 줄 수 있어 config.js의 LIVE_MONITOR를 true로 바꿔야 켜져요.) 반을 쓰고 ‘불러오기’를 누르면 15초마다 자동으로 갱신돼요. 학생 화면 그림이 아니라 ‘지금 어느 여행지·단계에 있는지’를 보여 줘요.</p><div id="livegrid">' + liveHTML() + '</div></div>'; },
     guide: function () {
       var h = '<div class="card"><h3>9차시 흐름</h3><table class="tbl"><thead><tr><th>차시</th><th>여행지</th><th>성취기준</th><th>받는 도장</th></tr></thead><tbody>';
       T.dests.forEach(function (d) { var st = d.steps.filter(function (s) { return s.stamp; }).map(function (s) { return T.kinds[s.stamp].name; }).join(', '); h += '<tr><td>' + d.period + '</td><td>' + d.icon + ' ' + d.place + '<br><small>' + d.title + '</small></td><td>' + (d.std ? T.stds[d.std].code : '전체') + '</td><td>' + (st || '–') + '</td></tr>'; });
