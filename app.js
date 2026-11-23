@@ -1164,7 +1164,7 @@
           '<h4>측정값과 이론값 비교</h4><p class="tiny" style="margin:0 0 6px">' + tc.note + '</p><div class="scroll"><table class="tbl"><thead><tr><th>번호</th><th>' + K.cols[xi] + ' (' + u[xi] + ')</th><th>측정한 ' + K.cols[yi] + '</th><th>이론값</th><th>차이</th></tr></thead><tbody>' +
           rows.map(function (r, j) { var th = tc.at(r[xi]), df = (r[yi] - th) / th * 100; return '<tr><td>' + (j + 1) + '</td><td>' + r[xi] + '</td><td>' + r[yi] + '</td><td>' + (+th.toFixed(2)) + '</td><td>' + (df >= 0 ? '+' : '') + df.toFixed(1) + '%</td></tr>'; }).join('') + '</tbody></table></div>' +
           '<p class="tiny">차이가 몇 % 정도는 생길 수 있어요. 눈금을 읽는 오차, 주사기 연결 부분의 공기, 손의 온도 같은 것 때문이에요. 차이가 큰 점이 있다면 그때 무슨 일이 있었는지 모둠에서 이야기해 보세요.</p>' +
-          '<div class="btns"><button class="btn sm" data-act="classdata">우리 반 그래프 보기</button><button class="btn sm" data-act="gradedata">1학년 전체 그래프 보기</button></div><div id="clegend" class="clegend"></div><p class="tiny" id="cmsg">' + (kind === 'charles' ? '세로축은 0부터 시작하지 않아요. 눈금의 숫자를 잘 보세요.' : '') + '</p>';
+          '<div class="btns"><button class="btn sm" data-act="classdata">우리 반 그래프 보기</button><button class="btn sm" data-act="gradedata">1학년 전체 그래프 보기</button></div><div id="cgraph"></div><div id="clegend" class="clegend"></div><p class="tiny" id="cmsg">' + (kind === 'charles' ? '세로축은 0부터 시작하지 않아요. 눈금의 숫자를 잘 보세요.' : '') + '</p>';
       }
       h += '</div>';
       if (tr) h += '<h3 class="sub3">' + n4 + ' 그래프 해석</h3>' + itemsHTML(d, st, i, 'retry');
@@ -1491,17 +1491,17 @@
     msg.textContent = (scope === 'grade' ? '1학년 전체' : '우리 반') + ' 자료를 불러오는 중…';
     apiGet({ cls: scope === 'grade' ? 'all' : S.profile.cls, key: kind }).then(function (res) {
       var D = S.data[kind], K = KIND[kind], rows = validRows(D), grp = {};
-      (res.rows || []).forEach(function (r) { var v = r.val; if (!recOK(v, D)) return; var c = scope === 'grade' ? String(r.cls) : String(S.profile.cls), g = v.group ? String(v.group) : r.num + '번', id = c + '|' + g; (grp[id] = grp[id] || { cls: c, group: g, list: [], n: 0 }); grp[id].list = grp[id].list.concat(normRows(kind, v, D)); grp[id].n++; });
+      (res.rows || []).forEach(function (r) { var v = r.val; if (!recOK(v, D)) return; var c = scope === 'grade' ? String(r.cls) : String(S.profile.cls), g = v.group ? (gkey(v.group) || String(v.group)) : r.num + '번', id = c + '|' + g; (grp[id] = grp[id] || { cls: c, group: g, list: [], n: 0 }); grp[id].list = grp[id].list.concat(normRows(kind, v, D)); grp[id].n++; });
       var ids = Object.keys(grp).sort(function (a, b) { var A = grp[a], B = grp[b]; return (A.cls - B.cls) || (parseFloat(A.group) - parseFloat(B.group)) || (A.group < B.group ? -1 : 1); });
       if (!ids.length) { msg.textContent = '아직 올라온 자료가 없어요.'; return; }
       var classes = []; ids.forEach(function (id) { if (classes.indexOf(grp[id].cls) < 0) classes.push(grp[id].cls); });
-      var series = ids.map(function (id, j) { var G = grp[id], col = scope === 'grade' ? GCOL[classes.indexOf(G.cls) % GCOL.length] : GCOL[j % GCOL.length], me = G.cls === String(S.profile.cls) && G.group === String(D.group);
-        return { rows: avgRows(kind, G.list).map(function (r) { return [r[0], r[1]]; }), color: col, label: scope === 'grade' ? G.cls + '반 ' + G.group + '모둠' : G.group + '모둠' + (me ? '(우리)' : ''), n: G.n, me: me }; });
+      var series = ids.map(function (id, j) { var G = grp[id], col = scope === 'grade' ? GCOL[classes.indexOf(G.cls) % GCOL.length] : GCOL[j % GCOL.length], me = G.cls === String(S.profile.cls) && G.group === gkey(D.group);
+        return { rows: scope === 'grade' ? avgRows(kind, G.list).map(function (r) { return [r[0], r[1]]; }) : G.list.map(function (r) { return [+r[0], +r[1]]; }), color: col, label: scope === 'grade' ? G.cls + '반 ' + G.group + '모둠' : G.group + '모둠' + (me ? '(우리)' : ''), n: G.n, me: me }; });
       var all = rows.concat.apply(rows, series.map(function (sr) { return sr.rows; }));
-      graphSVG.extra = { trend: !!D.trendOK }; ($('.gwrap2') || $('.gwrap')).innerHTML = graphSVG(axes(all, K.x, K.y, kind), rows, K.x, K.y, rows.length, kind, K, units(kind, D), true, series);
+      graphSVG.extra = { trend: !!D.trendOK }; var cg = $('#cgraph'); cg.innerHTML = '<h4 class="gh4">' + (scope === 'grade' ? '🏫 1학년 전체 그래프 <small>모둠 평균 · 반마다 다른 색</small>' : '👫 우리 반 그래프 <small>학생 한 명 한 명의 점 · 모둠마다 다른 색</small>') + '</h4><div class="gwrap gwrap3">' + graphSVG(axes(all, K.x, K.y, kind), rows, K.x, K.y, rows.length, kind, K, units(kind, D), true, series).replace('id="gsvg"', 'id="gsvg3"') + '</div>'; if (cg.scrollIntoView) cg.scrollIntoView({ block: 'start' });
       leg.innerHTML = scope === 'grade' ? classes.map(function (c, j) { return '<span><i style="background:' + GCOL[j % GCOL.length] + '"></i>' + c + '반 (' + series.filter(function (sr) { return sr.label.indexOf(c + '반') === 0; }).length + '모둠)</span>'; }).join('') :
         series.map(function (sr) { return '<span' + (sr.me ? ' class="me"' : '') + '><i style="background:' + sr.color + '"></i>' + esc(sr.label) + ' · ' + sr.n + '명</span>'; }).join('');
-      msg.textContent = scope === 'grade' ? classes.length + '개 반, ' + series.length + '개 모둠의 평균을 반마다 다른 색으로 그렸어요. 반이 달라도 같은 경향이 나타나는지 보세요.' : series.length + '개 모둠의 평균을 모둠마다 다른 색으로 그렸어요. 우리 모둠의 점(파란색)과 비교해 보세요.';
+      msg.textContent = scope === 'grade' ? classes.length + '개 반, ' + series.length + '개 모둠의 평균을 반마다 다른 색으로 그렸어요. 반이 달라도 같은 경향이 나타나는지 보세요.' : '우리 반 ' + series.reduce(function (t, sr) { return t + sr.n; }, 0) + '명(' + series.length + '개 모둠)의 점을 모두 찍었어요. 모둠마다 색이 달라요. 내 점(파란색)과 비교하고, 반 전체에서도 같은 경향이 보이는지 살펴보세요.';
     }).catch(function () { msg.textContent = '자료를 불러오지 못했어요. 잠시 뒤에 다시 눌러 보세요.'; });
   }
 
