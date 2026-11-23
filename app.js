@@ -1080,14 +1080,19 @@
     return Object.keys(by).map(function (k) { var a = by[k]; return [+k, a.reduce(function (t, v) { return t + v; }, 0) / a.length, a.length]; }).sort(function (a, b) { return a[0] - b[0]; });
   }
   function recOK(v, D) { return v && v.rows && v.rows.length && !v.sample && !v.avg && (!D || v.unit === D.unit); }
-  function gatherCard(kind, D) {
-    var g = D.gather, h = '<div class="card gath"><h3>👥 모둠 자료 모으기</h3><p class="tiny" style="margin:0 0 8px">모둠원이 각자 자기 태블릿에서 측정했다면, <b>모두 같은 모둠 번호</b>를 쓰고 이 버튼을 눌러요. 내 값이 올라가고, 모둠원들의 값이 함께 모여요.</p><div class="btns"><button class="btn pri" data-act="gather">' + (g ? '다시 불러오기' : '모둠 자료 모으기') + '</button></div><p class="tiny" id="gmsg2b" aria-live="polite"></p>';
-    if (g && g.members.length) {
+  function memberTable(kind, g) {
+    var h = '';
       var K = KIND[kind], xs = {}; g.members.forEach(function (m) { m.rows.forEach(function (r) { xs[xKey(kind, r[0])] = 1; }); });
       var keys = Object.keys(xs).map(Number).sort(function (a, b) { return kind === 'boyle' ? b - a : a - b; }), av = avgRows(kind, [].concat.apply([], g.members.map(function (m) { return m.rows; })));
       var avMap = {}; av.forEach(function (r) { avMap[r[0]] = r[1]; });
       h += '<div class="scroll"><table class="tbl gtab"><thead><tr><th>' + K.cols[0] + '</th>' + g.members.map(function (m) { return '<th>' + esc(m.label) + '</th>'; }).join('') + '<th class="avg">평균</th></tr></thead><tbody>' +
-        keys.map(function (k) { return '<tr><td>' + k + '</td>' + g.members.map(function (m) { var c = m.rows.filter(function (r) { return xKey(kind, r[0]) === String(k); })[0]; return '<td>' + (c ? c[1] : '–') + '</td>'; }).join('') + '<td class="avg">' + (+avMap[k].toFixed(kind === 'boyle' ? 2 : 2)) + '</td></tr>'; }).join('') + '</tbody></table></div>' +
+        keys.map(function (k) { return '<tr><td>' + k + '</td>' + g.members.map(function (m) { var c = m.rows.filter(function (r) { return xKey(kind, r[0]) === String(k); })[0]; return '<td>' + (c ? c[1] : '–') + '</td>'; }).join('') + '<td class="avg">' + (+avMap[k].toFixed(kind === 'boyle' ? 2 : 2)) + '</td></tr>'; }).join('') + '</tbody></table></div>';
+    return h;
+  }
+  function gatherCard(kind, D) {
+    var g = D.gather, h = '<div class="card gath"><h3>👥 모둠 자료 모으기</h3><p class="tiny" style="margin:0 0 8px">모둠원이 각자 자기 태블릿에서 측정했다면, <b>모두 같은 모둠 번호</b>를 쓰고 이 버튼을 눌러요. 내 값이 올라가고, 모둠원들의 값이 함께 모여요.</p><div class="btns"><button class="btn pri" data-act="gather">' + (g ? '다시 불러오기' : '모둠 자료 모으기') + '</button></div><p class="tiny" id="gmsg2b" aria-live="polite"></p>';
+    if (g && g.members.length) {
+      h += memberTable(kind, g) +
         '<div class="btns"><button class="btn yel" data-act="useavg">평균값으로 그래프 그리기</button></div>';
     }
     return h + '</div>';
@@ -1119,7 +1124,8 @@
     }
     var rows = validRows(D), xi = K.x, yi = K.y;
     h += '<div class="card"><h3>① 우리 모둠 자료' + (D.sample ? ' <span class="tag">예시 자료</span>' : '') + (D.avg ? ' <span class="tag">모둠원 ' + (D.gather ? D.gather.members.length : '') + '명 평균</span>' : '') + ' <button class="linkbtn" data-act="unlock">다시 측정하기</button></h3><table class="tbl"><thead><tr><th>번호</th><th>' + K.cols[0] + ' (' + u[0] + ')</th><th>' + K.cols[1] + ' (' + u[1] + ')</th>' + (kind === 'boyle' ? '<th>압력 × 부피</th>' : '') + '</tr></thead><tbody>' +
-      rows.map(function (r, j) { return '<tr class="' + (j === D.placed ? 'cur' : '') + '"><td>' + (j + 1) + (j < D.placed ? ' ✓' : '') + '</td><td>' + r[0] + '</td><td>' + r[1] + '</td>' + (kind === 'boyle' ? '<td>' + (+(r[0] * r[1]).toPrecision(3)) + '</td>' : '') + '</tr>'; }).join('') + '</tbody></table></div>';
+      rows.map(function (r, j) { return '<tr class="' + (j === D.placed ? 'cur' : '') + '"><td>' + (j + 1) + (j < D.placed ? ' ✓' : '') + '</td><td>' + r[0] + '</td><td>' + r[1] + '</td>' + (kind === 'boyle' ? '<td>' + (+(r[0] * r[1]).toPrecision(3)) + '</td>' : '') + '</tr>'; }).join('') + '</tbody></table></div>'
+    if (D.avg && D.gather && D.gather.members.length) h += '<div class="card gath"><h3>👥 모둠원별 측정값과 평균</h3><p class="tiny" style="margin:0 0 8px">위 그래프의 점은 모둠원 값의 <b>평균</b>이에요. 누구의 값이 얼마였는지 아래 표에서 비교해 보세요.</p>' + memberTable(kind, D.gather) + '</div>';
     var ax = axes(rows, xi, yi, kind), done = D.placed >= rows.length, tr = done && D.trendOK, cur0 = done ? null : rows[D.placed];
     graphSVG.extra = { trend: tr, miss: !done && D.miss ? D.miss : null, guide: !done && D.fails >= 2 ? cur0[xi] : null, guideY: !done && D.fails >= 3 ? cur0[yi] : null };
     var gm = done ? (tr ? '경향선을 그렸어요. 이론값과 비교해 보세요.' : '점을 모두 찍었어요. 이제 점들이 보여 주는 <b>경향</b>을 찾아요.') :
