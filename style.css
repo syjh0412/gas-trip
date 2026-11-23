@@ -460,3 +460,4 @@ a.rk { text-decoration: none; }
 .vgwrap { max-width: 720px; margin: 0 auto; }
 .gextra { margin-top: 10px; padding-top: 10px; border-top: 2px dashed #cfd4ea; } .ginx { width: 100%; box-sizing: border-box; font: inherit; padding: 10px 12px; border: 2px solid #c9cfe8; border-radius: 12px; resize: vertical; }
 .gmodel p:not(.tiny) { font-weight: 700; margin: 6px 0; } .gmodel p b { color: #2B8A3E; margin-right: 4px; }
+.glaw { margin-top: 12px; padding: 12px 14px; border: 2px solid #E0A800; border-radius: 12px; background: #FFF9DB; } .glaw .h4 { margin: 0 0 4px; }
