@@ -1105,15 +1105,15 @@
     return h + '</div>';
   }
   function gather(d, st, i) {
-    var kind = st.kind; if (!S.data[kind].locked) readRows(kind); var D = S.data[kind], m = $('#gmsg2b'), own = validRows(D);
-    if (!D.group) { m.innerHTML = '<b class="warn">먼저 위의 ‘모둠’ 칸에 모둠 번호를 쓰세요.</b>'; var gi = $('#dgroup'); if (gi) gi.focus(); return; }
+    var kind = st.kind; if (!S.data[kind].locked) readRows(kind); var D = S.data[kind], m = $('#gmsg2b'), own = validRows(D), g2 = $('#dgroup2'); if (g2 && g2.value.trim()) D.group = g2.value.trim();
+    if (!D.group) { m.innerHTML = '<b class="warn">먼저 ‘모둠’ 칸에 모둠 번호를 쓰세요.</b>'; var gi = g2 || $('#dgroup'); if (gi) gi.focus(); return; }
     m.textContent = '내 값을 올리고 모둠 자료를 모으는 중…';
     var up = own.length && !D.sample && !D.avg ? tpost({ cls: S.profile.cls, num: S.profile.num, name: S.profile.name, key: kind, val: { group: D.group, unit: D.unit, rows: own, sample: false } }).catch(function () { }) : Promise.resolve();
     up.then(function () { return apiGet({ cls: S.profile.cls, key: kind }); }).then(function (res) {
       var okr = (res.rows || []).filter(function (r) { return recOK(r.val, D); }), mem = okr.filter(function (r) { return gkey(r.val.group) === gkey(D.group); }).map(function (r) { return { label: r.num + '번' + (String(r.num) === String(S.profile.num) ? '(나)' : ''), rows: normRows(kind, r.val, D), num: r.num }; }).sort(function (a, b) { return a.num - b.num; }), others = {}; okr.forEach(function (r) { var g = String(r.val.group || '(없음)'); if (gkey(g) !== gkey(D.group)) others[g] = (others[g] || 0) + 1; });
       D.gather = { members: mem, t: Date.now() }; save(); drawData(d, st, i);
       var oth = Object.keys(others).length ? ' (다른 모둠 번호로 올라온 자료: ' + Object.keys(others).map(function (g) { return g + '모둠 ' + others[g] + '명'; }).join(', ') + ' — 모둠 번호가 같은지 확인해요.)' : '';
-      var m2 = $('#gmsg2b'); if (m2) m2.textContent = (mem.length ? D.group + '모둠 ' + mem.length + '명의 자료를 모았어요. 아직 안 올린 모둠원이 있으면 모둠원이 ‘표 완성’을 누른 뒤 다시 불러오세요.' : '아직 올라온 자료가 없어요. 표에 측정값을 넣고 다시 눌러 보세요.') + (mem.length < 2 ? oth : '');
+      var m2 = $('#gmsg2b'); if (m2) m2.textContent = (mem.length ? D.group + '모둠 ' + mem.length + '명의 자료를 모았어요. 아직 안 보이는 모둠원이 있으면 그 친구가 ‘표 완성’을 누른 뒤 ‘표 다시 불러오기’를 눌러요.' : '아직 올라온 자료가 없어요. 표에 측정값을 넣고 다시 눌러 보세요.') + (mem.length < 2 ? oth : '');
     }).catch(function () { var m3 = $('#gmsg2b'); if (m3) m3.textContent = '자료를 모으지 못했어요. 잠시 뒤에 다시 눌러 보세요.'; });
   }
   STEP.data = function (d, st, i) { return '<div id="databox"></div>'; };
@@ -1122,7 +1122,6 @@
     var kind = st.kind, K = KIND[kind], D = getData(kind), u = units(kind, D), h = '';
     if (!D.locked) {
       if (kind === 'boyle') h += sensorCard(D);
-      if (CFG.API_URL) h += gatherCard(kind, D);
       h += '<div class="card"><h3>① 측정값 입력</h3><div class="row3"><label>모둠<input id="dgroup" inputmode="numeric" maxlength="2" value="' + esc(D.group) + '" placeholder="예: 3"></label>' +
         (K.units ? '<label>압력 단위<select id="dunit">' + K.units.map(function (x) { return '<option' + (x === D.unit ? ' selected' : '') + '>' + x + '</option>'; }).join('') + '</select></label>' : '<label>부피 단위<input id="dunit" maxlength="8" value="' + esc(D.unit) + '"></label>') + '</div>' +
         '<table class="tbl in"><thead><tr><th>번호</th><th>' + K.cols[0] + ' (' + u[0] + ')</th><th>' + K.cols[1] + ' (' + u[1] + ')</th></tr></thead><tbody>' +
@@ -1131,23 +1130,33 @@
       $('#databox').innerHTML = h; sPaint(); return;
     }
     var rows = validRows(D), xi = K.x, yi = K.y;
-    h += '<div class="card"><h3>① 우리 모둠 자료' + (D.sample ? ' <span class="tag">예시 자료</span>' : '') + (D.avg ? ' <span class="tag">모둠원 ' + (D.gather ? D.gather.members.length : '') + '명 평균</span>' : '') + ' <button class="linkbtn" data-act="unlock">다시 측정하기</button></h3><table class="tbl"><thead><tr><th>번호</th><th>' + K.cols[0] + ' (' + u[0] + ')</th><th>' + K.cols[1] + ' (' + u[1] + ')</th>' + (kind === 'boyle' ? '<th>압력 × 부피</th>' : '') + '</tr></thead><tbody>' +
-      rows.map(function (r, j) { return '<tr class="' + (j === D.placed ? 'cur' : '') + '"><td>' + (j + 1) + (j < D.placed ? ' ✓' : '') + '</td><td>' + r[0] + '</td><td>' + r[1] + '</td>' + (kind === 'boyle' ? '<td>' + (+(r[0] * r[1]).toPrecision(3)) + '</td>' : '') + '</tr>'; }).join('') + '</tbody></table></div>'
-    if (CFG.API_URL && D.group) {
-      h += '<div class="card gath"><h3>👥 모둠원별 측정값</h3><p class="tiny" style="margin:0 0 8px">' + (D.avg ? '위 그래프의 점은 모둠원 값의 <b>평균</b>이에요. ' : '') + '모둠원이 ‘표 완성’을 누를수록 이 표에 자료가 늘어나요.</p><div class="btns"><button class="btn sm" data-act="gather">' + (D.gather ? '다시 불러오기' : '모둠원 자료 보기') + '</button></div><p class="tiny" id="gmsg2b" aria-live="polite"></p>' + (D.gather && D.gather.members.length ? memberTable(kind, D.gather) : '') + '</div>';
-      var gk = kind + '|' + D.group; if (!GAUTO[gk] && !D.sample) { GAUTO[gk] = 1; setTimeout(function () { if ($('#gmsg2b')) gather(d, st, i); }, 50); }
-    }
-    var ax = axes(rows, xi, yi, kind), done = D.placed >= rows.length, tr = done && D.trendOK, cur0 = done ? null : rows[D.placed];
-    graphSVG.extra = { trend: tr, miss: !done && D.miss ? D.miss : null, guide: !done && D.fails >= 2 ? cur0[xi] : null, guideY: !done && D.fails >= 3 ? cur0[yi] : null };
-    var gm = done ? (tr ? '경향선을 그렸어요. 이론값과 비교해 보세요.' : '점을 모두 찍었어요. 이제 점들이 보여 주는 <b>경향</b>을 찾아요.') :
+    h += '<div class="card"><h3>① ' + (CFG.API_URL && !D.sample && !D.avg ? '내 측정값' : '우리 모둠 자료') + (D.sample ? ' <span class="tag">예시 자료</span>' : '') + (D.avg ? ' <span class="tag">모둠원 ' + (D.gather ? D.gather.members.length : '') + '명 평균</span>' : '') + ' <button class="linkbtn" data-act="unlock">다시 측정하기</button></h3><table class="tbl"><thead><tr><th>번호</th><th>' + K.cols[0] + ' (' + u[0] + ')</th><th>' + K.cols[1] + ' (' + u[1] + ')</th>' + (kind === 'boyle' ? '<th>압력 × 부피</th>' : '') + '</tr></thead><tbody>' +
+      rows.map(function (r, j) { return '<tr class="' + (j === D.placed ? 'cur' : '') + '"><td>' + (j + 1) + (j < D.placed ? ' ✓' : '') + '</td><td>' + r[0] + '</td><td>' + r[1] + '</td>' + (kind === 'boyle' ? '<td>' + (+(r[0] * r[1]).toPrecision(3)) + '</td>' : '') + '</tr>'; }).join('') + '</tbody></table></div>';
+    var done = D.placed >= rows.length, tr = done && D.trendOK, cur0 = done ? null : rows[D.placed];
+    var needG = !!CFG.API_URL && !D.sample, mem = (D.gather && D.gather.members) || [], others = mem.filter(function (m) { return String(m.num) !== String(S.profile.num); });
+    var gs = done && needG && D.gshow && others.length > 0, ser = gs ? others.map(function (m, j) { return { rows: m.rows, color: GCOL[j % GCOL.length], label: m.label }; }) : null;
+    var allp = gs ? rows.concat.apply(rows, others.map(function (m) { return m.rows; })) : rows, showT = done && (!needG || D.gshow || D.trendOK);
+    var ax = axes(allp, xi, yi, kind), n3 = needG ? '④' : '③', n4 = needG ? '⑤' : '④';
+    graphSVG.extra = { trend: tr, trendRows: gs ? allp : null, miss: !done && D.miss ? D.miss : null, guide: !done && D.fails >= 2 ? cur0[xi] : null, guideY: !done && D.fails >= 3 ? cur0[yi] : null };
+    var gm = done ? (tr ? '경향선을 그렸어요. 이론값과 비교해 보세요.' : !showT ? '내 점을 모두 찍었어요. 아래 <b>③</b>에서 모둠원 자료를 모으고, 그래프로 불러와요.' : gs ? '모둠원 ' + others.length + '명의 점을 함께 나타냈어요. 이제 점들이 보여 주는 <b>경향</b>을 찾아요.' : '점을 모두 찍었어요. 이제 점들이 보여 주는 <b>경향</b>을 찾아요.') :
       D.fails ? '<b class="warn">그 자리가 아니에요.</b> 점 찍을 위치를 다시 확인해 보세요. 가로축에서 <b>' + cur0[xi] + '</b>을(를) 먼저 찾고, 그 위로 올라가 세로축 <b>' + cur0[yi] + '</b> 높이를 눌러요.' + (D.fails >= 2 ? ' (분홍 점선이 가로축 ' + cur0[xi] + '의 자리예요.)' : '') :
       '<b>' + (D.placed + 1) + '번</b> 자료 (' + K.cols[xi] + ' ' + cur0[xi] + ', ' + K.cols[yi] + ' ' + cur0[yi] + ')의 자리를 그래프에서 눌러 보세요.';
     h += '<div class="card"><h3>② 그래프에 점 찍기</h3><p id="gmsg" class="gmsg" aria-live="polite">' + gm + '</p>' +
-      '<div class="gwrap">' + graphSVG(ax, rows, xi, yi, D.placed, kind, K, u, done, null) + '</div>' +
+      '<div class="gwrap">' + graphSVG(ax, rows, xi, yi, D.placed, kind, K, u, done, ser) + '</div>' +
+      (gs ? '<div class="clegend"><span class="me"><i style="background:#2F4BD8"></i>나</span>' + ser.map(function (q) { return '<span><i style="background:' + q.color + '"></i>' + esc(q.label) + '</span>'; }).join('') + '</div>' : '') +
       (!done && D.fails >= 3 ? '<button class="btn sm" data-act="autoplace">이 점은 도움 받기</button>' : '') + '</div>';
-    if (done) {
+    if (done && needG) {
+      h += '<div class="card gath"><h3>③ 모둠원 자료 모으기</h3><p class="tiny" style="margin:0 0 8px">모둠원이 각자 잰 값을 표로 모아요. 모둠원이 ‘표 완성’을 누르면 그 친구의 자료가 올라와요.</p>' +
+        (D.group ? '' : '<div class="row3"><label>모둠<input id="dgroup2" inputmode="numeric" maxlength="2" placeholder="예: 3"></label></div>') +
+        '<div class="btns"><button class="btn ' + (D.gather ? 'sm' : 'pri') + '" data-act="gather">' + (D.gather ? '표 다시 불러오기' : '모둠원 자료 모으기') + '</button></div><p class="tiny" id="gmsg2b" aria-live="polite"></p>' +
+        (mem.length ? memberTable(kind, D.gather) : '') +
+        (D.gather ? (D.gshow ? '<p class="tiny">' + (others.length ? '✓ 모둠원 ' + others.length + '명의 점을 위 그래프에 나타냈어요. 표를 다시 불러오면 그래프도 함께 바뀌어요.' : '모둠원 자료 없이 내 자료로 계속해요. 모둠원 자료가 올라오면 ‘표 다시 불러오기’를 눌러요.') + '</p>' :
+          '<div class="btns"><button class="btn pri" data-act="gshow">' + (others.length ? '📈 그래프 불러오기 · 모둠원 점 나타내기' : '모둠원 자료 없이 계속하기') + '</button></div>') : '') + '</div>';
+      var gk = kind + '|' + D.group; if (D.group && !GAUTO[gk]) { GAUTO[gk] = 1; setTimeout(function () { if ($('#gmsg2b')) gather(d, st, i); }, 50); }
+    }
+    if (showT) {
       var right = kind === 'boyle' ? 'inv' : 'upi', topts = [['upi', '오른쪽 위로 곧게 올라간다'], ['down', '오른쪽 아래로 곧게 내려간다'], ['inv', '오른쪽 아래로 휘어지며 내려간다'], ['flat', '가로로 평평하다']];
-      h += '<div class="card"><h3>③ 경향선 그리기</h3><p>그래프는 점을 찍는 것으로 끝나지 않아요. 점 하나하나보다 <b>점들이 모여서 보여 주는 모양(경향)</b>이 중요해요. 점들은 어떤 선을 따라 놓여 있나요?</p>' +
+      h += '<div class="card"><h3>' + n3 + ' 경향선 그리기</h3><p>' + (gs ? '내 점과 모둠원의 점을 모두 함께 보세요. ' : '') + '그래프는 점을 찍는 것으로 끝나지 않아요. 점 하나하나보다 <b>점들이 모여서 보여 주는 모양(경향)</b>이 중요해요. 점들은 어떤 선을 따라 놓여 있나요?</p>' +
         '<div class="opts figs trendopts">' + topts.map(function (o) { var c = 'opt' + (D.trendPick === o[0] ? (o[0] === right ? ' ok' : ' no') : ''); return '<button class="' + c + '" data-act="trend" data-v="' + o[0] + '"' + (tr ? ' disabled' : '') + '>' + figSVG(o[0], K.cols[xi], K.cols[yi]) + '<span class="tl">' + o[1] + '</span></button>'; }).join('') + '</div>' +
         (D.trendPick && !tr ? '<p class="fb no">점들을 한 번 더 보세요. 점 몇 개만 보지 말고 처음부터 끝까지 어떻게 이어지는지 손가락으로 따라가 보세요.</p>' : '');
       if (tr) {
@@ -1159,7 +1168,7 @@
           '<div class="btns"><button class="btn sm" data-act="classdata">우리 반 그래프 보기</button><button class="btn sm" data-act="gradedata">1학년 전체 그래프 보기</button></div><div id="clegend" class="clegend"></div><p class="tiny" id="cmsg">' + (kind === 'charles' ? '세로축은 0부터 시작하지 않아요. 눈금의 숫자를 잘 보세요.' : '') + '</p>';
       }
       h += '</div>';
-      if (tr) h += '<h3 class="sub3">④ 그래프 해석</h3>' + itemsHTML(d, st, i, 'retry');
+      if (tr) h += '<h3 class="sub3">' + n4 + ' 그래프 해석</h3>' + itemsHTML(d, st, i, 'retry');
     }
     $('#databox').innerHTML = h;
     var svg = $('#gsvg');
@@ -1206,8 +1215,8 @@
     if (ex.guideY != null) s += '<line x1="' + a.L + '" x2="' + (a.L + a.pw) + '" y1="' + a.Y(ex.guideY) + '" y2="' + a.Y(ex.guideY) + '" class="gguide"/>';
     if (ex.miss) s += '<g class="gmiss" transform="translate(' + ex.miss[0].toFixed(1) + ' ' + ex.miss[1].toFixed(1) + ')"><path d="M-8-8L8 8M8-8L-8 8"/></g>';
     if (ex.trend) {
-      var tc = trendCurves(rows, xi, yi, kind), path = function (fn) { var d = '', j, x, y; for (j = 0; j <= 80; j++) { x = a.x0 + (a.x1 - a.x0) * j / 80; if (kind === 'boyle' && x < (a.x1 - a.x0) * 0.08) continue; y = fn(x); if (y < a.y0 || y > a.y1) continue; d += (d ? 'L' : 'M') + a.X(x).toFixed(1) + ' ' + a.Y(y).toFixed(1); } return d; };
-      s += '<path d="' + path(tc.theory) + '" class="gtheo"/><path d="' + path(tc.trend) + '" class="gtrend"/>' +
+      var tc = trendCurves(rows, xi, yi, kind), tcA = ex.trendRows ? trendCurves(ex.trendRows, xi, yi, kind) : tc, path = function (fn) { var d = '', j, x, y; for (j = 0; j <= 80; j++) { x = a.x0 + (a.x1 - a.x0) * j / 80; if (kind === 'boyle' && x < (a.x1 - a.x0) * 0.08) continue; y = fn(x); if (y < a.y0 || y > a.y1) continue; d += (d ? 'L' : 'M') + a.X(x).toFixed(1) + ' ' + a.Y(y).toFixed(1); } return d; };
+      s += '<path d="' + path(tc.theory) + '" class="gtheo"/><path d="' + path(tcA.trend) + '" class="gtrend"/>' +
         '<g class="glegend" transform="translate(' + (a.L + a.pw - 196) + ' ' + (a.T + 8) + ')"><rect width="190" height="54" rx="8"/><path d="M10 18h30" class="gtrend"/><text x="48" y="23">우리 모둠 경향선</text><path d="M10 40h30" class="gtheo"/><text x="48" y="45">이론값</text></g>';
     }
     rows.forEach(function (r, j) { if (j < placed) s += '<circle cx="' + a.X(r[xi]) + '" cy="' + a.Y(r[yi]) + '" r="7" class="gp"/>'; });
@@ -1436,14 +1445,15 @@
     else if (act === 'lock') {
       readRows(st.kind); var D2 = S.data[st.kind], rows = validRows(D2);
       if (rows.length < 4) { $('#dmsg').innerHTML = '<b class="warn">숫자로 된 측정값이 4개 이상 필요해요.</b> 지금은 ' + rows.length + '개예요.'; return; }
-      D2.locked = true; D2.placed = 0; D2.fails = 0; D2.missed = 0; D2.miss = null; D2.trendOK = 0; D2.trendPick = null; save(); if (!D2.sample && !D2.avg) sync(st.kind, { group: D2.group, unit: D2.unit, rows: rows, sample: false }); drawData(d, st, i); check(); var gmv = $('#gmsg'); if (gmv && gmv.scrollIntoView) gmv.scrollIntoView({ block: 'start' });
+      D2.locked = true; D2.gshow = 0; D2.placed = 0; D2.fails = 0; D2.missed = 0; D2.miss = null; D2.trendOK = 0; D2.trendPick = null; save(); if (!D2.sample && !D2.avg) sync(st.kind, { group: D2.group, unit: D2.unit, rows: rows, sample: false }); drawData(d, st, i); check(); var gmv = $('#gmsg'); if (gmv && gmv.scrollIntoView) gmv.scrollIntoView({ block: 'start' });
     }
-    else if (act === 'unlock') { if (!confirmBox(b, '한 번 더 누르면 표가 비워지고 처음부터 다시 측정해요')) return; var D3 = S.data[st.kind]; D3.locked = false; D3.placed = 0; D3.sample = false; D3.avg = 0; D3.rows = []; D3.gather = null; D3.trendOK = 0; D3.trendPick = null; D3.miss = null; save(); drawData(d, st, i); check(); }
+    else if (act === 'unlock') { if (!confirmBox(b, '한 번 더 누르면 표가 비워지고 처음부터 다시 측정해요')) return; var D3 = S.data[st.kind]; D3.locked = false; D3.gshow = 0; D3.placed = 0; D3.sample = false; D3.avg = 0; D3.rows = []; D3.gather = null; D3.trendOK = 0; D3.trendPick = null; D3.miss = null; save(); drawData(d, st, i); check(); }
     else if (act === 'trend') { var D5 = S.data[st.kind], rt = st.kind === 'boyle' ? 'inv' : 'upi'; D5.trendPick = b.dataset.v; if (b.dataset.v === rt) { D5.trendOK = 1; mile('trend.' + st.kind, 4); } save(); drawData(d, st, i); check(); var tb = document.querySelector('.trendopts'); if (tb && D5.trendOK) tb.closest('.card').scrollIntoView({ block: 'start' }); }
     else if (act === 'autoplace') { var D4 = S.data[st.kind]; D4.placed++; D4.fails = 0; D4.missed = 1; D4.miss = null; save(); drawData(d, st, i); check(); }
     else if (act === 'classdata') { classData(st.kind, 'class'); }
     else if (act === 'gradedata') { classData(st.kind, 'grade'); }
     else if (act === 'gather') { gather(d, st, i); }
+    else if (act === 'gshow') { var DG = S.data[st.kind]; DG.gshow = 1; save(); drawData(d, st, i); check(); var gw = $('#gmsg'); if (gw && gw.scrollIntoView) gw.scrollIntoView({ block: 'start' }); }
     else if (act === 'useavg') {
       var DA = S.data[st.kind], av = avgRows(st.kind, [].concat.apply([], DA.gather.members.map(function (m) { return m.rows; })));
       if (av.length < 4) { toast('<p>평균을 낼 자료가 4개 이상 필요해요.</p>'); return; }
