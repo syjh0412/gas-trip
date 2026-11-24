@@ -82,8 +82,8 @@
     { id: 'c5', ic: '⚡', n: '5연속 정답', d: '문제를 5번 연속 한 번에 맞혔어요', t: function () { return S.flags.c5; } },
     { id: 'blank', ic: '🗝️', n: '빈칸 탐험가', d: '안내 카드 12장의 빈칸을 모두 열었어요', t: function () { return Object.keys(S.seen).length >= 12; } },
     { id: 'sharp', ic: '🎯', n: '한 번에 콕', d: '내 측정값으로 그래프의 점을 한 번도 틀리지 않고 찍었어요', t: function () { return S.flags.sharp; } },
-    { id: 'see', ic: '👀', n: '눈썰미', d: '‘본 것’ 도장 3개', t: function () { return kindCount('see') >= 3; } },
-    { id: 'meas', ic: '📏', n: '측정 장인', d: '‘잰 것’ 도장 3개', t: function () { return kindCount('meas') >= 3; } },
+    { id: 'see', ic: '🧪', n: '실험왕', d: '‘실험’ 도장 3개', t: function () { return kindCount('see') >= 3; } },
+    { id: 'meas', ic: '🔎', n: '규칙 탐정', d: '‘규칙’ 도장 3개', t: function () { return kindCount('meas') >= 3; } },
     { id: 'part', ic: '⚛️', n: '입자 박사', d: '‘입자’ 도장 3개', t: function () { return kindCount('part') >= 3; } },
     { id: 'line', ic: '🗣️', n: '친절한 안내', d: '여행 안내 한 줄을 5번 썼어요', t: function () { return Object.keys(S.lines).filter(function (k) { return S.lines[k].length >= 15; }).length >= 5; } },
     { id: 'booth', ic: '🎪', n: '부스 마니아', d: '부스 6곳을 체험했어요', t: function () { return S.booths.length >= 6; } },
@@ -399,7 +399,7 @@
     ['01', '02', '03'].forEach(function (s) {
       P.pass += '<div class="prow"><div class="pstd"><b>' + T.stds[s].short + '</b><span>' + T.stds[s].code + '</span></div>' + stampHTML(s, 'see') + stampHTML(s, 'meas') + stampHTML(s, 'part') + '</div>';
     });
-    P.pass += '</div><p class="tiny">본 것 → 잰 것 → 입자 순서로, 눈에 보이는 현상에서 보이지 않는 입자까지 설명하면 여권이 완성돼요.</p></section>';
+    P.pass += '</div><p class="tiny">도장은 성취기준마다 3개예요. <b>🧪 실험</b>: 직접 실험해서 변화를 확인하면 · <b>🔎 규칙</b>: 실험 결과에서 규칙을 찾아 문장으로 쓰면 · <b>⚛️ 입자</b>: 입자로 까닭을 설명하면 찍혀요. 출발 질문(예측)에는 도장이 없어요.</p></section>';
     P.pass += '<section class="card"><h2>📒 내 일반화 노트</h2><p class="tiny" style="margin:0 0 8px">앞 차시에서 찾은 규칙을 뒤 차시에서 입자로 다듬어요.</p><ol class="gnote">' + T.dests.filter(function (x) { return x.steps.some(function (y) { return y.type === 'gen'; }); }).map(function (x) { var gs = x.steps.filter(function (y) { return y.type === 'gen'; })[0], t = genText(S.gen[x.id]); return '<li><small>' + x.period + ' · ' + (gs.mode === 'tmp' ? '규칙 찾기' : '일반화') + '</small>' + (t ? esc(t) : '<em>아직 쓰지 않았어요</em>') + '</li>'; }).join('') + (S.bigtxt ? '<li class="big"><small>9차시 · 큰 질문에 답하기</small>' + esc(S.bigtxt) + '</li>' : '') + '</ol></section>';
     P.trip += '<section class="card bigq"><p class="cqlab">🧭 이번 여행의 큰 질문</p><p class="cqtx">' + T.big.q + '</p><p class="tiny">여행지마다 작은 탐구 질문에 답하며 문장을 다듬고, 마지막 자격시험 날 이 큰 질문에 내 말로 답해요. 내 문장은 ‘내 여권’에 모여요.</p></section>';
     P.trip += '<ol class="route">';
@@ -532,7 +532,7 @@
       var got = d.std ? ['see', 'meas', 'part'].map(function (x) { return stampHTML(d.std, x); }).join('') : '', ni = T.dests.indexOf(d) + 1, nd = T.dests[ni];
       body = '<div class="hero"><div class="hic">🏁</div><h1 class="s-title">' + d.place + ' 여행 끝!</h1>' + sumHTML(d) + (d.std ? '<p class="hsub">' + T.stds[d.std].short + ' 도장</p><div class="clr">' + got + '</div>' : '') + '<div class="btns ctr">' + (nd ? '<a class="btn yel" href="#d/' + nd.id + '/0">다음 여행지: ' + nd.icon + ' ' + nd.place + '</a>' : '') + '<a class="btn" href="#home">내 여권 보기</a></div></div>';
     }
-    else body += '<p class="s-kicker">' + kick + '</p>' + (st.stamp && d.std ? '<p class="goal" style="--c:' + T.kinds[st.stamp].color + '">이 활동을 마치면 <b>‘' + T.kinds[st.stamp].name + '’ 도장</b>을 받아요.</p>' : '') + (st.note ? '<p class="note">' + st.note + '</p>' : '') + '<div id="stepbody">' + STEP[st.type](d, st, sl.si) + '</div>';
+    else body += '<p class="s-kicker">' + kick + '</p>' + (st.stamp && d.std ? '<p class="goal" style="--c:' + T.kinds[st.stamp].color + '">' + (S.stamps[d.std] && S.stamps[d.std][st.stamp] ? '‘' + T.kinds[st.stamp].name + '’ 도장은 이미 받았어요 ✓' : '이 활동을 마치면 <b>‘' + T.kinds[st.stamp].name + '’ 도장</b>을 받아요.') + '</p>' : '') + (st.note ? '<p class="note">' + st.note + '</p>' : '') + '<div id="stepbody">' + STEP[st.type](d, st, sl.si) + '</div>';
     app.innerHTML = '<div class="stage" style="--c:' + d.color + '" data-kind="' + sl.k + '" data-type="' + (st ? st.type : '') + '" data-si="' + (sl.si == null ? '' : sl.si) + '" data-j="' + (sl.j == null ? '' : sl.j) + '" data-id="' + (sl.id || '') + '">' +
       '<div class="stg-top"><a class="btn sm exit" href="#home">✕ 나가기</a><span class="ttl">' + d.icon + ' ' + d.period + ' · ' + d.place + '</span><span class="mtop" aria-label="모은 마일">🧳 <b id="mcount">' + S.miles + '</b></span><span class="num">' + (k + 1) + ' / ' + slides.length + '</span></div>' +
       '<div class="pbar"><i style="width:' + ((k + 1) / slides.length * 100).toFixed(1) + '%"></i></div>' +
@@ -1259,7 +1259,7 @@
     return '<p class="tiny" style="margin:0 0 10px">다음 시간(센서 연구소)에는 무선 센서를 태블릿에 연결해요. 오늘 미리 설정해 두면 다음 시간에 바로 실험할 수 있어요.</p>' +
       '<div class="card"><h3>🔎 태블릿이 스스로 점검한 결과</h3><ul class="plain prepauto" id="prepauto"><li>확인하는 중…</li></ul><button class="btn sm" data-act="precheck">🔄 다시 점검하기</button></div>' +
       '<div class="card"><h3>✅ 설정 확인하기</h3><p class="tiny" style="margin:0 0 8px">하나씩 해 보고 체크해요.</p>' + st.checks.map(function (c, k) { return '<label class="pchk"><input type="checkbox" data-act="pchk" data-k="' + k + '"' + (P.c[k] ? ' checked' : '') + '><span><b>' + esc(c.t) + '</b><small>' + esc(c.how) + '</small></span></label>' + (c.fix ? '<details class="pfix"><summary>안 되면?</summary><p>' + esc(c.fix) + '</p></details>' : ''); }).join('') + '</div>' +
-      '<div class="card sens"><h3>📡 센서 연결 시험</h3><p class="tiny" style="margin:0 0 8px">모둠 센서를 켜고 <b>한 사람씩</b> 눌러 봐요. 목록에 <b>SC:</b>로 시작하는 이름이 보이면 고르고 ‘페어링’을 눌러요. 연결되면 몇 초 뒤 저절로 끊겨서 다음 친구가 쓸 수 있어요.</p>' +
+      '<div class="card sens"><h3>📡 센서 연결 시험</h3><p class="tiny" style="margin:0 0 8px">모둠 센서를 켜고 <b>한 사람씩</b> 눌러 봐요. 목록에 <b>SC:</b>로 시작하는 이름이 보이면 고르고 ‘페어링’을 눌러요. 연결되면 숫자를 확인하고 <b>‘내 차례 끝 · 연결 끊기’</b>를 직접 눌러 센서를 넘겨요. 다음 시간 실험에서도 똑같이 해요.</p>' +
       '<div class="slive"><span id="slive">–</span><small>기압</small></div><p class="tiny" id="sstat" aria-live="polite"></p>' +
       '<div class="btns"><button class="btn pri" id="sconn" data-act="sconn">📡 센서 연결</button></div><p class="prepok" id="prepok" aria-live="polite">' + (P.ok ? '✓ 이 태블릿은 센서 연결에 성공했어요. 다음 시간 준비 완료!' : '') + '</p>' +
       '<details class="ptrb"><summary>센서가 목록에 안 보이거나 연결이 안 될 때</summary><ul><li>센서 전원이 켜져 있고 화면에 숫자가 보이는지 확인해요.</li><li>다른 친구의 태블릿이 그 센서에 연결돼 있으면 안 보여요. 친구가 끊을 때까지 기다려요.</li><li>블루투스와 위치를 껐다 켜고, 크롬을 완전히 닫았다가 다시 열어요.</li><li>태블릿 블루투스 설정에서 센서를 직접 ‘등록(페어링)’했다면 그 등록을 지우고, 이 화면에서만 연결해요.</li><li>그래도 안 되면 대표님께 알려요. 다음 시간 전에 고쳐 둘게요.</li></ul></details></div>';
@@ -1292,9 +1292,10 @@
       if (SENS.state === 'on' && SENS.kpa != null && !SENS.prepHit) {
         SENS.prepHit = true; var first = !P.ok; P.ok = Date.now(); P.dev = SENS.dev && SENS.dev.name || ''; save();
         sync('prep', { ok: P.ok, dev: P.dev, c: Object.keys(P.c).filter(function (k) { return P.c[k]; }).length });
-        $('#prepok').textContent = '✓ 연결 성공! 지금 ' + (SENS.kpa / 101.325).toFixed(2) + ' 기압이에요. 3초 뒤 연결을 끊고 센서를 다음 친구에게 넘겨요.';
+        $('#prepok').textContent = '✓ 연결 성공! 지금 ' + (SENS.kpa / 101.325).toFixed(2) + ' 기압이에요. 이제 아래 ‘내 차례 끝 · 연결 끊기’를 눌러요.';
         if (first) mile('prep.ok', 5);
-        setTimeout(function () { sDisconnect(); SENS.prepHit = false; var o = $('#prepok'); if (o) o.textContent = '✓ 이 태블릿은 센서 연결에 성공했어요. 다음 시간 준비 완료! 센서를 다음 친구에게 넘겨요.'; }, 3000);
+      } else if (SENS.prepHit && SENS.state !== 'on') {
+        SENS.prepHit = false; $('#prepok').textContent = '✓ 연결도 끊기도 잘했어요. 다음 시간 준비 완료! 센서를 다음 친구에게 넘겨요.';
       }
     }, 300);
   };
@@ -1700,7 +1701,7 @@
     guide: function () {
       var h = '<div class="card"><h3>9차시 흐름</h3><table class="tbl"><thead><tr><th>차시</th><th>여행지</th><th>성취기준</th><th>받는 도장</th></tr></thead><tbody>';
       T.dests.forEach(function (d) { var st = d.steps.filter(function (s) { return s.stamp; }).map(function (s) { return T.kinds[s.stamp].name; }).join(', '); h += '<tr><td>' + d.period + '</td><td>' + d.icon + ' ' + d.place + '<br><small>' + d.title + '</small></td><td>' + (d.std ? T.stds[d.std].code : '전체') + '</td><td>' + (st || '–') + '</td></tr>'; });
-      h += '</tbody></table></div><div class="card"><h3>도장과 성취수준</h3><table class="tbl"><thead><tr><th>도장</th><th>학생이 한 일</th><th>참고할 성취수준</th></tr></thead><tbody><tr><td>본 것</td><td>현상을 보고 변화 방향을 예측함</td><td>E·D</td></tr><tr><td>잰 것</td><td>자료를 표와 그래프로 나타내고 관계를 해석함</td><td>C·B</td></tr><tr><td>입자</td><td>입자 모형으로 변화의 까닭을 설명함</td><td>A (06-01은 C·A)</td></tr></tbody></table><p class="tiny">도장은 학생의 활동 완료를 뜻해요. 성취수준 판단은 ‘안내 한 줄’의 서술과 수업 관찰을 함께 보고 선생님이 확정해 주세요. ‘본 것’ 도장은 예측이 틀려도 찍힙니다. ‘잰 것’ 도장은 예시 자료로 연습해도 찍히며, 그 경우 ‘실험 자료’ 탭에는 나타나지 않습니다.</p></div>';
+      h += '</tbody></table></div><div class="card"><h3>도장과 성취수준</h3><table class="tbl"><thead><tr><th>도장</th><th>학생이 한 일</th><th>참고할 성취수준</th></tr></thead><tbody><tr><td>실험</td><td>직접 실험·관찰하여 변화를 확인함 (실험 활동을 마치면)</td><td>E·D</td></tr><tr><td>규칙</td><td>실험 결과(표·그래프)에서 관계를 찾아 문장으로 나타냄 (규칙 찾기·일반화하기를 마치면)</td><td>C·B</td></tr><tr><td>입자</td><td>입자 모형으로 변화의 까닭을 설명함 (입자로 설명하기를 마치면)</td><td>A (06-01은 C·A)</td></tr></tbody></table><p class="tiny">도장은 학생의 활동 완료를 뜻해요. 성취수준 판단은 ‘안내 한 줄’의 서술과 수업 관찰을 함께 보고 선생님이 확정해 주세요. 출발 질문(예측)에는 도장이 없어요. 한 성취기준에 같은 도장을 주는 활동이 여럿이면(3차시 주사기·감압 용기 등) 먼저 마친 활동에서 한 번만 찍혀요. ‘실험’ 도장은 예시 자료로 연습해도 찍히며, 그 경우 ‘실험 자료’ 탭에는 나타나지 않습니다.</p></div>';
       h += '<div class="card"><h3>개념기반 탐구 설계</h3><p><b>단원의 큰 질문</b> ' + esc(T.big.q) + '<br><b>핵심 아이디어</b> ' + esc(T.big.idea) + '<br><b>개념 렌즈</b> ' + esc(T.big.lens) + '</p><table class="tbl"><thead><tr><th>차시</th><th>개념적 질문</th><th>학생이 쓰는 문장</th><th>논쟁적 질문</th></tr></thead><tbody>';
       T.dests.forEach(function (d) { if (!d.cq) return; var g = d.steps.filter(function (x) { return x.type === 'gen'; })[0], db = d.steps.filter(function (x) { return x.type === 'debate'; })[0]; h += '<tr><td>' + d.period + '</td><td>' + esc(d.cq) + '</td><td>' + (g ? (g.mode === 'tmp' ? '규칙 찾기 (임시 일반화)' : g.from ? '일반화 다듬기' : '일반화하기') + '<br><small>예시: ' + esc(g.model) + '</small>' : '') + '</td><td>' + (db ? esc(db.q) : '') + '</td></tr>'; });
       h += '</tbody></table><p class="tiny">모든 차시는 탐구 질문으로 시작해 ‘돌아보기’(처음 예측과 지금 생각 비교)로 끝나요. 9차시 자격시험 앞에서 세 일반화를 이어 큰 질문에 답해요. 학생 글은 ‘학생 글’ 탭에서 볼 수 있어요.</p></div>';
