@@ -242,7 +242,7 @@
       '<p class="small" id="gmsg2" role="status">' + (api ? '기록은 대표님의 구글 시트에 자동 저장됩니다.' : '⚠ 서버가 연결되지 않아 기록이 이 기기에만 저장됩니다.') + '</p>' +
       '<button class="ghost" data-act="gteach">대표님(선생님)으로 입장</button><div id="gtbox" hidden class="gtbox"><label>교사 비밀번호<input id="gpin" type="text" class="secret" inputmode="numeric" autocomplete="off" data-lpignore="true" data-1p-ignore></label><button class="ghost in" data-act="gtgo">들어가기</button></div>' +
       (guestOpen() ? '<button class="tlinkb" data-act="gguest">🎩 참관 오셨나요? 둘러보기</button>' : '') +
-      '<div id="ggbox" hidden class="gtbox col"><p class="small"><b>둘러보기 전용</b> 입장입니다. 모든 여행지의 화면을 잠금 없이 넘겨 보실 수 있고, 해 보신 활동은 저장되지 않습니다.</p><button class="ghost in" data-act="ggo">둘러보기 시작</button></div></div></div></main>';
+      '<div id="ggbox" hidden class="gtbox col"><p class="small"><b>둘러보기 전용</b> 입장입니다. 모든 여행지의 화면을 잠금 없이 넘겨 보실 수 있고, 해 보신 활동은 저장되지 않습니다.</p>' + (CFG.GUEST_HASH ? '<label>참관 비밀번호<input id="ggpin" type="text" class="secret" inputmode="numeric" maxlength="12" autocomplete="off" data-lpignore="true" data-1p-ignore></label><p class="small" id="ggmsg" role="status" aria-live="polite"></p>' : '') + '<button class="ghost in" data-act="ggo">둘러보기 시작</button></div></div></div></main>';
     var f = $('#regform'), card = $('#idcard'), av = '<div class="av">' + mascot(44, 1) + '</div>';
     function entry() { return hasR ? (ROSTER[f.cls.value] || []).filter(function (x) { return String(x.num) === f.num.value; })[0] : null; }
     function nums() {
@@ -1447,7 +1447,18 @@
     else if (act === 'gteach') { $('#gtbox').hidden = !$('#gtbox').hidden; if (!$('#gtbox').hidden) $('#gpin').focus(); }
     else if (act === 'gtgo') { var gv = $('#gpin').value.trim(); $('#gmsg2').textContent = '확인 중…'; checkPin(gv, function () { sessionStorage.setItem('gastrip.tpin', gv); location.hash = '#teacher'; route(); }, function (why) { $('#gmsg2').innerHTML = '<b class="warn">' + (why || '교사 비밀번호가 달라요.') + '</b>'; }); }
     else if (act === 'gguest') { $('#ggbox').hidden = !$('#ggbox').hidden; }
-    else if (act === 'ggo') { if (!guestOpen()) { route(); return; } sessionStorage.setItem('gastrip.guest', '1'); for (var gk in S) if (gk !== 'profile') S[gk] = Array.isArray(S[gk]) ? [] : (S[gk] && typeof S[gk] === 'object') ? {} : (typeof S[gk] === 'number' ? 0 : null); S.profile = { cls: '0', num: '0', name: '참관 선생님' }; location.hash = '#home'; route(); }
+    else if (act === 'ggo') {
+      if (!guestOpen()) { route(); return; }
+      var gEnter = function () { sessionStorage.setItem('gastrip.guest', '1'); for (var gk in S) if (gk !== 'profile') S[gk] = Array.isArray(S[gk]) ? [] : (S[gk] && typeof S[gk] === 'object') ? {} : (typeof S[gk] === 'number' ? 0 : null); S.profile = { cls: '0', num: '0', name: '참관 선생님' }; location.hash = '#home'; route(); };
+      if (!CFG.GUEST_HASH) { gEnter(); return; }
+      var gp = $('#ggpin'), gm = $('#ggmsg'), gv = gp ? gp.value.trim() : '';
+      if (!gv) { gm.innerHTML = '<b class="warn">참관 비밀번호를 넣어 주세요.</b>'; gp.focus(); return; }
+      if (!(window.crypto && crypto.subtle)) { gm.innerHTML = '<b class="warn">이 브라우저에서는 확인할 수 없어요. 크롬에서 열어 주세요.</b>'; return; }
+      crypto.subtle.digest('SHA-256', new TextEncoder().encode('gastrip-guest:' + gv)).then(function (buf) {
+        var hx = Array.prototype.map.call(new Uint8Array(buf), function (x) { return ('0' + x.toString(16)).slice(-2); }).join('');
+        if (hx === CFG.GUEST_HASH) gEnter(); else { gm.innerHTML = '<b class="warn">참관 비밀번호가 다릅니다.</b>'; gp.select(); }
+      });
+    }
     else if (act === 'bdg') { $('#bdgmsg').innerHTML = '<b>' + b.dataset.n + '</b> — ' + b.dataset.d; }
     else if (act === 'look') { S.look = S.look || {}; S.look[b.dataset.k] = b.dataset.v; save(); var y1 = window.scrollY; viewHome(); window.scrollTo(0, y1); }
     else if (act === 'lookrand') { S.look = {}; for (var lk in LOOK) { var arr = LOOK[lk]; S.look[lk] = arr[Math.floor(Math.random() * arr.length)][0]; } if (S.look.move === 'off') S.look.move = 'right'; save(); var y2 = window.scrollY; viewHome(); window.scrollTo(0, y2); }
