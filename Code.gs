@@ -32,7 +32,7 @@ function applySheet_() {
 function applySave_(d) {
   var sh = applySheet_(), v = d.val || {}, id = String(d.num), vals = sh.getDataRange().getValues();
   var row = [new Date(), String(v.school || ''), String(d.name || ''), String(v.subject || ''), String(v.contact || ''), v.share === 'Y' ? '참석' : v.share === 'N' ? '참관만' : '', String(v.tool || ''), String(v.memo || ''), id];
-  row = row.map(function (x) { return typeof x === 'string' && /^[=+\-@]/.test(x) ? "'" + x : x; }); // 수식으로 읽히지 않게
+  row = row.map(function (x) { return typeof x === 'string' && /^[=+\-@]|^[\d\s().+-]+$/.test(x) ? "'" + x : x; }); // 수식으로 읽히거나 전화번호 앞의 0이 지워지지 않게
   for (var i = 1; i < vals.length; i++) if (String(vals[i][8]) === id) { sh.getRange(i + 1, 1, 1, row.length).setValues([row]); return; }
   sh.appendRow(row);
 }
