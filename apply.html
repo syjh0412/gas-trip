@@ -61,7 +61,7 @@
       <dt>장소</dt><dd>고천중학교 3층 과학실</dd>
       <dt>학년·단원</dt><dd>1학년 과학 · 기체의 성질</dd>
       <dt>주제</dt><dd><span class="topic">기체의 부피를 바꾸면 압력은 왜 달라질까?</span><small>무선 압력 센서와 바이브코딩 웹앱 활용 탐구</small></dd>
-      <dt>수업 나눔</dt><dd>7교시 15:20 ~ 16:05 · 3층 과학실<small>희망하시는 분만 참석합니다. 신청서에서 선택해 주세요.</small></dd>
+      <dt>수업 나눔</dt><dd>7교시 15:20 ~ 15:50 · 3층 과학실<small>희망하시는 분만 참석합니다. 신청서에서 선택해 주세요.</small></dd>
       <dt>수업 교사</dt><dd>김신연</dd>
       <dt>대상</dt><dd>경기도 관내 중·고등학교 희망 교원</dd>
       <dt>신청 기간</dt><dd>2026. 11. 24.(화) ~ 11. 26.(목)</dd>
@@ -79,7 +79,7 @@
         <div><label for="subject">담당 교과</label><input id="subject" name="subject" required maxlength="20" placeholder="예: 과학"></div>
         <div><label for="contact">연락처 <span class="opt">(선택 · 변동 사항 안내용)</span></label><input id="contact" name="contact" maxlength="40" inputmode="tel" autocomplete="tel" placeholder="휴대전화 또는 메신저 이름"></div>
       </div>
-      <fieldset class="pick"><legend>7교시 수업 나눔 <span class="opt">(15:20 ~ 16:05 · 희망자만)</span></legend>
+      <fieldset class="pick"><legend>7교시 수업 나눔 <span class="opt">(15:20 ~ 15:50 · 희망자만)</span></legend>
         <label><input type="radio" name="share" value="Y"> 참석합니다</label>
         <label><input type="radio" name="share" value="N"> 수업만 참관합니다</label>
       </fieldset>
@@ -120,7 +120,7 @@
   var mine = load();
   function showDone(v) {
     $('#formcard').hidden = true; $('#donecard').hidden = false;
-    $('#donetx').innerHTML = '<b>' + esc(v.school) + ' ' + esc(v.name) + '</b> 선생님(' + esc(v.subject) + '), 11월 30일(월) 6교시 14:24까지 고천중학교 3층 과학실로 와 주세요.' + (v.share === 'Y' ? ' 7교시 수업 나눔(15:20 ~ 16:05)에도 참석하시는 것으로 접수했습니다.' : ' 수업 참관만 하시는 것으로 접수했습니다.');
+    $('#donetx').innerHTML = '<b>' + esc(v.school) + ' ' + esc(v.name) + '</b> 선생님(' + esc(v.subject) + '), 11월 30일(월) 6교시 14:24까지 고천중학교 3층 과학실로 와 주세요.' + (v.share === 'Y' ? ' 7교시 수업 나눔(15:20 ~ 15:50)에도 참석하시는 것으로 접수했습니다.' : ' 수업 참관만 하시는 것으로 접수했습니다.');
   }
   function fill(v) { ['school', 'name', 'subject', 'contact', 'tool', 'memo'].forEach(function (k) { $('#' + k).value = v[k] || ''; }); var r = document.querySelector('input[name=share][value=' + (v.share === 'Y' ? 'Y' : 'N') + ']'); if (r && v.share) r.checked = true; }
   if (mine && mine.sent) { fill(mine); showDone(mine); }
