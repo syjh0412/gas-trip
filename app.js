@@ -39,7 +39,13 @@
 
   /* ---------- 도장 ---------- */
   function stampCount() { var n = 0; for (var s in S.stamps) for (var k in S.stamps[s]) n++; return n; }
-  function isG() { return !!sessionStorage.getItem('gastrip.guest'); }
+  function guestOpen() { var g = CFG.GUEST_OPEN; if (!g) return true; var n = Date.now(); return n >= new Date(g.from).getTime() && n < new Date(g.to).getTime(); }
+  function isG() { // 참관 모드는 정해진 시간에만 열린다. 시간이 지나면 참관 입장이 풀린다
+    if (!sessionStorage.getItem('gastrip.guest')) return false;
+    if (guestOpen()) return true;
+    sessionStorage.removeItem('gastrip.guest'); if (S && S.profile && S.profile.cls === '0' && !sessionStorage.getItem('gastrip.tpin')) S.profile = null;
+    return false;
+  }
   function isT() { return !!sessionStorage.getItem('gastrip.tpin') || isG(); }
   function rankIdx() { var n = stampCount(), ix = 0; for (var j = 1; j < T.ranks.length; j++) { if (S.miles >= T.ranks[j].min && n >= (T.ranks[j].st || 0)) ix = j; else break; } return ix; }
   function rank() { return T.ranks[rankIdx()]; }
@@ -235,7 +241,7 @@
       '<button class="go" type="submit">여행사 입장</button></form>' +
       '<p class="small" id="gmsg2" role="status">' + (api ? '기록은 대표님의 구글 시트에 자동 저장됩니다.' : '⚠ 서버가 연결되지 않아 기록이 이 기기에만 저장됩니다.') + '</p>' +
       '<button class="ghost" data-act="gteach">대표님(선생님)으로 입장</button><div id="gtbox" hidden class="gtbox"><label>교사 비밀번호<input id="gpin" type="text" class="secret" inputmode="numeric" autocomplete="off" data-lpignore="true" data-1p-ignore></label><button class="ghost in" data-act="gtgo">들어가기</button></div>' +
-      '<button class="tlinkb" data-act="gguest">🎩 참관 오셨나요? 둘러보기</button>' +
+      (guestOpen() ? '<button class="tlinkb" data-act="gguest">🎩 참관 오셨나요? 둘러보기</button>' : '') +
       '<div id="ggbox" hidden class="gtbox col"><p class="small"><b>둘러보기 전용</b> 입장입니다. 모든 여행지의 화면을 잠금 없이 넘겨 보실 수 있고, 해 보신 활동은 저장되지 않습니다.</p><button class="ghost in" data-act="ggo">둘러보기 시작</button></div></div></div></main>';
     var f = $('#regform'), card = $('#idcard'), av = '<div class="av">' + mascot(44, 1) + '</div>';
     function entry() { return hasR ? (ROSTER[f.cls.value] || []).filter(function (x) { return String(x.num) === f.num.value; })[0] : null; }
@@ -1441,7 +1447,7 @@
     else if (act === 'gteach') { $('#gtbox').hidden = !$('#gtbox').hidden; if (!$('#gtbox').hidden) $('#gpin').focus(); }
     else if (act === 'gtgo') { var gv = $('#gpin').value.trim(); $('#gmsg2').textContent = '확인 중…'; checkPin(gv, function () { sessionStorage.setItem('gastrip.tpin', gv); location.hash = '#teacher'; route(); }, function (why) { $('#gmsg2').innerHTML = '<b class="warn">' + (why || '교사 비밀번호가 달라요.') + '</b>'; }); }
     else if (act === 'gguest') { $('#ggbox').hidden = !$('#ggbox').hidden; }
-    else if (act === 'ggo') { sessionStorage.setItem('gastrip.guest', '1'); for (var gk in S) if (gk !== 'profile') S[gk] = Array.isArray(S[gk]) ? [] : (S[gk] && typeof S[gk] === 'object') ? {} : (typeof S[gk] === 'number' ? 0 : null); S.profile = { cls: '0', num: '0', name: '참관 선생님' }; location.hash = '#home'; route(); }
+    else if (act === 'ggo') { if (!guestOpen()) { route(); return; } sessionStorage.setItem('gastrip.guest', '1'); for (var gk in S) if (gk !== 'profile') S[gk] = Array.isArray(S[gk]) ? [] : (S[gk] && typeof S[gk] === 'object') ? {} : (typeof S[gk] === 'number' ? 0 : null); S.profile = { cls: '0', num: '0', name: '참관 선생님' }; location.hash = '#home'; route(); }
     else if (act === 'bdg') { $('#bdgmsg').innerHTML = '<b>' + b.dataset.n + '</b> — ' + b.dataset.d; }
     else if (act === 'look') { S.look = S.look || {}; S.look[b.dataset.k] = b.dataset.v; save(); var y1 = window.scrollY; viewHome(); window.scrollTo(0, y1); }
     else if (act === 'lookrand') { S.look = {}; for (var lk in LOOK) { var arr = LOOK[lk]; S.look[lk] = arr[Math.floor(Math.random() * arr.length)][0]; } if (S.look.move === 'off') S.look.move = 'right'; save(); var y2 = window.scrollY; viewHome(); window.scrollTo(0, y2); }
