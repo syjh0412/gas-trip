@@ -1257,8 +1257,8 @@
   STEP.prep = function (d, st, i) {
     var P = prepS();
     return '<p class="tiny" style="margin:0 0 10px">다음 시간(센서 연구소)에는 무선 센서를 태블릿에 연결해요. 오늘 미리 설정해 두면 다음 시간에 바로 실험할 수 있어요.</p>' +
-      '<div class="card"><h3>🔎 태블릿이 스스로 점검한 결과</h3><ul class="plain prepauto" id="prepauto"><li>확인하는 중…</li></ul></div>' +
-      '<div class="card"><h3>✅ 설정 확인하기</h3><p class="tiny" style="margin:0 0 8px">하나씩 해 보고 체크해요.</p>' + st.checks.map(function (c, k) { return '<label class="pchk"><input type="checkbox" data-act="pchk" data-k="' + k + '"' + (P.c[k] ? ' checked' : '') + '><span><b>' + esc(c.t) + '</b><small>' + esc(c.how) + '</small></span></label>'; }).join('') + '</div>' +
+      '<div class="card"><h3>🔎 태블릿이 스스로 점검한 결과</h3><ul class="plain prepauto" id="prepauto"><li>확인하는 중…</li></ul><button class="btn sm" data-act="precheck">🔄 다시 점검하기</button></div>' +
+      '<div class="card"><h3>✅ 설정 확인하기</h3><p class="tiny" style="margin:0 0 8px">하나씩 해 보고 체크해요.</p>' + st.checks.map(function (c, k) { return '<label class="pchk"><input type="checkbox" data-act="pchk" data-k="' + k + '"' + (P.c[k] ? ' checked' : '') + '><span><b>' + esc(c.t) + '</b><small>' + esc(c.how) + '</small></span></label>' + (c.fix ? '<details class="pfix"><summary>안 되면?</summary><p>' + esc(c.fix) + '</p></details>' : ''); }).join('') + '</div>' +
       '<div class="card sens"><h3>📡 센서 연결 시험</h3><p class="tiny" style="margin:0 0 8px">모둠 센서를 켜고 <b>한 사람씩</b> 눌러 봐요. 목록에 <b>SC:</b>로 시작하는 이름이 보이면 고르고 ‘페어링’을 눌러요. 연결되면 몇 초 뒤 저절로 끊겨서 다음 친구가 쓸 수 있어요.</p>' +
       '<div class="slive"><span id="slive">–</span><small>기압</small></div><p class="tiny" id="sstat" aria-live="polite"></p>' +
       '<div class="btns"><button class="btn pri" id="sconn" data-act="sconn">📡 센서 연결</button></div><p class="prepok" id="prepok" aria-live="polite">' + (P.ok ? '✓ 이 태블릿은 센서 연결에 성공했어요. 다음 시간 준비 완료!' : '') + '</p>' +
@@ -1267,18 +1267,24 @@
   var PREP_T = null;
   AFTER.prep = function (d, st, i) {
     var P = prepS(), box = $('#prepauto'), items = [];
-    function draw() { if (box) box.innerHTML = items.map(function (x) { return '<li class="' + (x[0] === true ? 'ok' : x[0] === false ? 'no' : 'wait') + '"><b>' + (x[0] === true ? '✓' : x[0] === false ? '✗' : '…') + '</b> ' + x[1] + '</li>'; }).join(''); }
+    var FIX = {
+      br: '크롬 앱을 열고 주소창에 <b>syjh0412.github.io/gas-trip</b> 을 입력해 다시 들어와요. 크롬이 없으면 Play 스토어에서 ‘Chrome’을 설치해요.',
+      bt: '① 화면 위에서 아래로 쓸어내려 빠른 설정 → 블루투스를 눌러 파란색으로 켜요. ② 켰는데도 ✗이면 크롬을 완전히 닫았다가 다시 열어요. ③ 그래도 ✗이면 설정 → 애플리케이션 → Chrome → 권한 → 근처 기기(주변 기기)를 ‘허용’으로 바꿔요. 다 하고 ‘다시 점검하기’를 눌러요.',
+      net: '① 설정 → 연결 → Wi-Fi에서 학교 와이파이를 골라요. ② 연결돼 있는데도 ✗이면 와이파이를 껐다 켜거나 다른 학교 와이파이로 바꿔요. ③ 새 탭에서 다른 사이트(예: 네이버)가 열리는지 봐요. 다른 사이트도 안 열리면 와이파이 문제, 다른 사이트는 열리면 대표님께 알려요.',
+      bat: '충전기에 꽂아 두고, 다음 시간 전까지 40% 이상 충전해 와요. 센서 연결은 배터리를 많이 써요.'
+    };
+    function draw() { if (box) box.innerHTML = items.map(function (x) { return '<li class="' + (x[0] === true ? 'ok' : x[0] === false ? 'no' : 'wait') + '"><b>' + (x[0] === true ? '✓' : x[0] === false ? '✗' : '…') + '</b> ' + x[1] + (x[0] !== true && x[2] && FIX[x[2]] ? '<div class="pfixa">🛠 <b>이렇게 해 봐요</b> ' + FIX[x[2]] + '</div>' : '') + '</li>'; }).join(''); }
     var isChrome = /Chrome\//.test(navigator.userAgent) && !/SamsungBrowser|Edg\/|OPR\//.test(navigator.userAgent);
-    items.push([!!navigator.bluetooth && isChrome, navigator.bluetooth && isChrome ? '크롬에서 열려 있어요. 센서를 연결할 수 있는 브라우저예요.' : '센서를 연결할 수 없는 브라우저예요. <b>크롬</b>으로 열어 주세요.']);
-    var bi = items.push([null, '블루투스 확인 중…']) - 1;
-    if (navigator.bluetooth && navigator.bluetooth.getAvailability) navigator.bluetooth.getAvailability().then(function (ok) { items[bi] = [ok, ok ? '블루투스를 쓸 수 있어요.' : '블루투스가 꺼져 있거나 쓸 수 없어요. <b>블루투스를 켜요.</b>']; draw(); }).catch(function () { items[bi] = [null, '블루투스 상태를 알 수 없어요. 아래 체크리스트로 확인해요.']; draw(); });
-    else items[bi] = [null, '블루투스 상태를 알 수 없어요. 아래 체크리스트로 확인해요.'];
-    var ni = items.push([null, '기록 서버 연결 확인 중…']) - 1;
+    items.push([!!navigator.bluetooth && isChrome, navigator.bluetooth && isChrome ? '크롬에서 열려 있어요. 센서를 연결할 수 있는 브라우저예요.' : '센서를 연결할 수 없는 브라우저예요. <b>크롬</b>으로 열어 주세요.', 'br']);
+    var bi = items.push([null, '블루투스 확인 중…', 'bt']) - 1;
+    if (navigator.bluetooth && navigator.bluetooth.getAvailability) navigator.bluetooth.getAvailability().then(function (ok) { items[bi] = [ok, ok ? '블루투스를 쓸 수 있어요.' : '블루투스가 꺼져 있거나 쓸 수 없어요.', 'bt']; draw(); }).catch(function () { items[bi] = [null, '블루투스 상태를 알 수 없어요. 아래 센서 연결 시험으로 확인해요.', 'bt']; draw(); });
+    else items[bi] = [null, '블루투스 상태를 알 수 없어요. 아래 센서 연결 시험으로 확인해요.', 'bt'];
+    var ni = items.push([null, '기록 서버 연결 확인 중…', 'net']) - 1;
     if (!CFG.API_URL) items[ni] = [null, '기록 서버가 설정되지 않았어요.'];
-    else if (!navigator.onLine) items[ni] = [false, '인터넷에 연결돼 있지 않아요. <b>학교 와이파이</b>에 연결해요.'];
-    else { var done = false; setTimeout(function () { if (!done) { done = true; items[ni] = [false, '기록 서버가 대답하지 않아요. 와이파이를 확인해요.']; draw(); } }, 8000);
-      fetch(CFG.API_URL + '?roster=1').then(function (r) { return r.json(); }).then(function () { if (done) return; done = true; items[ni] = [true, '인터넷과 기록 서버에 연결돼 있어요.']; draw(); }).catch(function () { if (done) return; done = true; items[ni] = [false, '기록 서버에 연결하지 못했어요. 와이파이를 확인해요.']; draw(); }); }
-    if (navigator.getBattery) { var ba = items.push([null, '배터리 확인 중…']) - 1; navigator.getBattery().then(function (b) { var pc = Math.round(b.level * 100); items[ba] = [pc >= 40 || b.charging, '배터리 ' + pc + '%' + (b.charging ? ' (충전 중)' : '') + (pc >= 40 || b.charging ? '' : ' · <b>다음 시간 전에 충전해 와요.</b>')]; draw(); }).catch(function () { }); }
+    else if (!navigator.onLine) items[ni] = [false, '인터넷에 연결돼 있지 않아요.', 'net'];
+    else { var done = false; setTimeout(function () { if (!done) { done = true; items[ni] = [false, '기록 서버가 대답하지 않아요.', 'net']; draw(); } }, 8000);
+      fetch(CFG.API_URL + '?roster=1').then(function (r) { return r.json(); }).then(function () { if (done) return; done = true; items[ni] = [true, '인터넷과 기록 서버에 연결돼 있어요.', 'net']; draw(); }).catch(function () { if (done) return; done = true; items[ni] = [false, '기록 서버에 연결하지 못했어요.', 'net']; draw(); }); }
+    if (navigator.getBattery) { var ba = items.push([null, '배터리 확인 중…', 'bat']) - 1; navigator.getBattery().then(function (b) { var pc = Math.round(b.level * 100); items[ba] = [pc >= 40 || b.charging, '배터리 ' + pc + '%' + (b.charging ? ' (충전 중)' : '') + (pc >= 40 || b.charging ? '' : ' · 배터리가 부족해요.'), 'bat']; draw(); }).catch(function () { }); }
     draw();
     clearInterval(PREP_T);
     PREP_T = setInterval(function () {
@@ -1466,6 +1472,7 @@
     else if (act === 'go') go(+b.dataset.d);
     else if (act === 'sconn') sConnect();
     else if (act === 'sdisc') sDisconnect();
+    else if (act === 'precheck') { var pd = cur.dest, ps = pd.steps[cur.sl.si]; if (ps && ps.type === 'prep') AFTER.prep(pd, ps, cur.sl.si); }
     else if (act === 'pchk') { var PP = prepS(); PP.c[b.dataset.k] = b.checked ? 1 : 0; save(); check(); }
     else if (act === 'szero') sZero();
     else if (act === 'srec') {

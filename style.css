@@ -470,3 +470,7 @@ a.rk { text-decoration: none; }
 .pchk { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border-bottom: 1px dashed #d5d9ec; cursor: pointer; } .pchk:last-child { border: 0; }
 .pchk input { width: 22px; height: 22px; flex: none; margin-top: 2px; } .pchk span { display: flex; flex-direction: column; } .pchk small { color: #565C7E; font-size: 14px; line-height: 1.45; }
 .prepok { font-weight: 700; color: #1E7B3A; margin: 8px 0 0; } .ptrb { margin-top: 10px; font-size: 15px; } .ptrb summary { cursor: pointer; font-weight: 700; } .ptrb li { margin: 4px 0; }
+
+.pfixa { margin: 6px 0 2px 22px; padding: 8px 10px; background: #FFF6E5; border-radius: 10px; color: #1B1F3B; font-size: 14px; line-height: 1.5; }
+.pfix { margin: -4px 0 6px 32px; font-size: 14px; } .pfix summary { cursor: pointer; color: #2F4BD8; font-weight: 700; } .pfix p { margin: 4px 0 8px; padding: 8px 10px; background: #F4F5FB; border-radius: 10px; line-height: 1.5; }
+.prepauto + .btn { margin-top: 8px; }
