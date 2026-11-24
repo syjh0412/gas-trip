@@ -463,3 +463,10 @@ a.rk { text-decoration: none; }
 .glaw { margin-top: 12px; padding: 12px 14px; border: 2px solid #E0A800; border-radius: 12px; background: #FFF9DB; } .glaw .h4 { margin: 0 0 4px; }
 .hvbox { position: relative; max-width: 560px; margin: 4px auto 12px; } .hvsnd { position: absolute; right: 10px; bottom: 10px; border: 0; border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 14px; font-weight: 700; background: rgba(27,31,59,.85); color: #fff; cursor: pointer; }
 .hvid { display: block; width: 100%; margin: 0; border-radius: 16px; border: 2px solid #1B1F3B; background: #DEECFC; }
+
+/* 2차시 끝: 센서 준비 점검 */
+.prepauto li { padding: 6px 0; border-bottom: 1px dashed #d5d9ec; } .prepauto li:last-child { border: 0; }
+.prepauto li.ok b { color: #1E7B3A; } .prepauto li.no b { color: #B4370F; } .prepauto li.no { color: #B4370F; }
+.pchk { display: flex; gap: 10px; align-items: flex-start; padding: 9px 0; border-bottom: 1px dashed #d5d9ec; cursor: pointer; } .pchk:last-child { border: 0; }
+.pchk input { width: 22px; height: 22px; flex: none; margin-top: 2px; } .pchk span { display: flex; flex-direction: column; } .pchk small { color: #565C7E; font-size: 14px; line-height: 1.45; }
+.prepok { font-weight: 700; color: #1E7B3A; margin: 8px 0 0; } .ptrb { margin-top: 10px; font-size: 15px; } .ptrb summary { cursor: pointer; font-weight: 700; } .ptrb li { margin: 4px 0; }

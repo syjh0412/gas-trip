@@ -193,7 +193,7 @@
   function route() {
     clearInterval(LIVE_T);
     if (sim) { sim.stop(); sim = null; }
-    if (SENS.dev && !/^#d\/T3\//.test(location.hash)) sDisconnect();
+    if (SENS.dev && !/^#d\/T[23]\//.test(location.hash)) sDisconnect();
     MCQ = {};
     var h = location.hash.replace(/^#/, '').split('/');
     if (!S.profile && isT()) { S.profile = { cls: '0', num: '0', name: isG() ? '참관 선생님' : '대표님' }; save(); }
@@ -1252,6 +1252,47 @@
   TODO.data = '표를 채우고, 점을 찍고, 경향선을 그리고, 질문에 답해요';
 
   // 입자로 설명하기 (변화 사슬)
+  /* ---------- 다음 여행 준비: 태블릿·센서 점검 (2차시 끝) ---------- */
+  function prepS() { S.flags.prep = S.flags.prep || { c: {} }; return S.flags.prep; }
+  STEP.prep = function (d, st, i) {
+    var P = prepS();
+    return '<p class="tiny" style="margin:0 0 10px">다음 시간(센서 연구소)에는 무선 센서를 태블릿에 연결해요. 오늘 미리 설정해 두면 다음 시간에 바로 실험할 수 있어요.</p>' +
+      '<div class="card"><h3>🔎 태블릿이 스스로 점검한 결과</h3><ul class="plain prepauto" id="prepauto"><li>확인하는 중…</li></ul></div>' +
+      '<div class="card"><h3>✅ 설정 확인하기</h3><p class="tiny" style="margin:0 0 8px">하나씩 해 보고 체크해요.</p>' + st.checks.map(function (c, k) { return '<label class="pchk"><input type="checkbox" data-act="pchk" data-k="' + k + '"' + (P.c[k] ? ' checked' : '') + '><span><b>' + esc(c.t) + '</b><small>' + esc(c.how) + '</small></span></label>'; }).join('') + '</div>' +
+      '<div class="card sens"><h3>📡 센서 연결 시험</h3><p class="tiny" style="margin:0 0 8px">모둠 센서를 켜고 <b>한 사람씩</b> 눌러 봐요. 목록에 <b>SC:</b>로 시작하는 이름이 보이면 고르고 ‘페어링’을 눌러요. 연결되면 몇 초 뒤 저절로 끊겨서 다음 친구가 쓸 수 있어요.</p>' +
+      '<div class="slive"><span id="slive">–</span><small>기압</small></div><p class="tiny" id="sstat" aria-live="polite"></p>' +
+      '<div class="btns"><button class="btn pri" id="sconn" data-act="sconn">📡 센서 연결</button></div><p class="prepok" id="prepok" aria-live="polite">' + (P.ok ? '✓ 이 태블릿은 센서 연결에 성공했어요. 다음 시간 준비 완료!' : '') + '</p>' +
+      '<details class="ptrb"><summary>센서가 목록에 안 보이거나 연결이 안 될 때</summary><ul><li>센서 전원이 켜져 있고 화면에 숫자가 보이는지 확인해요.</li><li>다른 친구의 태블릿이 그 센서에 연결돼 있으면 안 보여요. 친구가 끊을 때까지 기다려요.</li><li>블루투스와 위치를 껐다 켜고, 크롬을 완전히 닫았다가 다시 열어요.</li><li>태블릿 블루투스 설정에서 센서를 직접 ‘등록(페어링)’했다면 그 등록을 지우고, 이 화면에서만 연결해요.</li><li>그래도 안 되면 대표님께 알려요. 다음 시간 전에 고쳐 둘게요.</li></ul></details></div>';
+  };
+  var PREP_T = null;
+  AFTER.prep = function (d, st, i) {
+    var P = prepS(), box = $('#prepauto'), items = [];
+    function draw() { if (box) box.innerHTML = items.map(function (x) { return '<li class="' + (x[0] === true ? 'ok' : x[0] === false ? 'no' : 'wait') + '"><b>' + (x[0] === true ? '✓' : x[0] === false ? '✗' : '…') + '</b> ' + x[1] + '</li>'; }).join(''); }
+    var isChrome = /Chrome\//.test(navigator.userAgent) && !/SamsungBrowser|Edg\/|OPR\//.test(navigator.userAgent);
+    items.push([!!navigator.bluetooth && isChrome, navigator.bluetooth && isChrome ? '크롬에서 열려 있어요. 센서를 연결할 수 있는 브라우저예요.' : '센서를 연결할 수 없는 브라우저예요. <b>크롬</b>으로 열어 주세요.']);
+    var bi = items.push([null, '블루투스 확인 중…']) - 1;
+    if (navigator.bluetooth && navigator.bluetooth.getAvailability) navigator.bluetooth.getAvailability().then(function (ok) { items[bi] = [ok, ok ? '블루투스를 쓸 수 있어요.' : '블루투스가 꺼져 있거나 쓸 수 없어요. <b>블루투스를 켜요.</b>']; draw(); }).catch(function () { items[bi] = [null, '블루투스 상태를 알 수 없어요. 아래 체크리스트로 확인해요.']; draw(); });
+    else items[bi] = [null, '블루투스 상태를 알 수 없어요. 아래 체크리스트로 확인해요.'];
+    var ni = items.push([null, '기록 서버 연결 확인 중…']) - 1;
+    if (!CFG.API_URL) items[ni] = [null, '기록 서버가 설정되지 않았어요.'];
+    else if (!navigator.onLine) items[ni] = [false, '인터넷에 연결돼 있지 않아요. <b>학교 와이파이</b>에 연결해요.'];
+    else { var done = false; setTimeout(function () { if (!done) { done = true; items[ni] = [false, '기록 서버가 대답하지 않아요. 와이파이를 확인해요.']; draw(); } }, 8000);
+      fetch(CFG.API_URL + '?roster=1').then(function (r) { return r.json(); }).then(function () { if (done) return; done = true; items[ni] = [true, '인터넷과 기록 서버에 연결돼 있어요.']; draw(); }).catch(function () { if (done) return; done = true; items[ni] = [false, '기록 서버에 연결하지 못했어요. 와이파이를 확인해요.']; draw(); }); }
+    if (navigator.getBattery) { var ba = items.push([null, '배터리 확인 중…']) - 1; navigator.getBattery().then(function (b) { var pc = Math.round(b.level * 100); items[ba] = [pc >= 40 || b.charging, '배터리 ' + pc + '%' + (b.charging ? ' (충전 중)' : '') + (pc >= 40 || b.charging ? '' : ' · <b>다음 시간 전에 충전해 와요.</b>')]; draw(); }).catch(function () { }); }
+    draw();
+    clearInterval(PREP_T);
+    PREP_T = setInterval(function () {
+      if (!$('#prepok')) { clearInterval(PREP_T); return; }
+      if (SENS.state === 'on' && SENS.kpa != null && !SENS.prepHit) {
+        SENS.prepHit = true; var first = !P.ok; P.ok = Date.now(); P.dev = SENS.dev && SENS.dev.name || ''; save();
+        sync('prep', { ok: P.ok, dev: P.dev, c: Object.keys(P.c).filter(function (k) { return P.c[k]; }).length });
+        $('#prepok').textContent = '✓ 연결 성공! 지금 ' + (SENS.kpa / 101.325).toFixed(2) + ' 기압이에요. 3초 뒤 연결을 끊고 센서를 다음 친구에게 넘겨요.';
+        if (first) mile('prep.ok', 5);
+        setTimeout(function () { sDisconnect(); SENS.prepHit = false; var o = $('#prepok'); if (o) o.textContent = '✓ 이 태블릿은 센서 연결에 성공했어요. 다음 시간 준비 완료! 센서를 다음 친구에게 넘겨요.'; }, 3000);
+      }
+    }, 300);
+  };
+  DONE.prep = function (d, st) { var P = S.flags.prep; return !!P && st.checks.every(function (c, k) { return P.c && P.c[k]; }); };
   STEP.chain = function (d, st, i) {
     var C = S.chain[ckey(d, st)] = S.chain[ckey(d, st)] || { sel: [], ok: false };
     var h = '<div class="card chain"><p class="scene"><b>상황</b> ' + st.scene + '</p><ol class="links">';
@@ -1425,6 +1466,7 @@
     else if (act === 'go') go(+b.dataset.d);
     else if (act === 'sconn') sConnect();
     else if (act === 'sdisc') sDisconnect();
+    else if (act === 'pchk') { var PP = prepS(); PP.c[b.dataset.k] = b.checked ? 1 : 0; save(); check(); }
     else if (act === 'szero') sZero();
     else if (act === 'srec') {
       var pk = sNow(); if (pk == null) return; pk = pk / 101.325; readRows('boyle'); var SD = S.data.boyle, vv = b.dataset.v, put = false;
@@ -1658,10 +1700,10 @@
       return h;
     },
     class: function () {
-      var h = '<div class="card scroll"><table class="tbl"><thead><tr><th>번호</th><th>이름</th>' + ['01', '02', '03'].map(function (s) { return '<th>' + T.stds[s].short + '<br><small>본·잰·입자</small></th>'; }).join('') + '<th>마일</th><th>등급</th><th>부스</th><th>시험</th></tr></thead><tbody>';
+      var h = '<div class="card scroll"><table class="tbl"><thead><tr><th>번호</th><th>이름</th>' + ['01', '02', '03'].map(function (s) { return '<th>' + T.stds[s].short + '<br><small>본·잰·입자</small></th>'; }).join('') + '<th>센서 준비</th><th>마일</th><th>등급</th><th>부스</th><th>시험</th></tr></thead><tbody>';
       students().forEach(function (s) {
         var p = s.progress || {}, sp = p.stamps || {};
-        h += '<tr><td>' + esc(s.num) + '</td><td>' + esc(s.name) + '</td>' + ['01', '02', '03'].map(function (x) { return '<td class="dots">' + ['see', 'meas', 'part'].map(function (k) { return '<i class="' + (sp[x] && sp[x][k] ? 'on' : '') + '" style="--c:' + T.kinds[k].color + '"></i>'; }).join('') + '</td>'; }).join('') + '<td>' + (p.miles || 0) + '</td><td>' + esc(p.rank || '') + '</td><td>' + ((p.booths || []).length || '') + '</td><td>' + (p.exam ? p.exam.best + '/' + p.exam.total : '') + '</td></tr>';
+        h += '<tr><td>' + esc(s.num) + '</td><td>' + esc(s.name) + '</td>' + ['01', '02', '03'].map(function (x) { return '<td class="dots">' + ['see', 'meas', 'part'].map(function (k) { return '<i class="' + (sp[x] && sp[x][k] ? 'on' : '') + '" style="--c:' + T.kinds[k].color + '"></i>'; }).join('') + '</td>'; }).join('') + '<td>' + (s.prep && s.prep.ok ? '✓ 연결' : s.prep ? '설정만' : '') + '</td><td>' + (p.miles || 0) + '</td><td>' + esc(p.rank || '') + '</td><td>' + ((p.booths || []).length || '') + '</td><td>' + (p.exam ? p.exam.best + '/' + p.exam.total : '') + '</td></tr>';
       });
       return h + '</tbody></table></div>';
     },
