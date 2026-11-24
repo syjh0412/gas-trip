@@ -26,19 +26,19 @@ var APPLY_CLS = '참관';
 function applySheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName('참관신청');
-  if (!sh) { sh = ss.insertSheet('참관신청'); sh.appendRow(['신청 시각', '소속 학교', '성명', '담당 교과', '연락처', '보고 싶은 점', 'id']); sh.setFrozenRows(1); }
+  if (!sh) { sh = ss.insertSheet('참관신청'); sh.appendRow(['신청 시각', '소속 학교', '성명', '담당 교과', '연락처', '7교시 수업 나눔', '보고 싶은 점', 'id']); sh.setFrozenRows(1); }
   return sh;
 }
 function applySave_(d) {
   var sh = applySheet_(), v = d.val || {}, id = String(d.num), vals = sh.getDataRange().getValues();
-  var row = [new Date(), String(v.school || ''), String(d.name || ''), String(v.subject || ''), String(v.contact || ''), String(v.memo || ''), id];
+  var row = [new Date(), String(v.school || ''), String(d.name || ''), String(v.subject || ''), String(v.contact || ''), v.share === 'Y' ? '참석' : v.share === 'N' ? '참관만' : '', String(v.memo || ''), id];
   row = row.map(function (x) { return typeof x === 'string' && /^[=+\-@]/.test(x) ? "'" + x : x; }); // 수식으로 읽히지 않게
-  for (var i = 1; i < vals.length; i++) if (String(vals[i][6]) === id) { sh.getRange(i + 1, 1, 1, row.length).setValues([row]); return; }
+  for (var i = 1; i < vals.length; i++) if (String(vals[i][7]) === id) { sh.getRange(i + 1, 1, 1, row.length).setValues([row]); return; }
   sh.appendRow(row);
 }
 function applyRows_() {
   var vals = applySheet_().getDataRange().getValues(), rows = [];
-  for (var i = 1; i < vals.length; i++) { var r = vals[i]; if (r[1] === '' && r[2] === '') continue; rows.push({ cls: APPLY_CLS, num: r[6], name: r[2], key: 'apply', val: { school: r[1], subject: r[3], contact: r[4], memo: r[5], at: r[0] instanceof Date ? r[0].toISOString() : String(r[0]) } }); }
+  for (var i = 1; i < vals.length; i++) { var r = vals[i]; if (r[1] === '' && r[2] === '') continue; rows.push({ cls: APPLY_CLS, num: r[7], name: r[2], key: 'apply', val: { school: r[1], subject: r[3], contact: r[4], share: r[5] === '참석' ? 'Y' : r[5] === '참관만' ? 'N' : '', memo: r[6], at: r[0] instanceof Date ? r[0].toISOString() : String(r[0]) } }); }
   return rows;
 }
 
