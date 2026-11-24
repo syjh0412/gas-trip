@@ -83,9 +83,11 @@
         <label><input type="radio" name="share" value="Y"> 참석합니다</label>
         <label><input type="radio" name="share" value="N"> 수업만 참관합니다</label>
       </fieldset>
+      <label for="tool">관심 있는 과학 교구 <span class="opt">(선택 · 과학실 공개 때 살펴보고 싶은 것)</span></label>
+      <input id="tool" name="tool" maxlength="80" placeholder="예: 무선 압력 센서, 감압 용기, 열화상 카메라">
       <label for="memo">수업에서 보고 싶은 점·궁금한 점 <span class="opt">(선택)</span></label>
       <textarea id="memo" name="memo" maxlength="300"></textarea>
-      <label class="agree" for="agree"><input type="checkbox" id="agree"> <span>참관 안내를 위해 소속 학교·성명·담당 교과·연락처를 수집하며, 수업 공개가 끝나면 삭제합니다. 이에 동의합니다.</span></label>
+      <label class="agree" for="agree"><input type="checkbox" id="agree"> <span>참관 안내를 위해 소속 학교·성명·담당 교과·연락처 등 신청 내용을 수집하며, 수업 공개가 끝나면 삭제합니다. 이에 동의합니다.</span></label>
       <button class="pri" id="send" type="submit">참관 신청하기</button>
       <p class="msg" id="msg" role="status" aria-live="polite"></p>
     </form>
@@ -120,7 +122,7 @@
     $('#formcard').hidden = true; $('#donecard').hidden = false;
     $('#donetx').innerHTML = '<b>' + esc(v.school) + ' ' + esc(v.name) + '</b> 선생님(' + esc(v.subject) + '), 11월 30일(월) 6교시 14:24까지 고천중학교 3층 과학실로 와 주세요.' + (v.share === 'Y' ? ' 7교시 수업 나눔(15:20 ~ 16:05)에도 참석하시는 것으로 접수했습니다.' : ' 수업 참관만 하시는 것으로 접수했습니다.');
   }
-  function fill(v) { ['school', 'name', 'subject', 'contact', 'memo'].forEach(function (k) { $('#' + k).value = v[k] || ''; }); var r = document.querySelector('input[name=share][value=' + (v.share === 'Y' ? 'Y' : 'N') + ']'); if (r && v.share) r.checked = true; }
+  function fill(v) { ['school', 'name', 'subject', 'contact', 'tool', 'memo'].forEach(function (k) { $('#' + k).value = v[k] || ''; }); var r = document.querySelector('input[name=share][value=' + (v.share === 'Y' ? 'Y' : 'N') + ']'); if (r && v.share) r.checked = true; }
   if (mine && mine.sent) { fill(mine); showDone(mine); }
   if (Date.now() >= CLOSE.getTime() && !(mine && mine.sent)) {
     $('#send').disabled = true; $('#msg').className = 'msg err';
@@ -130,7 +132,7 @@
   $('#f').addEventListener('submit', function (e) {
     e.preventDefault();
     var m = $('#msg'), v = {}; m.className = 'msg err';
-    ['school', 'name', 'subject', 'contact', 'memo'].forEach(function (k) { v[k] = $('#' + k).value.trim(); });
+    ['school', 'name', 'subject', 'contact', 'tool', 'memo'].forEach(function (k) { v[k] = $('#' + k).value.trim(); });
     var miss = ['school', 'name', 'subject'].filter(function (k) { return !v[k]; })[0];
     var sh = document.querySelector('input[name=share]:checked'); v.share = sh ? sh.value : '';
     if (miss) { m.textContent = { school: '소속 학교를', name: '성명을', subject: '담당 교과를' }[miss] + ' 적어 주세요.'; $('#' + miss).focus(); return; }
@@ -139,7 +141,7 @@
     if (!API) { m.textContent = '신청 서버가 연결되어 있지 않습니다. GOE 메신저(고천중 김신연)로 신청해 주세요.'; return; }
     var id = (mine && mine.id) || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)), btn = $('#send');
     btn.disabled = true; btn.textContent = '보내는 중…'; m.className = 'msg'; m.textContent = '';
-    post({ cls: CLS, num: id, name: v.name, key: KEY, val: { school: v.school, subject: v.subject, contact: v.contact, share: v.share, memo: v.memo, at: new Date().toISOString() } }).then(function (r) {
+    post({ cls: CLS, num: id, name: v.name, key: KEY, val: { school: v.school, subject: v.subject, contact: v.contact, share: v.share, tool: v.tool, memo: v.memo, at: new Date().toISOString() } }).then(function (r) {
       if (!r || r.error) throw new Error((r && r.error) || 'no response');
       v.id = id; v.sent = true; mine = v; store(v); showDone(v);
     }).catch(function () {
@@ -152,9 +154,9 @@
       if (!r || r.error) throw new Error((r && r.error) || 'no response');
       var rows = (r.rows || []).filter(function (x) { return x.key === KEY && x.val; }).sort(function (a, b) { return String(a.val.at || '').localeCompare(String(b.val.at || '')); });
       m.className = 'msg ok'; m.textContent = '신청 ' + rows.length + '명 · 수업 나눔 참석 ' + rows.filter(function (x) { return x.val.share === 'Y'; }).length + '명';
-      box.innerHTML = rows.length ? '<table><thead><tr><th>번호</th><th>학교</th><th>성명</th><th>교과</th><th>연락처</th><th>수업 나눔</th><th>보고 싶은 점</th><th>신청 시각</th></tr></thead><tbody>' + rows.map(function (x, i) {
+      box.innerHTML = rows.length ? '<table><thead><tr><th>번호</th><th>학교</th><th>성명</th><th>교과</th><th>연락처</th><th>수업 나눔</th><th>관심 교구</th><th>보고 싶은 점</th><th>신청 시각</th></tr></thead><tbody>' + rows.map(function (x, i) {
         var t = x.val.at ? new Date(x.val.at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
-        return '<tr><td>' + (i + 1) + '</td><td>' + esc(x.val.school) + '</td><td>' + esc(x.name) + '</td><td>' + esc(x.val.subject) + '</td><td>' + esc(x.val.contact) + '</td><td>' + (x.val.share === 'Y' ? '참석' : x.val.share === 'N' ? '–' : '') + '</td><td>' + esc(x.val.memo) + '</td><td>' + esc(t) + '</td></tr>';
+        return '<tr><td>' + (i + 1) + '</td><td>' + esc(x.val.school) + '</td><td>' + esc(x.name) + '</td><td>' + esc(x.val.subject) + '</td><td>' + esc(x.val.contact) + '</td><td>' + (x.val.share === 'Y' ? '참석' : x.val.share === 'N' ? '–' : '') + '</td><td>' + esc(x.val.tool) + '</td><td>' + esc(x.val.memo) + '</td><td>' + esc(t) + '</td></tr>';
       }).join('') + '</tbody></table>' : '';
     }).catch(function (e) { m.className = 'msg err'; m.textContent = /비밀번호/.test(e.message) ? '비밀번호가 다릅니다.' : '불러오지 못했습니다. 잠시 뒤 다시 눌러 주세요.'; });
   });
