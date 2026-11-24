@@ -21,6 +21,27 @@ function sheet_() {
   return sh;
 }
 
+/** 수업 공개 참관 신청: 학생 자료(data)와 섞이지 않게 '참관신청' 탭에 따로 모읍니다. */
+var APPLY_CLS = '참관';
+function applySheet_() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName('참관신청');
+  if (!sh) { sh = ss.insertSheet('참관신청'); sh.appendRow(['신청 시각', '소속 학교', '성명', '담당 교과', '연락처', '보고 싶은 점', 'id']); sh.setFrozenRows(1); }
+  return sh;
+}
+function applySave_(d) {
+  var sh = applySheet_(), v = d.val || {}, id = String(d.num), vals = sh.getDataRange().getValues();
+  var row = [new Date(), String(v.school || ''), String(d.name || ''), String(v.subject || ''), String(v.contact || ''), String(v.memo || ''), id];
+  row = row.map(function (x) { return typeof x === 'string' && /^[=+\-@]/.test(x) ? "'" + x : x; }); // 수식으로 읽히지 않게
+  for (var i = 1; i < vals.length; i++) if (String(vals[i][6]) === id) { sh.getRange(i + 1, 1, 1, row.length).setValues([row]); return; }
+  sh.appendRow(row);
+}
+function applyRows_() {
+  var vals = applySheet_().getDataRange().getValues(), rows = [];
+  for (var i = 1; i < vals.length; i++) { var r = vals[i]; if (r[1] === '' && r[2] === '') continue; rows.push({ cls: APPLY_CLS, num: r[6], name: r[2], key: 'apply', val: { school: r[1], subject: r[3], contact: r[4], memo: r[5], at: r[0] instanceof Date ? r[0].toISOString() : String(r[0]) } }); }
+  return rows;
+}
+
 function out_(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
@@ -81,6 +102,7 @@ function doPost(e) {
     lock.waitLock(10000);
     if (d.action === 'rows') { // 교사용: 비밀번호가 맞아야 반 전체 기록을 돌려준다
       if (String(d.pin) !== String(TEACHER_PIN)) return out_({ error: '비밀번호가 다릅니다' });
+      if (String(d.cls) === APPLY_CLS) return out_({ rows: applyRows_().concat(rows_(APPLY_CLS, null, true)) }); // 예전 방식으로 data 탭에 들어온 신청도 함께
       return out_({ rows: d.cls ? rows_(d.cls, null, true) : [] });
     }
     if (d.action === 'login') {
@@ -88,6 +110,7 @@ function doPost(e) {
       return out_(login_(d));
     }
     if (!d.cls || !d.num || !d.key) return out_({ error: 'bad request' });
+    if (String(d.cls) === APPLY_CLS && d.key === 'apply') { applySave_(d); return out_({ ok: true }); }
     var id = [d.cls, d.num, d.key].join('|');
     var row = [id, new Date(), String(d.cls), String(d.num), String(d.name || ''), String(d.key), JSON.stringify(d.val)];
     var sh = sheet_();
