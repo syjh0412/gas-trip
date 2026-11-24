@@ -10,6 +10,10 @@
   /* ---------- 상태 ---------- */
   var S = { profile: null, miles: 0, mi: {}, combo: 0, flags: {}, wear: {}, look: {}, badges: {}, pos: {}, seen: {}, done: {}, stamps: {}, ans: {}, data: {}, lines: {}, lab: {}, chain: {}, booths: [], exam: null, gen: {}, deb: {}, refl: {}, bigtxt: '' };
   try { var raw = localStorage.getItem(KEY); if (raw) { var o = JSON.parse(raw); for (var k in o) S[k] = o[k]; } } catch (e) { }
+  function wipeProgress() { for (var gk in S) if (gk !== 'profile') S[gk] = Array.isArray(S[gk]) ? [] : (S[gk] && typeof S[gk] === 'object') ? {} : (typeof S[gk] === 'number' ? 0 : typeof S[gk] === 'string' ? '' : null); }
+  // 선생님(대표님)·참관으로 눌러 본 기록은 남기지 않는다: 새로 들어오면 빈 상태에서 시작
+  if (S.profile && S.profile.cls === '0' && !sessionStorage.getItem('gastrip.tpin') && !sessionStorage.getItem('gastrip.guest')) { S.profile = null; wipeProgress(); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } }
+  function teacherFresh() { if (!S.profile || S.profile.cls === '0') { wipeProgress(); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { } } }
   var stTimer = null;
   function save() {
     if (isG()) return;
@@ -1445,11 +1449,11 @@
     else if (act === 'celebok') { var ce = $('.celeb'); if (ce) ce.remove(); if (cur && !cur.dest && b.tagName !== 'A') viewHome(); }
     else if (act === 'eye') { var pi = b.previousElementSibling, sh = pi.classList.toggle('show'); b.textContent = sh ? '숨김' : '보기'; }
     else if (act === 'gteach') { $('#gtbox').hidden = !$('#gtbox').hidden; if (!$('#gtbox').hidden) $('#gpin').focus(); }
-    else if (act === 'gtgo') { var gv = $('#gpin').value.trim(); $('#gmsg2').textContent = '확인 중…'; checkPin(gv, function () { sessionStorage.setItem('gastrip.tpin', gv); location.hash = '#teacher'; route(); }, function (why) { $('#gmsg2').innerHTML = '<b class="warn">' + (why || '교사 비밀번호가 달라요.') + '</b>'; }); }
+    else if (act === 'gtgo') { var gv = $('#gpin').value.trim(); $('#gmsg2').textContent = '확인 중…'; checkPin(gv, function () { teacherFresh(); sessionStorage.setItem('gastrip.tpin', gv); location.hash = '#teacher'; route(); }, function (why) { $('#gmsg2').innerHTML = '<b class="warn">' + (why || '교사 비밀번호가 달라요.') + '</b>'; }); }
     else if (act === 'gguest') { $('#ggbox').hidden = !$('#ggbox').hidden; }
     else if (act === 'ggo') {
       if (!guestOpen()) { route(); return; }
-      var gEnter = function () { sessionStorage.setItem('gastrip.guest', '1'); for (var gk in S) if (gk !== 'profile') S[gk] = Array.isArray(S[gk]) ? [] : (S[gk] && typeof S[gk] === 'object') ? {} : (typeof S[gk] === 'number' ? 0 : null); S.profile = { cls: '0', num: '0', name: '참관 선생님' }; location.hash = '#home'; route(); };
+      var gEnter = function () { sessionStorage.setItem('gastrip.guest', '1'); wipeProgress(); S.profile = { cls: '0', num: '0', name: '참관 선생님' }; location.hash = '#home'; route(); };
       if (!CFG.GUEST_HASH) { gEnter(); return; }
       var gp = $('#ggpin'), gm = $('#ggmsg'), gv = gp ? gp.value.trim() : '';
       if (!gv) { gm.innerHTML = '<b class="warn">참관 비밀번호를 넣어 주세요.</b>'; gp.focus(); return; }
@@ -1627,8 +1631,8 @@
     var chips = Object.keys(place).map(function (k) { return '<span class="lchip">' + esc(k) + ' ' + place[k] + '명</span>'; }).join('');
     return '<p class="lsum"><b>🟢 ' + cnt.on + '</b> 진행 · 🟡 ' + cnt.idle + ' 조용 · 🌙 ' + cnt.away + ' 꺼짐 · ⚪ ' + cnt.off + ' 끊김</p><div class="lchips">' + chips + '</div><div class="lcards">' + cards.join('') + '</div>';
   }
-  TEACH.tlogin = function () { var v = $('#tpin').value.trim(); $('#tmsg').textContent = '확인 중…'; checkPin(v, function () { sessionStorage.setItem('gastrip.tpin', v); viewTeacher(); }, function (why) { $('#tmsg').innerHTML = '<b class="warn">' + (why || '비밀번호가 달라요.') + '</b>'; }); };
-  TEACH.tlogout = function () { var g = isG(); sessionStorage.removeItem('gastrip.tpin'); sessionStorage.removeItem('gastrip.guest'); if (S.profile && S.profile.cls === '0') { S.profile = null; if (!g) save(); } location.hash = ''; location.reload(); };
+  TEACH.tlogin = function () { var v = $('#tpin').value.trim(); $('#tmsg').textContent = '확인 중…'; checkPin(v, function () { if (!sessionStorage.getItem('gastrip.tpin')) teacherFresh(); sessionStorage.setItem('gastrip.tpin', v); viewTeacher(); }, function (why) { $('#tmsg').innerHTML = '<b class="warn">' + (why || '비밀번호가 달라요.') + '</b>'; }); };
+  TEACH.tlogout = function () { var g = isG(); sessionStorage.removeItem('gastrip.tpin'); sessionStorage.removeItem('gastrip.guest'); if (S.profile && S.profile.cls === '0') { S.profile = null; wipeProgress(); if (!g) save(); } location.hash = ''; location.reload(); };
   TEACH.ttab = function (b) { TS.tab = b.dataset.t; viewTeacher(); };
   TEACH.tload = function () {
     TS.cls = $('#tcls').value.trim(); if (!TS.cls) return; TS.msg = '불러오는 중…'; viewTeacher();
