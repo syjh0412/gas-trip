@@ -517,7 +517,7 @@
     var sl = slides[k], st = sl.si != null ? d.steps[sl.si] : null, body = '', kick = st ? st.title + (sl.n > 1 ? ' ' + (sl.j + 1) + ' / ' + sl.n : '') : '';
     cur = { dest: d, step: sl.si, slide: k, slides: slides, sl: sl };
     if (sl.k !== 'hero' && sl.k !== 'clear') body = roadHTML(sl, st);
-    if (sl.k === 'hero') body = '<div class="hero"><div class="hic">' + d.icon + '</div><p class="s-kicker">' + d.period + ' · ' + d.page + '</p><h1 class="s-title">' + d.place + '</h1><p class="hsub">' + d.title + '</p>' + (d.video ? '<video class="hvid" src="' + d.video + '" autoplay muted loop playsinline preload="auto" aria-label="산에 오를수록 과자 봉지가 부풀어 오르는 모습"></video>' : '') + '<p class="hintro">' + d.intro + '</p>' + (d.cq ? '<div class="cqbox"><span>🧭 오늘의 탐구 질문</span><b>' + d.cq + '</b></div>' : '') + (d.std ? '<p class="hstd"><b>' + T.stds[d.std].code + '</b> ' + T.stds[d.std].text + '</p>' : '') + '</div>';
+    if (sl.k === 'hero') body = '<div class="hero"><div class="hic">' + d.icon + '</div><p class="s-kicker">' + d.period + ' · ' + d.page + '</p><h1 class="s-title">' + d.place + '</h1><p class="hsub">' + d.title + '</p>' + (d.video ? '<div class="hvbox"><video class="hvid" src="' + d.video + '" autoplay muted loop playsinline preload="auto" aria-label="' + esc(d.place) + ' 도입 영상"></video><button class="hvsnd" type="button" data-act="vsound">🔊 소리 켜기</button></div>' : '') + '<p class="hintro">' + d.intro + '</p>' + (d.cq ? '<div class="cqbox"><span>🧭 오늘의 탐구 질문</span><b>' + d.cq + '</b></div>' : '') + (d.std ? '<p class="hstd"><b>' + T.stds[d.std].code + '</b> ' + T.stds[d.std].text + '</p>' : '') + '</div>';
     else if (sl.k === 'q') body += '<p class="s-kicker">' + kick + '</p>' + (st.note ? '<p class="note">' + st.note + '</p>' : '') + mcq(pfx(d, sl.si) + sl.j, st.items[sl.j], 'free', 0);
     else if (sl.k === 'pq') body += '<p class="s-kicker">' + kick + '</p>' + mcq('p.' + sl.id, T.pool[sl.id], 'quiz', 0);
     else if (sl.k === 'card') {
@@ -1491,6 +1491,7 @@
     else if (act === 'autoplace') { var D4 = S.data[st.kind]; D4.placed++; D4.fails = 0; D4.missed = 1; D4.miss = null; save(); drawData(d, st, i); check(); }
     else if (act === 'classdata') { classData(st.kind, 'class'); }
     else if (act === 'gradedata') { classData(st.kind, 'grade'); }
+    else if (act === 'vsound') { var hv = document.querySelector('.hvid'); if (hv) { var on = hv.muted; hv.muted = !on; if (on) { hv.currentTime = 0; hv.play(); } b.textContent = on ? '🔇 소리 끄기' : '🔊 소리 켜기'; } }
     else if (act === 'gather') { gather(d, st, i); }
     else if (act === 'gshow') { var DG = S.data[st.kind]; DG.gshow = 1; save(); drawData(d, st, i); check(); var gw = $('.gh4') || $('#gmsg'); if (gw && gw.scrollIntoView) gw.scrollIntoView({ block: 'start' }); }
     else if (act === 'useavg') {

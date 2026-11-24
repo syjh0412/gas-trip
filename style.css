@@ -461,4 +461,5 @@ a.rk { text-decoration: none; }
 .gextra { margin-top: 10px; padding-top: 10px; border-top: 2px dashed #cfd4ea; } .ginx { width: 100%; box-sizing: border-box; font: inherit; padding: 10px 12px; border: 2px solid #c9cfe8; border-radius: 12px; resize: vertical; }
 .gmodel p:not(.tiny) { font-weight: 700; margin: 6px 0; } .gmodel p b { color: #2B8A3E; margin-right: 4px; }
 .glaw { margin-top: 12px; padding: 12px 14px; border: 2px solid #E0A800; border-radius: 12px; background: #FFF9DB; } .glaw .h4 { margin: 0 0 4px; }
-.hvid { display: block; width: 100%; max-width: 560px; margin: 4px auto 12px; border-radius: 16px; border: 2px solid #1B1F3B; background: #DEECFC; }
+.hvbox { position: relative; max-width: 560px; margin: 4px auto 12px; } .hvsnd { position: absolute; right: 10px; bottom: 10px; border: 0; border-radius: 999px; padding: 6px 14px; font: inherit; font-size: 14px; font-weight: 700; background: rgba(27,31,59,.85); color: #fff; cursor: pointer; }
+.hvid { display: block; width: 100%; margin: 0; border-radius: 16px; border: 2px solid #1B1F3B; background: #DEECFC; }
