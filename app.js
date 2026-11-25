@@ -1368,7 +1368,8 @@
     var v = S.deb[d.id] || {};
     return '<div class="card genq deb"><p class="cqlab">💬 생각 나누기 · 정답이 하나로 정해진 질문이 아니에요</p><p class="cqtx">' + st.q + '</p></div><div class="card"><p class="h4">내 생각은?</p><div class="seg dseg">' + st.opts.map(function (o, j) { return '<button data-act="debpick" data-j="' + j + '" class="' + (v.pick === j ? 'on' : '') + '" aria-pressed="' + (v.pick === j) + '">' + esc(o) + '</button>'; }).join('') + '</div>' +
       '<p class="h4">그렇게 생각한 까닭 (근거가 된 실험이나 사례를 넣어요)</p><textarea id="debtx" rows="3" maxlength="300" placeholder="왜냐하면 …">' + esc(v.why || '') + '</textarea><div class="btns"><button class="btn pri" data-act="debsave">저장</button></div><p class="tiny" id="debmsg" aria-live="polite"></p></div>' +
-      (v.pick != null && (v.why || '').trim().length >= 10 ? '<div class="card gmodel"><p class="h4">🤔 생각할 거리</p><p>' + esc(st.think) + '</p><p class="tiny">짝이나 모둠 친구와 서로 다른 생각을 나눠 보세요. 생각이 바뀌었다면 위 칸을 고쳐 다시 저장해도 돼요.</p></div>' : '');
+      (v.pick != null && (v.why || '').trim().length >= 10 ? '<div class="card gmodel"><p class="h4">🤔 생각할 거리</p><p>' + esc(st.think) + '</p><p class="tiny">짝이나 모둠 친구와 서로 다른 생각을 나눠 보세요. 생각이 바뀌었다면 위 칸을 고쳐 다시 저장해도 돼요.</p></div>' : '') +
+      (isT() && st.model ? '<div class="card gmodel tmodel"><p class="tiny">🎓 모범답안 (선생님 화면에서만 보여요)</p><p><b>예시 입장</b> ' + esc(st.modelPick || '') + '</p><p><b>까닭</b> “' + esc(st.model) + '”</p><p class="tiny">정답이 하나로 정해진 질문이 아니에요. 다른 입장이라도 실험 결과나 사례를 근거로 들고, 조건을 따져 말하면 잘한 답이에요.</p></div>' : '');
   };
   DONE.debate = function (d) { var v = S.deb[d.id]; return !!(v && v.pick != null && (v.why || '').trim().length >= 10); };
   TODO.debate = '내 생각을 고르고 까닭을 10자 이상 써서 저장해요';
