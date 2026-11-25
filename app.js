@@ -1602,7 +1602,7 @@
     if (!CFG.API_URL) return (v === String(CFG.TEACHER_PIN || '0000') ? ok : bad)();
     tpost({ action: 'rows', pin: v }).then(function (r) { if (r && !r.error) ok(); else if (r && /lock|Exception|시간/i.test(String(r.error))) bad('서버가 잠시 바빠요. 몇 초 뒤 다시 눌러 주세요.'); else bad(); }).catch(function () { bad('서버에 연결하지 못했어요.'); });
   }
-  var TEACH = {}, TS = { tab: 'guide', rows: null, cls: '', msg: '', all: null, allBusy: false, allErr: '', lcls: '', lk: '' };
+  var TEACH = {}, TS = { tab: 'guide', rows: null, cls: '', msg: '', lr: {}, lBusy: '', lErr: '', lcls: '', lk: '' };
   function viewTeacher() {
     cur = { dest: null, step: 0 };
     var okPin = sessionStorage.getItem('gastrip.tpin');
@@ -1615,15 +1615,15 @@
       if (TS.rows) h += TVIEW[TS.tab]();
     } else h += TVIEW[TS.tab]();
     app.innerHTML = h + '</main>';
-    if (TS.tab === 'lines' && CFG.API_URL && !TS.all && !TS.allBusy && !TS.allErr) loadLinesAll();
+    if (TS.tab === 'lines' && CFG.API_URL && TS.lcls && !TS.lr[TS.lcls] && TS.lBusy !== TS.lcls && !TS.lErr) loadLines(TS.lcls);
     clearInterval(LIVE_T); if (TS.tab === 'live' && TS.cls && TS.rows && CFG.API_URL) LIVE_T = setInterval(liveRefresh, 15000);
   }
-  function loadLinesAll() {
-    TS.allBusy = true; TS.allErr = '';
-    tpost({ action: 'rows', cls: 'all', pin: sessionStorage.getItem('gastrip.tpin') }).then(function (res) { if (res.error) throw new Error(res.error); TS.all = res.rows || []; }).catch(function (e) { TS.allErr = '불러오지 못했어요. (' + e.message + ')'; }).then(function () { TS.allBusy = false; if (TS.tab === 'lines') viewTeacher(); });
+  function loadLines(c) { // 고른 반의 글만 불러온다 (모든 반을 한꺼번에 부르면 느리다)
+    TS.lBusy = c; TS.lErr = '';
+    tpost({ action: 'rows', cls: c, pin: sessionStorage.getItem('gastrip.tpin') }).then(function (res) { if (res.error) throw new Error(res.error); TS.lr[c] = { rows: res.rows || [], at: Date.now() }; }).catch(function (e) { TS.lErr = '불러오지 못했어요. (' + e.message + ')'; }).then(function () { TS.lBusy = ''; if (TS.tab === 'lines') viewTeacher(); });
   }
-  TEACH.lreload = function () { TS.all = null; TS.allErr = ''; viewTeacher(); };
-  TEACH.lcls = function (b) { TS.lcls = b.dataset.c; viewTeacher(); };
+  TEACH.lreload = function () { if (TS.lcls) delete TS.lr[TS.lcls]; TS.lErr = ''; viewTeacher(); };
+  TEACH.lcls = function (b) { TS.lcls = b.dataset.c; TS.lErr = ''; viewTeacher(); };
   TEACH.lkind = function (b) { TS.lk = b.dataset.k; viewTeacher(); };
   function linePeriods() {
     var out = [];
@@ -1649,13 +1649,13 @@
   }
   var LKINDS = [['gen', '일반화·규칙 문장'], ['deb', '생각 나누기'], ['refl', '돌아보기'], ['line', '여행 안내 한 줄'], ['big', '큰 생각 잇기']];
   function linesView() {
-    var h = '<div class="card"><button class="btn sm" data-act="lreload">다시 불러오기</button> <span class="tiny">' + (TS.allBusy ? '모든 반 글을 불러오는 중…' : esc(TS.allErr || (TS.all ? '모든 반 글을 한꺼번에 불러왔어요. (' + students(TS.all).length + '명 기록)' : ''))) + '</span></div>';
-    if (!CFG.API_URL) return h + '<div class="card"><p class="tiny">학생 글을 모으려면 ‘설정 방법’ 탭의 구글 시트 연결이 필요해요.</p></div>';
-    if (!TS.all) return h;
-    var all = students(TS.all).filter(function (s) { var c = Number(s.cls); return c >= 1 && c <= 20; }), cls = ['1', '2', '3', '4'];
-    all.forEach(function (s) { if (cls.indexOf(s.cls) < 0) cls.push(s.cls); }); cls.sort(function (a, b) { return a - b; });
-    var cc = cls.indexOf(TS.lcls) >= 0 ? TS.lcls : cls[0], kk = LKINDS.filter(function (x) { return x[0] === TS.lk; })[0] || LKINDS[0], k = kk[0];
-    h += '<nav class="ttabs">' + cls.map(function (c) { return '<button data-act="lcls" data-c="' + c + '" class="' + (c === cc ? 'on' : '') + '">' + c + '반</button>'; }).join('') + '</nav>';
+    if (!CFG.API_URL) return '<div class="card"><p class="tiny">학생 글을 모으려면 ‘설정 방법’ 탭의 구글 시트 연결이 필요해요.</p></div>';
+    var cls = ['1', '2', '3', '4'], cc = TS.lcls, L = cc && TS.lr[cc];
+    var h = '<div class="card"><p class="tiny" style="margin:0 0 8px">먼저 반을 고르면 그 반의 글만 불러와요.</p><nav class="ttabs" style="margin:0">' + cls.map(function (c) { return '<button data-act="lcls" data-c="' + c + '" class="' + (c === cc ? 'on' : '') + '">' + c + '반</button>'; }).join('') + '</nav>';
+    if (cc) h += '<p style="margin:10px 0 0"><button class="btn sm" data-act="lreload"' + (TS.lBusy ? ' disabled' : '') + '>' + cc + '반 다시 불러오기</button> <span class="tiny">' + (TS.lBusy === cc ? cc + '반 글을 불러오는 중…' : esc(TS.lErr || (L ? cc + '반 ' + students(L.rows).length + '명 기록 · ' + new Date(L.at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) + '에 불러옴' : ''))) + '</span></p>';
+    h += '</div>';
+    if (!L) return h;
+    var all = students(L.rows), kk = LKINDS.filter(function (x) { return x[0] === TS.lk; })[0] || LKINDS[0], k = kk[0];
     h += '<nav class="ttabs sub">' + LKINDS.map(function (x) { return '<button data-act="lkind" data-k="' + x[0] + '" class="' + (x[0] === k ? 'on' : '') + '">' + x[1] + '</button>'; }).join('') + '</nav>';
     var mine = all.filter(function (s) { return s.cls === cc; });
     var P = linePeriods().map(function (p) { return { p: p, it: p.items.filter(function (x) { return x.k === k; })[0] }; }).filter(function (x) { return x.it; });
