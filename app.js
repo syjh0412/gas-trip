@@ -437,12 +437,13 @@
     if (st.stamp && d.std) award(d.std, st.stamp);
     syncProgress();
   }
-  var ROAD = ['예상', '탐구', '입자', '설명', '문제', '돌아보기'];
+  var ROAD = ['관계 맺기', '집중하기', '조사하기', '조직하기', '일반화하기', '전이하기', '성찰하기']; // 개념기반 탐구 단계 (Marschall & French)
   function roadIdx(sl, st) {
-    if (sl.k === 'q') return 0; if (sl.k === 'pq') return 4;
-    if (sl.k === 'card' || sl.k === 'ex' || sl.k === 'labs' || sl.k === 'expa' || sl.k === 'expb') return 1;
+    if (sl.k === 'q') return 0; if (sl.k === 'pq') return 5;
+    if (sl.k === 'card') return st && st.grp ? 2 : 1;
+    if (sl.k === 'ex' || sl.k === 'labs' || sl.k === 'expa' || sl.k === 'expb') return 2;
     if (!st) return -1; var t = st.type;
-    if (t === 'presslab' || t === 'data' || t === 'vac') return 1; if (t === 'sim' || t === 'pumpsim' || t === 'chain') return 2; if (t === 'line' || t === 'gen' || t === 'debate' || t === 'bigidea') return 3; if (t === 'reflect') return 5; if (t === 'booth') return 1; if (t === 'quiz' || t === 'exam') return 4; return -1;
+    if (t === 'presslab' || t === 'data' || t === 'vac' || t === 'exp' || t === 'booth') return 2; if (t === 'sim' || t === 'pumpsim' || t === 'chain') return 3; if (t === 'gen' || t === 'debate') return 4; if (t === 'line' || t === 'quiz' || t === 'exam' || t === 'bigidea') return 5; if (t === 'reflect') return 6; return -1;
   }
   function slStage(d, s) { return roadIdx(s, s.si != null ? d.steps[s.si] : null); }
   function grpName(d, s) { var st = s.si != null ? d.steps[s.si] : null; if (s.k === 'ex') return '생활 속 예'; if (s.k === 'labs') return '실험 목록'; if (st && st.grp) return st.grp; if (st && st.type === 'exp' && T.exps[st.code]) return T.exps[st.code].title; return st ? st.title : ''; }
@@ -457,7 +458,7 @@
     if (gs.length > 1 || (gs[0] && gs[0].idx.length > 1)) {
       h += '<div class="subroad" aria-label="' + ROAD[r] + ' 구성">' + gs.map(function (g, gi) {
         var here = g.idx.indexOf(cur.slide), done = g.idx.every(function (x) { return slideDone(d, all[x]); });
-        var num = r === 1 && gs.length > 1 ? ROAD[r] + (gi + 1) + ' · ' : '';
+        var num = r === 2 && gs.length > 1 ? ROAD[r] + (gi + 1) + ' · ' : '';
         return '<button class="' + (here >= 0 ? 'on' : '') + (done ? ' ok' : '') + '" data-act="roadg" data-t="' + g.first + '">' + (done ? '✓ ' : '') + num + esc(g.name) + ' <small>' + (here >= 0 ? (here + 1) + '/' : '') + g.idx.length + '장</small></button>';
       }).join('') + '</div>';
     }
