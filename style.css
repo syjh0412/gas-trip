@@ -487,3 +487,9 @@ a.rk { text-decoration: none; }
 .pc.none small { color: #A0A6B8; } .pc.full { background: #EAF6EF; } .pc.full small { color: #0B7A4B; font-weight: 700; }
 .ctbl td.ago { white-space: nowrap; color: var(--muted); font-size: 13px; }
 @media (max-width: 640px) { .prow2 { grid-template-columns: 1fr; gap: 3px; } }
+
+/* 출발 질문: 고른 예측만 표시 (맞고 틀림은 돌아보기에서) */
+.opt.pick { background: #E7EAFA; border-color: #2F4BD8; border-width: 3px; } .opt.pick::after { content: '🔮'; margin-left: auto; }
+.fb.pick { background: #EEF1FD; }
+.tans { margin: 8px 0 0; color: var(--muted); }
+.rpred .rex { display: block; color: var(--muted); font-size: 14px; margin-top: 3px; }

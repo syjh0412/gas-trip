@@ -73,7 +73,7 @@
     document.body.appendChild(el); var ok = el.querySelector('button'); if (ok) ok.focus();
   }
   function chip(txt) { var c = document.createElement('div'); c.className = 'chip'; c.textContent = txt; document.body.appendChild(c); setTimeout(function () { c.remove(); }, 1500); }
-  function predictHits() { var n = 0; T.dests.forEach(function (d) { d.steps.forEach(function (st, si) { if (st.type === 'predict') st.items.forEach(function (it, j) { var a = S.ans[d.id + '.' + si + '.' + j]; if (a && a.first === it.a) n++; }); }); }); return n; }
+  function predictHits() { var n = 0; T.dests.forEach(function (d) { d.steps.forEach(function (st, si) { if (st.type === 'predict') st.items.forEach(function (it, j) { var a = S.ans[d.id + '.' + si + '.' + j]; if (a && a.first === it.a && S.refl[d.id] && S.refl[d.id].pick != null) n++; }); }); }); return n; }
   function kindCount(k) { var n = 0; for (var s in S.stamps) if (S.stamps[s][k]) n++; return n; }
   var BADGES = [
     { id: 'start', ic: '👣', n: '첫 발자국', d: '첫 마일을 모았어요', t: function () { return S.miles > 0; } },
@@ -165,19 +165,21 @@
   var MCQ = {};
   function mcq(key, item, mode, no) {
     MCQ[key] = { item: item, mode: mode, no: no };
-    var st = S.ans[key], lock = st && (mode !== 'retry' || st.c === item.a);
+    var st = S.ans[key], lock = st && mode !== 'free' && (mode !== 'retry' || st.c === item.a);
     var h = '<div class="mcq" id="q-' + key + '"><p class="q">' + (no ? '<span class="qn">' + no + '</span>' : '') + esc(item.q).replace(/\n/g, '<br>') + '</p><div class="opts' + (item.opts[0].fig ? ' figs' : '') + '">';
     item.opts.forEach(function (o, i) {
       var cls = 'opt';
-      if (st && st.c === i) cls += i === item.a ? ' ok' : ' no';
+      if (st && st.c === i) cls += mode === 'free' ? ' pick' : i === item.a ? ' ok' : ' no';
       if (lock && i === item.a && mode !== 'retry') cls += ' ok';
       h += '<button class="' + cls + '" data-act="mcq" data-key="' + key + '" data-i="' + i + '"' + (lock ? ' disabled' : '') + '>' + (o.fig ? figSVG(o.fig, item.fx, item.fy) : '<span class="on">' + '①②③④⑤'[i] + '</span>' + esc(o)) + '</button>';
     });
     h += '</div>';
     if (st) {
-      if (mode === 'retry' && st.c !== item.a) h += '<p class="fb no">다시 생각해 보세요. 무엇이 같고 무엇이 달랐는지 떠올려요.</p>';
+      if (mode === 'free') h += '<p class="fb pick">🔮 <b>내 예측을 적어 두었어요.</b> 맞았는지는 아직 몰라요. 오늘 여행에서 직접 확인하고, 마지막 ‘돌아보기’에서 다시 만나요. 생각이 바뀌면 다른 답을 눌러도 돼요.</p>';
+      else if (mode === 'retry' && st.c !== item.a) h += '<p class="fb no">다시 생각해 보세요. 무엇이 같고 무엇이 달랐는지 떠올려요.</p>';
       else h += '<p class="fb ' + (st.c === item.a ? 'ok' : 'no') + '"><b>' + (mode === 'free' ? (st.c === item.a ? '예측이 맞았어요. ' : '예측과 달랐네요. ') : (st.c === item.a ? '맞았어요. ' : '아쉬워요. ')) + '</b>' + esc(item.ex) + '</p>';
     }
+    if (mode === 'free' && isT()) h += '<p class="tiny tans">교사용 · 정답 ' + '①②③④⑤'[item.a] + ' · ' + esc(item.ex) + '</p>';
     return h + '</div>';
   }
   function figSVG(kind, fx, fy) {
@@ -416,7 +418,7 @@
       '<section class="card"><h2>여행 아이템 <span class="cnt">등급이 오르면 열려요</span></h2><div class="wearlist">' +
       T.items.map(function (it) { var open = ri >= it.at || isT(); return '<button class="wr' + (S.wear[it.id] ? ' on' : '') + '" data-act="wear" data-id="' + it.id + '" data-lock="' + (open ? '' : '1') + '" aria-pressed="' + !!S.wear[it.id] + '">' + (open ? '' : '🔒 ') + it.name + (open ? '' : '<small>Lv.' + (it.at + 1) + '</small>') + '</button>'; }).join('') + '</div><p class="tiny">' + (PREV ? '잠긴 아이템을 미리 보고 있어요. 등급이 오르면 쓸 수 있어요.' : '🔒 잠긴 아이템도 누르면 어떤 모습인지 미리 볼 수 있어요.') + '</p></section>';
     P.rank += '<section class="card lvnow"><div class="lvface">' + mascot(96) + '</div><div><p class="rk">지금 내 등급</p><h2>Lv.' + (ri + 1) + ' ' + r.name + '</h2><p>' + nx + '</p><div class="mbar dark"><i style="width:' + pc.toFixed(0) + '%"></i></div><p class="tiny">' + S.miles + ' 마일 · 도장 ' + n + '개</p></div></section>';
-    P.rank += '<section class="card"><h2>마일은 이렇게 모아요</h2><ul class="earn">' + [['🗝️', '안내 카드의 빈칸을 모두 열기', '+2'], ['🔮', '출발 질문에 예측하기', '+2 (맞으면 +3)'], ['📝', '문제를 한 번에 맞히기', '+3 (틀리면 +1)'], ['🔥', '3번, 5번 연속으로 맞히기', '+3, +5'], ['🔬', '실험 활동 마치기 (점토, 입자 모형, 그래프, 입자로 설명하기)', '+6 ~ +10'], ['🗣️', '여행 안내 한 줄 쓰기', '+6'], ['📘', '도장 받기', '+10'], ['🎓', '자격시험', '맞힌 문항 × 2']].map(function (x) { return '<li><span>' + x[0] + '</span><div>' + x[1] + '</div><b>' + x[2] + '</b></li>'; }).join('') + '</ul></section>';
+    P.rank += '<section class="card"><h2>마일은 이렇게 모아요</h2><ul class="earn">' + [['🗝️', '안내 카드의 빈칸을 모두 열기', '+2'], ['🔮', '출발 질문에 예측하기 (맞았는지는 돌아보기에서)', '+2'], ['📝', '문제를 한 번에 맞히기', '+3 (틀리면 +1)'], ['🔥', '3번, 5번 연속으로 맞히기', '+3, +5'], ['🔬', '실험 활동 마치기 (점토, 입자 모형, 그래프, 입자로 설명하기)', '+6 ~ +10'], ['🗣️', '여행 안내 한 줄 쓰기', '+6'], ['📘', '도장 받기', '+10'], ['🎓', '자격시험', '맞힌 문항 × 2']].map(function (x) { return '<li><span>' + x[0] + '</span><div>' + x[1] + '</div><b>' + x[2] + '</b></li>'; }).join('') + '</ul></section>';
     P.rank += '<section class="card"><h2>등급과 선물</h2><ol class="rklist">' + T.ranks.map(function (x, j) { var gift = T.items.filter(function (it) { return it.at === j; }).map(function (it) { return '🎁 ' + it.name; }); if (j === 7 && CFG.COUPONS !== false) gift.push('🎟️ 쿠폰'); return '<li class="' + (j === ri ? 'cur' : j < ri ? 'past' : '') + '"><span class="lv">' + (j < ri ? '✓ ' : '') + 'Lv.' + (j + 1) + '</span><b>' + x.name + (gift.length ? '<em>' + gift.join(' · ') + '</em>' : '') + '</b><span class="rq">' + x.min + ' 마일' + (x.st ? ' · 도장 ' + x.st + '개' : '') + '</span></li>'; }).join('') + '</ol><p class="tiny">Lv.6부터는 마일만으로는 오를 수 없어요. 입자로 설명해서 도장을 모아야 해요.</p></section>';
     if (CFG.COUPONS !== false) P.me += '<section class="card"><h2>대표님 쿠폰</h2><ul class="cpn">' + T.coupons.map(function (c) { var ok = couponOK(c.id); return '<li class="' + (ok ? 'on' : '') + '"><span>' + (ok ? '🎟️' : '🔒') + '</span><div><b>' + c.name + '</b><small>' + c.cond + '</small></div><em>' + (ok ? '대표님께 보여 주세요' : '아직') + '</em></li>'; }).join('') + '</ul></section>';
     if (S.exam) P.pass += '<section class="card"><h2>자격시험 기록</h2><p>최고 점수 <b>' + S.exam.best + ' / ' + S.exam.total + '</b>' + (S.exam.best >= 14 ? ' · 입자 가이드 자격 취득' : '') + '</p></section>';
@@ -1371,8 +1373,8 @@
 
   var REFL = ['생각이 바뀌었어요', '더 확실해졌어요', '아직 궁금한 게 있어요'];
   STEP.reflect = function (d) {
-    var v = S.refl[d.id] || {}, h = '<div class="card"><p class="h4">🔮 처음 내 예측</p><ul class="rpred">';
-    d.steps.forEach(function (st, si) { if (st.type !== 'predict') return; st.items.forEach(function (it, j) { var a = S.ans[pfx(d, si) + j], f = a ? a.first : null; h += '<li><span>' + esc(it.q) + '</span><b class="' + (f === it.a ? 'ok' : f == null ? '' : 'no') + '">' + (f == null ? '답하지 않음' : esc(it.opts[f])) + (f === it.a ? ' ✓' : f == null ? '' : ' → 지금은 ' + esc(it.opts[it.a])) + '</b></li>'; }); });
+    var v = S.refl[d.id] || {}, h = '<div class="card"><p class="h4">🔮 출발 질문, 이제 확인해요</p><p class="tiny" style="margin:0 0 6px">처음에 고른 예측과 오늘 알게 된 것을 비교해 봐요.</p><ul class="rpred">';
+    d.steps.forEach(function (st, si) { if (st.type !== 'predict') return; st.items.forEach(function (it, j) { var a = S.ans[pfx(d, si) + j], f = a ? a.first : null; h += '<li><span>' + esc(it.q) + '</span><b class="' + (f === it.a ? 'ok' : f == null ? '' : 'no') + '">' + (f == null ? '답하지 않음' : esc(it.opts[f])) + (f === it.a ? ' ✓ 예측이 맞았어요' : f == null ? '' : ' → 알고 보니 ' + esc(it.opts[it.a])) + '</b><small class="rex">' + esc(it.ex) + '</small></li>'; }); });
     h += '</ul></div>';
     var g = S.gen[d.id]; if (g && genText(g)) h += '<div class="card"><p class="h4">📒 오늘 내가 만든 문장</p><p>“' + esc(genText(g)) + '”</p></div>';
     h += '<div class="card"><p class="h4">오늘 내 생각은</p><div class="seg dseg">' + REFL.map(function (o, j) { return '<button data-act="reflpick" data-j="' + j + '" class="' + (v.pick === j ? 'on' : '') + '" aria-pressed="' + (v.pick === j) + '">' + o + '</button>'; }).join('') + '</div>' +
@@ -1459,8 +1461,8 @@
     if (act === 'mcq') {
       var key = b.dataset.key, m = MCQ[key], c = +b.dataset.i; if (!m) return;
       var firstTry = !S.ans[key], right = c === m.item.a;
-      S.ans[key] = { c: c, first: firstTry ? c : S.ans[key].first }; save();
-      if (m.mode === 'free') mile('a.' + key, right ? 3 : 2);
+      S.ans[key] = { c: c, first: m.mode === 'free' || firstTry ? c : S.ans[key].first }; save();
+      if (m.mode === 'free') mile('a.' + key, 2); // 예측은 맞고 틀림을 알려 주지 않는다 (돌아보기에서 확인)
       else {
         if (firstTry) { S.combo = right ? (S.combo || 0) + 1 : 0; if (S.combo >= 3) S.flags.c3 = 1; if (S.combo >= 5) S.flags.c5 = 1; save(); if (S.combo === 3 || S.combo === 5) mile('combo' + S.combo, S.combo); }
         if (key.indexOf('x.') !== 0 && (right || m.mode === 'quiz')) mile('a.' + key, right ? (S.ans[key].first === m.item.a ? 3 : 1) : 1);
