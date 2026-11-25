@@ -1700,7 +1700,7 @@
     var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + out.map(function (l) { return l.join(','); }).join('\n')], { type: 'text/csv' })); a.download = TS.cls + '반_실험자료.csv'; a.click();
   };
   function byKey(keys) { return TS.rows.filter(function (r) { return keys.indexOf(r.key) >= 0; }); }
-  function students(rows) { var m = {}; (rows || TS.rows || []).forEach(function (r) { var id = r.cls + '|' + r.num; m[id] = m[id] || { cls: String(r.cls), num: r.num, name: r.name, t: 0 }; m[id][r.key] = r.val; if (r.t && r.t > m[id].t && r.key !== 'live') m[id].t = r.t; }); return Object.keys(m).map(function (k) { return m[k]; }).sort(function (a, b) { return (a.cls - b.cls) || (a.num - b.num); }); }
+  function students(rows) { var m = {}; (rows || TS.rows || []).forEach(function (r) { var id = r.cls + '|' + r.num; m[id] = m[id] || { cls: String(r.cls), num: r.num, name: /[*○]/.test(String(r.name || '')) ? String(r.name) : maskName(r.name), t: 0 }; m[id][r.key] = r.val; if (r.t && r.t > m[id].t && r.key !== 'live') m[id].t = r.t; }); return Object.keys(m).map(function (k) { return m[k]; }).sort(function (a, b) { return (a.cls - b.cls) || (a.num - b.num); }); }
   var TVIEW = {
     live: function () { return '<div class="card"><p class="tiny" id="livemsg">(현재 꺼져 있어요: 접속 신호가 서버 부담을 줄 수 있어 config.js의 LIVE_MONITOR를 true로 바꿔야 켜져요.) 반을 쓰고 ‘불러오기’를 누르면 15초마다 자동으로 갱신돼요. 학생 화면 그림이 아니라 ‘지금 어느 여행지·단계에 있는지’를 보여 줘요.</p><div id="livegrid">' + liveHTML() + '</div></div>'; },
     guide: function () {
