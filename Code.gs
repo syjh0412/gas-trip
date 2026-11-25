@@ -10,6 +10,13 @@ var TEACHER_PIN = '0000';
 var SHEET = 'data';
 var OPEN_KEYS = ['boyle', 'charles', 'vac']; // 학생도 반 전체를 볼 수 있는 자료
 
+/** 참관 모드: 참관 비밀번호를 아는 선생님께 한 반의 기록을 이름을 가려서 보여 줍니다. */
+var GUEST_HASH = 'a30f20f75b2136455cf46af20eb1d12bf5389e072195c5a3b700fefcb0247a53'; // sha256('gastrip-guest:' + 참관 비밀번호), config.js와 같게
+var GUEST_CLS = '1';                              // 참관 선생님께 보여 줄 반
+var GUEST_UNTIL = '2026-12-01T00:00:00+09:00';    // 이 시각부터는 참관 자료를 내주지 않음
+function sha256_(t) { return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, t, Utilities.Charset.UTF_8).map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join(''); }
+function mask_(n) { n = String(n || ''); if (n.length <= 1) return n; if (n.length === 2) return n.charAt(0) + '○'; return n.charAt(0) + new Array(n.length - 1).join('○') + n.charAt(n.length - 1); }
+
 function sheet_() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(SHEET);
@@ -105,6 +112,11 @@ function doPost(e) {
       if (String(d.cls) === APPLY_CLS) return out_({ rows: applyRows_().concat(rows_(APPLY_CLS, null, true)) }); // 예전 방식으로 data 탭에 들어온 신청도 함께
       return out_({ rows: d.cls ? rows_(d.cls, null, true) : [] });
     }
+    if (d.action === 'grows') { // 참관용: 정해진 반만, 이름은 가려서
+      if (!GUEST_HASH || sha256_('gastrip-guest:' + String(d.gpin || '')) !== GUEST_HASH) return out_({ error: '참관 비밀번호가 다릅니다' });
+      if (new Date() >= new Date(GUEST_UNTIL)) return out_({ error: '참관 기간이 끝났습니다' });
+      return out_({ cls: GUEST_CLS, rows: rows_(GUEST_CLS, null, true).filter(function (r) { return r.key !== 'live'; }).map(function (r) { r.name = mask_(r.name); return r; }) });
+    }
     if (d.action === 'login') {
       if (!d.cls || !d.num || !d.code) return out_({ error: 'bad request' });
       return out_(login_(d));
@@ -135,7 +147,7 @@ function rows_(cls, key, all) {
     if (r[5] === 'state') continue; // 이어 하기용 전체 기록은 목록에서 뺀다
     var val = null;
     try { val = JSON.parse(r[6]); } catch (x) {}
-    rows.push(all ? { cls: r[2], num: Number(r[3]), name: r[4], key: r[5], val: val } : { cls: r[2], num: Number(r[3]), key: r[5], val: val });
+    rows.push(all ? { cls: r[2], num: Number(r[3]), name: r[4], key: r[5], val: val, t: r[1] instanceof Date ? r[1].getTime() : null } : { cls: r[2], num: Number(r[3]), key: r[5], val: val });
   }
   return rows;
 }

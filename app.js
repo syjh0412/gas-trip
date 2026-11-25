@@ -47,7 +47,7 @@
   function isG() { // 참관 모드는 정해진 시간에만 열린다. 시간이 지나면 참관 입장이 풀린다
     if (!sessionStorage.getItem('gastrip.guest')) return false;
     if (guestOpen()) return true;
-    sessionStorage.removeItem('gastrip.guest'); if (S && S.profile && S.profile.cls === '0' && !sessionStorage.getItem('gastrip.tpin')) S.profile = null;
+    sessionStorage.removeItem('gastrip.guest'); sessionStorage.removeItem('gastrip.gpin'); if (S && S.profile && S.profile.cls === '0' && !sessionStorage.getItem('gastrip.tpin')) S.profile = null;
     return false;
   }
   function isT() { return !!sessionStorage.getItem('gastrip.tpin') || isG(); }
@@ -394,7 +394,7 @@
     if (next) { var needM = Math.max(0, next.min - S.miles), needS = Math.max(0, (next.st || 0) - n); nx = '<b>' + next.name + '</b>까지 ' + [needM ? needM + ' 마일' : '', needS ? '도장 ' + needS + '개' : ''].filter(Boolean).join(', ') + ' 남았어요'; } else nx = '가장 높은 등급이에요!';
     var lo = r.min, hi = next ? next.min : r.min + 1, pc = next ? Math.min(100, (S.miles - lo) / (hi - lo) * 100) : 100;
     var h = '<header class="top"><div class="who">' + mascot(72) + '<div><a class="rk" href="#home/rank">Lv.' + (ri + 1) + ' ' + r.name + ' ›</a><h1>' + esc(S.profile.name) + ' <small>' + esc(S.profile.cls) + '반 ' + esc(S.profile.num) + '번</small></h1></div><div class="mbox"><b>' + S.miles + '</b><span>마일</span></div><button class="btn sm outbtn" data-act="reset">나가기</button></div>' +
-      '<div class="mbar" role="img" aria-label="다음 등급까지 진행"><i style="width:' + pc.toFixed(0) + '%"></i></div><p class="nx">' + nx + '</p></header><main class="home">' + (isG() ? '<p class="tbar"><b>🎩 참관 모드</b> 모든 장을 잠금 없이 둘러보실 수 있고, 해 보신 활동은 저장되지 않습니다. <button class="linkbtn" data-act="tlogout">참관 끝내기</button></p>' : isT() ? '<p class="tbar"><b>교사 모드</b> 모든 장을 잠금 없이 넘길 수 있고, 마일과 기록은 쌓이지 않아요. <a href="#teacher">대표님 사무실</a> <button class="linkbtn" data-act="tlogout">교사 모드 끄기</button></p>' : '');
+      '<div class="mbar" role="img" aria-label="다음 등급까지 진행"><i style="width:' + pc.toFixed(0) + '%"></i></div><p class="nx">' + nx + '</p></header><main class="home">' + (isG() ? '<p class="tbar"><b>🎩 참관 모드</b> 모든 장을 잠금 없이 둘러보실 수 있고, 해 보신 활동은 저장되지 않습니다. <a href="#teacher">1학년 ' + GCLS + '반 기록 보기</a> · <button class="linkbtn" data-act="tlogout">참관 끝내기</button></p>' : isT() ? '<p class="tbar"><b>교사 모드</b> 모든 장을 잠금 없이 넘길 수 있고, 마일과 기록은 쌓이지 않아요. <a href="#teacher">대표님 사무실</a> <button class="linkbtn" data-act="tlogout">교사 모드 끄기</button></p>' : '');
     P.pass += '<section class="card passport"><h2>내 입자 여권 <span class="cnt">도장 ' + n + ' / 9</span></h2><div class="pgrid">';
     ['01', '02', '03'].forEach(function (s) {
       P.pass += '<div class="prow"><div class="pstd"><b>' + T.stds[s].short + '</b><span>' + T.stds[s].code + '</span></div>' + stampHTML(s, 'see') + stampHTML(s, 'meas') + stampHTML(s, 'part') + '</div>';
@@ -1503,7 +1503,7 @@
     else if (act === 'gguest') { $('#ggbox').hidden = !$('#ggbox').hidden; }
     else if (act === 'ggo') {
       if (!guestOpen()) { route(); return; }
-      var gEnter = function () { sessionStorage.setItem('gastrip.guest', '1'); wipeProgress(); S.profile = { cls: '0', num: '0', name: '참관 선생님' }; location.hash = '#home'; route(); };
+      var gEnter = function () { sessionStorage.setItem('gastrip.guest', '1'); sessionStorage.setItem('gastrip.gpin', gv || ''); wipeProgress(); S.profile = { cls: '0', num: '0', name: '참관 선생님' }; location.hash = '#home'; route(); };
       if (!CFG.GUEST_HASH) { gEnter(); return; }
       var gp = $('#ggpin'), gm = $('#ggmsg'), gv = gp ? gp.value.trim() : '';
       if (!gv) { gm.innerHTML = '<b class="warn">참관 비밀번호를 넣어 주세요.</b>'; gp.focus(); return; }
@@ -1597,6 +1597,9 @@
   }
 
   /* ---------- 선생님 화면 (대표님 사무실) ---------- */
+  function isGO() { return isG() && !sessionStorage.getItem('gastrip.tpin'); } // 참관 선생님(교사 비밀번호 없음)
+  var GCLS = '1';
+  function rowsReq(c) { return isGO() ? tpost({ action: 'grows', gpin: sessionStorage.getItem('gastrip.gpin') }) : tpost({ action: 'rows', cls: c, pin: sessionStorage.getItem('gastrip.tpin') }); }
   function tpost(o) { return fetch(CFG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(o) }).then(function (r) { return r.json(); }); }
   function checkPin(v, ok, bad) {
     if (!CFG.API_URL) return (v === String(CFG.TEACHER_PIN || '0000') ? ok : bad)();
@@ -1605,22 +1608,24 @@
   var TEACH = {}, TS = { tab: 'guide', rows: null, cls: '', msg: '', lr: {}, lBusy: '', lErr: '', lcls: '', lk: '' };
   function viewTeacher() {
     cur = { dest: null, step: 0 };
-    var okPin = sessionStorage.getItem('gastrip.tpin');
-    var h = '<header class="dtop" style="--c:#1B1F3B"><a class="back" href="#home">← 학생 화면</a><div class="dhead"><span class="dic">🧑‍🏫</span><div><h1>대표님 사무실</h1><p>통통 입자 여행 · 기체 안전 여행사</p></div></div></header><main class="dmain teacher">';
+    var okPin = sessionStorage.getItem('gastrip.tpin') || isG(), GO = isGO();
+    var h = '<header class="dtop" style="--c:#1B1F3B"><a class="back" href="#home">← 학생 화면</a><div class="dhead"><span class="dic">' + (GO ? '🎩' : '🧑‍🏫') + '</span><div><h1>' + (GO ? '참관 · 1학년 ' + GCLS + '반 기록' : '대표님 사무실') + '</h1><p>' + (GO ? '학생 이름은 가운데를 가려서 보여 드려요' : '통통 입자 여행 · 기체 안전 여행사') + '</p></div></div></header><main class="dmain teacher">';
+    if (GO) { TS.cls = GCLS; TS.lcls = GCLS; if (!TS.gInit || ['guide', 'class', 'data', 'lines'].indexOf(TS.tab) < 0) { TS.gInit = 1; TS.tab = 'class'; } }
     if (!okPin) { app.innerHTML = h + '<div class="card"><h3>비밀번호</h3><div class="row3"><label>교사 비밀번호<input id="tpin" type="text" class="secret" inputmode="numeric" autocomplete="off" data-lpignore="true" data-1p-ignore></label></div><button class="btn pri" data-act="tlogin">들어가기</button><p class="tiny" id="tmsg">' + (CFG.API_URL ? '구글 스크립트(Code.gs)에 정해 둔 교사 비밀번호예요.' : 'config.js의 TEACHER_PIN 값이에요. 처음 값은 0000입니다.') + '</p></div></main>'; return; }
-    var tabs = [['guide', '수업 안내'], ['live', '실시간'], ['class', '반 현황'], ['data', '실험 자료'], ['lines', '학생 글'], ['snorkl', '스노클 과제'], ['setup', '설정 방법']];
+    var tabs = GO ? [['class', '반 현황'], ['data', '실험 자료'], ['lines', '학생 글'], ['guide', '수업 안내']] : [['guide', '수업 안내'], ['live', '실시간'], ['class', '반 현황'], ['data', '실험 자료'], ['lines', '학생 글'], ['snorkl', '스노클 과제'], ['setup', '설정 방법']];
     h += '<nav class="ttabs">' + tabs.map(function (t) { return '<button data-act="ttab" data-t="' + t[0] + '" class="' + (TS.tab === t[0] ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</nav>';
     if (['live', 'class', 'data'].indexOf(TS.tab) >= 0) {
-      h += '<div class="card"><div class="row3"><label>반<input id="tcls" inputmode="numeric" maxlength="2" value="' + esc(TS.cls) + '"></label></div><button class="btn pri" data-act="tload"' + (CFG.API_URL ? '' : ' disabled') + '>불러오기</button><p class="tiny">' + (CFG.API_URL ? esc(TS.msg) : '반 자료를 모으려면 ‘설정 방법’ 탭의 구글 시트 연결이 필요해요. 연결 전에는 학생 기기에만 저장됩니다.') + '</p></div>';
+      h += '<div class="card"><div class="row3"><label>반<input id="tcls" inputmode="numeric" maxlength="2" value="' + esc(TS.cls) + '"' + (GO ? ' readonly' : '') + '></label></div><button class="btn pri" data-act="tload"' + (CFG.API_URL ? '' : ' disabled') + '>불러오기</button><p class="tiny">' + (CFG.API_URL ? esc(TS.msg) : '반 자료를 모으려면 ‘설정 방법’ 탭의 구글 시트 연결이 필요해요. 연결 전에는 학생 기기에만 저장됩니다.') + '</p></div>';
       if (TS.rows) h += TVIEW[TS.tab]();
     } else h += TVIEW[TS.tab]();
     app.innerHTML = h + '</main>';
     if (TS.tab === 'lines' && CFG.API_URL && TS.lcls && !TS.lr[TS.lcls] && TS.lBusy !== TS.lcls && !TS.lErr) loadLines(TS.lcls);
+    if (GO && (TS.tab === 'class' || TS.tab === 'data') && !TS.rows && !TS.gBusy) { TS.gBusy = 1; TEACH.tload(); }
     clearInterval(LIVE_T); if (TS.tab === 'live' && TS.cls && TS.rows && CFG.API_URL) LIVE_T = setInterval(liveRefresh, 15000);
   }
   function loadLines(c) { // 고른 반의 글만 불러온다 (모든 반을 한꺼번에 부르면 느리다)
     TS.lBusy = c; TS.lErr = '';
-    tpost({ action: 'rows', cls: c, pin: sessionStorage.getItem('gastrip.tpin') }).then(function (res) { if (res.error) throw new Error(res.error); TS.lr[c] = { rows: res.rows || [], at: Date.now() }; }).catch(function (e) { TS.lErr = '불러오지 못했어요. (' + e.message + ')'; }).then(function () { TS.lBusy = ''; if (TS.tab === 'lines') viewTeacher(); });
+    rowsReq(c).then(function (res) { if (res.error) throw new Error(res.error); TS.lr[c] = { rows: res.rows || [], at: Date.now() }; }).catch(function (e) { TS.lErr = '불러오지 못했어요. (' + e.message + ')'; }).then(function () { TS.lBusy = ''; if (TS.tab === 'lines') viewTeacher(); });
   }
   TEACH.lreload = function () { if (TS.lcls) delete TS.lr[TS.lcls]; TS.lErr = ''; viewTeacher(); };
   TEACH.lcls = function (b) { TS.lcls = b.dataset.c; TS.lErr = ''; viewTeacher(); };
@@ -1650,7 +1655,7 @@
   var LKINDS = [['gen', '일반화·규칙 문장'], ['deb', '생각 나누기'], ['refl', '돌아보기'], ['line', '여행 안내 한 줄'], ['big', '큰 생각 잇기']];
   function linesView() {
     if (!CFG.API_URL) return '<div class="card"><p class="tiny">학생 글을 모으려면 ‘설정 방법’ 탭의 구글 시트 연결이 필요해요.</p></div>';
-    var cls = ['1', '2', '3', '4'], cc = TS.lcls, L = cc && TS.lr[cc];
+    var cls = isGO() ? [GCLS] : ['1', '2', '3', '4'], cc = TS.lcls, L = cc && TS.lr[cc];
     var h = '<div class="card"><p class="tiny" style="margin:0 0 8px">먼저 반을 고르면 그 반의 글만 불러와요.</p><nav class="ttabs" style="margin:0">' + cls.map(function (c) { return '<button data-act="lcls" data-c="' + c + '" class="' + (c === cc ? 'on' : '') + '">' + c + '반</button>'; }).join('') + '</nav>';
     if (cc) h += '<p style="margin:10px 0 0"><button class="btn sm" data-act="lreload"' + (TS.lBusy ? ' disabled' : '') + '>' + cc + '반 다시 불러오기</button> <span class="tiny">' + (TS.lBusy === cc ? cc + '반 글을 불러오는 중…' : esc(TS.lErr || (L ? cc + '반 ' + students(L.rows).length + '명 기록 · ' + new Date(L.at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) + '에 불러옴' : ''))) + '</span></p>';
     h += '</div>';
@@ -1668,7 +1673,7 @@
   }
   function liveRefresh() {
     if (!$('#livegrid')) { clearInterval(LIVE_T); return; }
-    tpost({ action: 'rows', cls: TS.cls, pin: sessionStorage.getItem('gastrip.tpin') }).then(function (res) { if (res.error) throw new Error(res.error); TS.rows = res.rows || []; if (!$('#livegrid')) return; $('#livegrid').innerHTML = liveHTML(); $('#livemsg').textContent = '마지막 갱신 ' + new Date().toLocaleTimeString('ko-KR') + ' · 15초마다 자동으로 바뀌어요'; }).catch(function () { var m = $('#livemsg'); if (m) m.textContent = '갱신하지 못했어요. 다음 주기에 다시 시도해요.'; });
+    rowsReq(TS.cls).then(function (res) { if (res.error) throw new Error(res.error); TS.rows = res.rows || []; if (!$('#livegrid')) return; $('#livegrid').innerHTML = liveHTML(); $('#livemsg').textContent = '마지막 갱신 ' + new Date().toLocaleTimeString('ko-KR') + ' · 15초마다 자동으로 바뀌어요'; }).catch(function () { var m = $('#livemsg'); if (m) m.textContent = '갱신하지 못했어요. 다음 주기에 다시 시도해요.'; });
   }
   function liveHTML() {
     var now = Date.now(), L = students().filter(function (x) { return x.live && x.live.t; }), cnt = { on: 0, idle: 0, off: 0, away: 0 }, place = {};
@@ -1683,11 +1688,11 @@
     return '<p class="lsum"><b>🟢 ' + cnt.on + '</b> 진행 · 🟡 ' + cnt.idle + ' 조용 · 🌙 ' + cnt.away + ' 꺼짐 · ⚪ ' + cnt.off + ' 끊김</p><div class="lchips">' + chips + '</div><div class="lcards">' + cards.join('') + '</div>';
   }
   TEACH.tlogin = function () { var v = $('#tpin').value.trim(); $('#tmsg').textContent = '확인 중…'; checkPin(v, function () { if (!sessionStorage.getItem('gastrip.tpin')) teacherFresh(); sessionStorage.setItem('gastrip.tpin', v); viewTeacher(); }, function (why) { $('#tmsg').innerHTML = '<b class="warn">' + (why || '비밀번호가 달라요.') + '</b>'; }); };
-  TEACH.tlogout = function () { var g = isG(); sessionStorage.removeItem('gastrip.tpin'); sessionStorage.removeItem('gastrip.guest'); if (S.profile && S.profile.cls === '0') { S.profile = null; wipeProgress(); if (!g) save(); } location.hash = ''; location.reload(); };
+  TEACH.tlogout = function () { var g = isG(); sessionStorage.removeItem('gastrip.tpin'); sessionStorage.removeItem('gastrip.guest'); sessionStorage.removeItem('gastrip.gpin'); if (S.profile && S.profile.cls === '0') { S.profile = null; wipeProgress(); if (!g) save(); } location.hash = ''; location.reload(); };
   TEACH.ttab = function (b) { TS.tab = b.dataset.t; viewTeacher(); };
   TEACH.tload = function () {
     TS.cls = $('#tcls').value.trim(); if (!TS.cls) return; TS.msg = '불러오는 중…'; viewTeacher();
-    tpost({ action: 'rows', cls: TS.cls, pin: sessionStorage.getItem('gastrip.tpin') }).then(function (res) { if (res.error) throw new Error(res.error); TS.rows = res.rows || []; TS.msg = TS.rows.length + '건을 불러왔어요.'; viewTeacher(); }).catch(function (e) { TS.msg = '불러오지 못했어요. (' + e.message + ')'; viewTeacher(); });
+    rowsReq(TS.cls).then(function (res) { if (res.error) throw new Error(res.error); TS.rows = res.rows || []; TS.msg = TS.rows.length + '건을 불러왔어요.'; viewTeacher(); }).catch(function (e) { TS.msg = '불러오지 못했어요. (' + e.message + ')'; viewTeacher(); });
   };
   TEACH.tcopy = function (b) { var t = b.previousElementSibling.textContent; if (navigator.clipboard) navigator.clipboard.writeText(t).then(function () { b.textContent = '복사했어요'; }); };
   TEACH.tcsv = function () {
@@ -1695,7 +1700,7 @@
     var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + out.map(function (l) { return l.join(','); }).join('\n')], { type: 'text/csv' })); a.download = TS.cls + '반_실험자료.csv'; a.click();
   };
   function byKey(keys) { return TS.rows.filter(function (r) { return keys.indexOf(r.key) >= 0; }); }
-  function students(rows) { var m = {}; (rows || TS.rows || []).forEach(function (r) { var id = r.cls + '|' + r.num; m[id] = m[id] || { cls: String(r.cls), num: r.num, name: r.name }; m[id][r.key] = r.val; }); return Object.keys(m).map(function (k) { return m[k]; }).sort(function (a, b) { return (a.cls - b.cls) || (a.num - b.num); }); }
+  function students(rows) { var m = {}; (rows || TS.rows || []).forEach(function (r) { var id = r.cls + '|' + r.num; m[id] = m[id] || { cls: String(r.cls), num: r.num, name: r.name, t: 0 }; m[id][r.key] = r.val; if (r.t && r.t > m[id].t && r.key !== 'live') m[id].t = r.t; }); return Object.keys(m).map(function (k) { return m[k]; }).sort(function (a, b) { return (a.cls - b.cls) || (a.num - b.num); }); }
   var TVIEW = {
     live: function () { return '<div class="card"><p class="tiny" id="livemsg">(현재 꺼져 있어요: 접속 신호가 서버 부담을 줄 수 있어 config.js의 LIVE_MONITOR를 true로 바꿔야 켜져요.) 반을 쓰고 ‘불러오기’를 누르면 15초마다 자동으로 갱신돼요. 학생 화면 그림이 아니라 ‘지금 어느 여행지·단계에 있는지’를 보여 줘요.</p><div id="livegrid">' + liveHTML() + '</div></div>'; },
     guide: function () {
@@ -1708,15 +1713,30 @@
       return h;
     },
     class: function () {
-      var h = '<div class="card scroll"><table class="tbl"><thead><tr><th>번호</th><th>이름</th>' + ['01', '02', '03'].map(function (s) { return '<th>' + T.stds[s].short + '<br><small>본·잰·입자</small></th>'; }).join('') + '<th>센서 준비</th><th>마일</th><th>등급</th><th>부스</th><th>시험</th></tr></thead><tbody>';
-      students().forEach(function (s) {
+      var L = students(), DS = T.dests.filter(function (d) { return d.std; }), now = Date.now();
+      if (!L.length) return '<div class="card"><p class="tiny">아직 기록이 없어요.</p></div>';
+      function prog(s, d) { var dn = (s.progress && s.progress.done && s.progress.done[d.id]) || {}, n = 0, left = []; d.steps.forEach(function (st, i) { if (dn[i]) n++; else left.push(st.title); }); return { n: n, tot: d.steps.length, left: left }; }
+      function ago(t) { if (!t) return ''; var m = Math.floor((now - t) / 60000); if (m < 1) return '방금'; if (m < 60) return m + '분 전'; if (m < 1440) return Math.floor(m / 60) + '시간 전'; var dt = new Date(t); return (dt.getMonth() + 1) + '/' + dt.getDate(); }
+      // 차시별 요약: 다 마침 / 하는 중 / 시작 전
+      var h = '<div class="card"><h3>차시별 진행</h3><div class="psum">';
+      DS.forEach(function (d) {
+        var c = [0, 0, 0]; L.forEach(function (s) { var p = prog(s, d); c[p.n >= p.tot ? 0 : p.n ? 1 : 2]++; });
+        var w = function (x) { return (x / L.length * 100).toFixed(1) + '%'; };
+        h += '<div class="prow2"><span class="plab">' + d.period + ' ' + d.icon + ' ' + d.place + '</span><span class="pbar"><i class="a" style="width:' + w(c[0]) + '"></i><i class="b" style="width:' + w(c[1]) + '"></i></span><span class="pnum"><b>' + c[0] + '</b> 마침 · ' + c[1] + ' 하는 중 · ' + c[2] + ' 시작 전</span></div>';
+      });
+      var st = [0, 0, 0]; L.forEach(function (s) { var sp = (s.progress || {}).stamps || {}; ['see', 'meas', 'part'].forEach(function (k, j) { ['01', '02', '03'].forEach(function (x) { if (sp[x] && sp[x][k]) st[j]++; }); }); });
+      h += '</div><p class="tiny" style="margin:8px 0 0">도장 합계: 실험 ' + st[0] + ' · 규칙 ' + st[1] + ' · 입자 ' + st[2] + ' · 센서 연결 성공 ' + L.filter(function (s) { return s.prep && s.prep.ok; }).length + '명 / ' + L.length + '명</p></div>';
+      h += '<div class="card scroll"><p class="tiny" style="margin:0 0 6px">차시 칸의 숫자는 마친 장 / 전체 장이에요. 칸에 손가락(마우스)을 올리면 아직 안 한 장이 보여요.</p><table class="tbl ctbl"><thead><tr><th>번호</th><th>이름</th>' + DS.map(function (d) { return '<th>' + d.period.replace('차시', '') + '<br><small>' + d.icon + '</small></th>'; }).join('') + ['01', '02', '03'].map(function (x) { return '<th>' + T.stds[x].short + '<br><small>실험·규칙·입자</small></th>'; }).join('') + '<th>센서</th><th>마일<br><small>등급</small></th><th>부스</th><th>시험</th><th>마지막<br>기록</th></tr></thead><tbody>';
+      L.forEach(function (s) {
         var p = s.progress || {}, sp = p.stamps || {};
-        h += '<tr><td>' + esc(s.num) + '</td><td>' + esc(s.name) + '</td>' + ['01', '02', '03'].map(function (x) { return '<td class="dots">' + ['see', 'meas', 'part'].map(function (k) { return '<i class="' + (sp[x] && sp[x][k] ? 'on' : '') + '" style="--c:' + T.kinds[k].color + '"></i>'; }).join('') + '</td>'; }).join('') + '<td>' + (s.prep && s.prep.ok ? '✓ 연결' : s.prep ? '설정만' : '') + '</td><td>' + (p.miles || 0) + '</td><td>' + esc(p.rank || '') + '</td><td>' + ((p.booths || []).length || '') + '</td><td>' + (p.exam ? p.exam.best + '/' + p.exam.total : '') + '</td></tr>';
+        h += '<tr><td>' + esc(s.num) + '</td><td>' + esc(s.name) + '</td>' + DS.map(function (d) { var q = prog(s, d), pc = q.n / q.tot * 100, cls = q.n >= q.tot ? 'full' : q.n ? 'part' : 'none'; return '<td class="pc ' + cls + '" title="' + esc(q.left.length ? '남은 장: ' + q.left.join(', ') : '다 마쳤어요') + '"><span class="pcb"><i style="width:' + pc.toFixed(0) + '%"></i></span><small>' + (q.n >= q.tot ? '✓' : q.n + '/' + q.tot) + '</small></td>'; }).join('') +
+          ['01', '02', '03'].map(function (x) { return '<td class="dots">' + ['see', 'meas', 'part'].map(function (k) { return '<i class="' + (sp[x] && sp[x][k] ? 'on' : '') + '" style="--c:' + T.kinds[k].color + '" title="' + T.kinds[k].name + '"></i>'; }).join('') + '</td>'; }).join('') +
+          '<td>' + (s.prep && s.prep.ok ? '✓' : s.prep ? '설정만' : '') + '</td><td>' + (p.miles || 0) + '<br><small>' + esc(p.rank || '') + '</small></td><td>' + ((p.booths || []).length || '') + '</td><td>' + (p.exam ? p.exam.best + '/' + p.exam.total : '') + '</td><td class="ago">' + ago(s.t) + '</td></tr>';
       });
       return h + '</tbody></table></div>';
     },
     data: function () {
-      var h = '<div class="card scroll"><button class="btn sm" data-act="tcsv">CSV로 내려받기</button>';
+      var h = '<div class="card scroll">' + (isGO() ? '' : '<button class="btn sm" data-act="tcsv">CSV로 내려받기</button>');
       ['boyle', 'charles'].forEach(function (k) {
         var seen = {}, K = KIND[k]; h += '<h3>' + (k === 'boyle' ? '압력과 부피' : '온도와 부피') + '</h3><table class="tbl"><thead><tr><th>모둠</th><th>단위</th><th>자료 (' + K.cols[0] + ', ' + K.cols[1] + ')</th></tr></thead><tbody>';
         byKey([k]).forEach(function (r) { var v = r.val, g = v.group || r.num + '번'; if (seen[g] || v.sample) return; seen[g] = 1; h += '<tr><td>' + esc(g) + '</td><td>' + esc(v.unit) + '</td><td>' + v.rows.map(function (x) { return '(' + x[0] + ', ' + x[1] + ')'; }).join(' ') + '</td></tr>'; });

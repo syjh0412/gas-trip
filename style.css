@@ -474,3 +474,16 @@ a.rk { text-decoration: none; }
 .pfixa { margin: 6px 0 2px 22px; padding: 8px 10px; background: #FFF6E5; border-radius: 10px; color: #1B1F3B; font-size: 14px; line-height: 1.5; }
 .pfix { margin: -4px 0 6px 32px; font-size: 14px; } .pfix summary { cursor: pointer; color: #2F4BD8; font-weight: 700; } .pfix p { margin: 4px 0 8px; padding: 8px 10px; background: #F4F5FB; border-radius: 10px; line-height: 1.5; }
 .prepauto + .btn { margin-top: 8px; }
+
+/* 반 현황 세분화 */
+.psum { display: flex; flex-direction: column; gap: 6px; }
+.prow2 { display: grid; grid-template-columns: minmax(150px, 210px) minmax(80px, 1fr) auto; gap: 10px; align-items: center; font-size: 14px; }
+.pbar { display: flex; height: 14px; border: 1.5px solid var(--ink); border-radius: 8px; overflow: hidden; background: #fff; }
+.pbar i { display: block; height: 100%; } .pbar i.a { background: #0B7A4B; } .pbar i.b { background: #9FC9B5; }
+.pnum { white-space: nowrap; color: var(--muted); } .pnum b { color: var(--ink); }
+.ctbl th, .ctbl td { padding: 5px 6px; font-size: 14px; }
+.teacher .ctbl td.pc { text-align: center; min-width: 48px; }
+.pcb { display: block; height: 6px; border-radius: 3px; background: #E7EAFA; overflow: hidden; margin: 2px 0 3px; } .pcb i { display: block; height: 100%; background: #0B7A4B; }
+.pc.none small { color: #A0A6B8; } .pc.full { background: #EAF6EF; } .pc.full small { color: #0B7A4B; font-weight: 700; }
+.ctbl td.ago { white-space: nowrap; color: var(--muted); font-size: 13px; }
+@media (max-width: 640px) { .prow2 { grid-template-columns: 1fr; gap: 3px; } }
