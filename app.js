@@ -880,7 +880,8 @@
 
   // 감압 용기 측정
   var VSTEP = 2; // 펌프질 몇 번마다 기록하는지
-  var VACS = [[0, 1.00], [2, 0.72], [4, 0.54], [6, 0.43], [8, 0.36], [10, 0.32], [12, 0.29], [14, 0.27], [16, 0.25]];
+  var VACS = [[0, 1.00], [2, 0.72], [4, 0.54], [6, 0.43], [8, 0.36], [10, 0.32], [12, 0.29], [14, 0.27], [16, 0.25], [18, 0.24], [20, 0.23], [22, 0.22], [24, 0.21], [26, 0.21], [28, 0.20], [30, 0.20]];
+  var VMAX = 30; // 펌프질 30번까지(기록 15번 + 처음)
   function vacNext(rows) { return rows.length ? rows[rows.length - 1][0] + VSTEP : 0; }
   function vacS() { return S.lab.vac = S.lab.vac || { rows: [], sample: false }; }
   STEP.vac = function (d, st, i) {
@@ -895,7 +896,7 @@
   };
   AFTER.vac = function (d, st, i) { drawVac(d, st, i); sPaint(); var gi = $('#vgroup'); if (gi) gi.addEventListener('change', function () { vacS().group = gi.value.trim(); save(); }); };
   function vacGraph(rows, ser) {
-    var W = 560, H = 300, L = 62, R = 20, Tp = 20, B = 50, xm = 16, ym = 1.1; (ser || []).concat([{ rows: rows }]).forEach(function (q) { q.rows.forEach(function (r) { xm = Math.max(xm, r[0]); }); });
+    var W = 560, H = 300, L = 62, R = 20, Tp = 20, B = 50, xm = VMAX, ym = 1.1; (ser || []).concat([{ rows: rows }]).forEach(function (q) { q.rows.forEach(function (r) { xm = Math.max(xm, r[0]); }); });
     var X = function (x) { return L + x / xm * (W - L - R); }, Y = function (y) { return H - B - y / ym * (H - Tp - B); }, s = '';
     for (var g = 0; g <= 22; g++) { var yv = g * 0.05, mj = g % 2 === 0; s += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + Y(yv) + '" y2="' + Y(yv) + '" class="' + (mj ? 'gl' : 'gm') + '"/>' + (g % 4 === 0 ? '<text x="' + (L - 8) + '" y="' + (Y(yv) + 5) + '" text-anchor="end" class="gt">' + yv.toFixed(1) + '</text>' : ''); }
     for (var k = 0; k <= xm; k++) s += '<line y1="' + Y(0) + '" y2="' + Y(ym) + '" x1="' + X(k) + '" x2="' + X(k) + '" class="' + (k % 2 ? 'gm' : 'gl') + '"/>' + (k % 2 ? '' : '<text x="' + X(k) + '" y="' + (H - B + 22) + '" text-anchor="middle" class="gt">' + k + '</text>');
@@ -908,7 +909,7 @@
   }
   function drawVac(d, st, i) {
     var V = vacS(), rows = V.rows, box = $('#vacbox'); if (!box) return;
-    var vb = $('#vrecb'); if (vb) vb.textContent = rows.length ? '펌프질 ' + vacNext(rows) + '번 뒤 기압 기록' : '처음 기압 기록 (펌프질 전)';
+    var vb = $('#vrecb'); if (vb) vb.textContent = !rows.length ? '처음 기압 기록 (펌프질 전)' : vacNext(rows) > VMAX ? '✓ 펌프질 ' + VMAX + '번까지 기록 끝' : '펌프질 ' + vacNext(rows) + '번 뒤 기압 기록 (' + rows.length + '/' + (VMAX / VSTEP) + ')';
     box.innerHTML = '<div class="card">' + (V.sample ? '<p class="tiny"><b>예시 자료</b>예요. 우리 모둠이 잰 값으로 바꾸려면 ‘처음부터 다시’를 눌러요.</p>' : '') +
       '<div class="vsplit"><div>' + (rows.length ? '<div class="scroll"><table class="tbl"><thead><tr><th>펌프질 횟수</th><th>용기 속 기압</th><th>앞 기록보다 줄어든 기압</th></tr></thead><tbody>' + rows.map(function (r, k) { return '<tr><td>' + (r[0] ? r[0] + '번' : '처음') + '</td><td>' + r[1].toFixed(2) + '</td><td>' + (k ? (rows[k - 1][1] - r[1]).toFixed(2) : '–') + '</td></tr>'; }).join('') + '</tbody></table></div>' : '<p class="hint">처음 기압부터 기록해요. 기록하면 여기에 표가 만들어져요.</p>') + '</div><div>' + vacGraph(rows) + '</div></div></div>';
     var gb = $('#vacgrp'), G = V.gather && V.gather.members && V.gather.members.length ? V.gather.members : null;
@@ -927,7 +928,7 @@
     }
     $('#vacq').innerHTML = rows.length >= 6 ? itemsHTML(d, st, i, 'retry') : '<p class="hint">펌프질 ' + (5 * VSTEP) + '번까지(기록 6개) 하면 질문이 나와요. (지금 기록 ' + rows.length + '개)</p>';
   }
-  function vacPush(p) { var V = vacS(); if (V.sample) { V.rows = []; V.sample = false; } var vx = vacNext(V.rows); V.rows.push([vx, Math.round(p * 100) / 100]); save(); sync('vac', { group: V.group || '', rows: V.rows }); chip((vx ? '펌프질 ' + vx + '번' : '처음') + ' → ' + p.toFixed(2) + ' 기압'); }
+  function vacPush(p) { var V = vacS(); if (V.sample) { V.rows = []; V.sample = false; } var vx = vacNext(V.rows); if (vx > VMAX) { chip('펌프질 ' + VMAX + '번까지 다 기록했어요. 밸브를 열어 1기압으로 되돌리고 다음 친구에게 넘겨요'); return; } V.rows.push([vx, Math.round(p * 100) / 100]); save(); sync('vac', { group: V.group || '', rows: V.rows }); chip((vx ? '펌프질 ' + vx + '번' : '처음') + ' → ' + p.toFixed(2) + ' 기압'); }
   function vGather(d, st, i) {
     var V = vacS(), m = $('#vgmsg'), gi = $('#vgroup'); if (gi) V.group = gi.value.trim();
     if (!V.group) { m.innerHTML = '<b class="warn">먼저 ‘모둠’ 칸에 모둠 번호를 쓰세요.</b>'; if (gi) gi.focus(); return; }
