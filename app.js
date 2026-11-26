@@ -195,7 +195,7 @@
     return '<svg viewBox="0 0 120 104" class="fig" role="img" aria-label="그래프 보기"><path d="M18 6V82H112" fill="none" stroke="#1B1F3B" stroke-width="2.5"/><path d="' + p + '" fill="none" stroke="#2F4BD8" stroke-width="4" stroke-linecap="round"/><text x="65" y="99" text-anchor="middle" font-size="11">' + esc(fx) + '</text><text x="9" y="46" text-anchor="middle" font-size="11" transform="rotate(-90 9 46)">' + esc(fy) + '</text><text x="12" y="92" font-size="10">0</text></svg>';
   }
   function allRight(prefix, items) { return items.every(function (it, i) { var a = S.ans[prefix + i]; return a && a.c === it.a; }); }
-  function allAnswered(prefix, items) { return items.every(function (it, i) { return S.ans[prefix + i]; }); }
+  function allAnswered(prefix, items) { return items.every(function (it, i) { return it.skip || S.ans[prefix + i]; }); }
 
   /* ---------- 라우팅 ---------- */
   var cur = { dest: null, step: 0 }, sim = null;
@@ -607,7 +607,7 @@
   }
   var STEP = {}, AFTER = {}, DONE = {}, TODO = {};
   function pfx(d, i) { return d.id + '.' + i + '.'; }
-  function itemsHTML(d, st, i, mode) { return st.items.map(function (it, j) { return mcq(pfx(d, i) + j, it, mode, st.items.length > 1 ? j + 1 : 0); }).join(''); }
+  function itemsHTML(d, st, i, mode) { var live = st.items.filter(function (it) { return !it.skip; }), n = 0; return st.items.map(function (it, j) { if (it.skip) return ''; n++; return mcq(pfx(d, i) + j, it, mode, live.length > 1 ? n : 0); }).join(''); } // skip: 빼 둔 질문(번호 자리는 그대로 둬서 이미 저장된 답이 섞이지 않게)
 
   // 예측
   STEP.predict = function (d, st, i) { return itemsHTML(d, st, i, 'free'); };
