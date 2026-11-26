@@ -62,7 +62,7 @@
 <main>
   <p class="eyebrow">고천중학교 · 미래형 과학실(기반형) 수업 공개</p>
   <h1>수업 공개 참관록</h1>
-  <p class="lead">참관해 주셔서 감사합니다. 3분이면 끝납니다. 이름은 받지 않으며, 주신 의견은 수업 개선과 사업 보고에만 씁니다.</p>
+  <p class="lead">참관해 주셔서 감사합니다. 3분이면 끝납니다. 성명은 적지 않으셔도 됩니다. 주신 의견은 수업 개선과 사업 보고에만 씁니다.</p>
 
   <section class="card" aria-labelledby="h-info">
     <h2 id="h-info">오늘 수업</h2>
@@ -81,8 +81,10 @@
         <label><input type="radio" name="level" value="고"> 고등학교</label>
         <label><input type="radio" name="level" value="기타"> 기타</label>
       </fieldset>
-      <label for="subject">담당 교과 <span class="opt">(선택)</span></label>
-      <input id="subject" maxlength="20" placeholder="예: 과학">
+      <div class="two">
+        <div><label for="name">성명 <span class="opt">(선택)</span></label><input id="name" maxlength="20" autocomplete="name"></div>
+        <div><label for="subject">담당 교과 <span class="opt">(선택)</span></label><input id="subject" maxlength="20" placeholder="예: 과학"></div>
+      </div>
 
       <h2 style="margin-top:24px">수업을 보시고 <span class="opt" style="font-weight:400;font-size:15px;color:var(--sub)">5 매우 그렇다 · 1 전혀 아니다</span></h2>
       <div id="qs"></div>
@@ -135,7 +137,7 @@
   var mine = load();
   function fill(v) {
     var r = document.querySelector('input[name=level][value="' + v.level + '"]'); if (r) r.checked = true;
-    ['subject', 'best', 'tip', 'apply'].forEach(function (k) { $('#' + k).value = v[k] || ''; });
+    ['name', 'subject', 'best', 'tip', 'apply'].forEach(function (k) { $('#' + k).value = v[k] || ''; });
     (v.q || []).forEach(function (n, i) { var x = document.querySelector('input[name=q' + i + '][value="' + n + '"]'); if (x) x.checked = true; });
   }
   function showDone() { $('#formcard').hidden = true; $('#donecard').hidden = false; }
@@ -145,13 +147,13 @@
     e.preventDefault();
     var m = $('#msg'); m.className = 'msg err';
     var lv = document.querySelector('input[name=level]:checked');
-    var v = { level: lv ? lv.value : '', subject: $('#subject').value.trim(), best: $('#best').value.trim(), tip: $('#tip').value.trim(), apply: $('#apply').value.trim(), q: QS.map(function (q, i) { var x = document.querySelector('input[name=q' + i + ']:checked'); return x ? +x.value : 0; }) };
+    var v = { level: lv ? lv.value : '', name: $('#name').value.trim(), subject: $('#subject').value.trim(), best: $('#best').value.trim(), tip: $('#tip').value.trim(), apply: $('#apply').value.trim(), q: QS.map(function (q, i) { var x = document.querySelector('input[name=q' + i + ']:checked'); return x ? +x.value : 0; }) };
     if (!v.level) { m.textContent = '근무 학교급을 골라 주세요.'; document.querySelector('input[name=level]').focus(); return; }
     var miss = v.q.indexOf(0); if (miss >= 0) { m.textContent = (miss + 1) + '번 문항에 답해 주세요.'; document.querySelector('input[name=q' + miss + ']').focus(); return; }
     if (!API) { m.textContent = '서버가 연결되어 있지 않습니다. 잠시 뒤 다시 시도해 주세요.'; return; }
     var id = (mine && mine.id) || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)), btn = $('#send');
     btn.disabled = true; btn.textContent = '보내는 중…'; m.className = 'msg'; m.textContent = '';
-    post({ cls: CLS, num: id, name: '', key: KEY, val: { level: v.level, subject: v.subject, q: v.q, best: v.best, tip: v.tip, apply: v.apply, at: new Date().toISOString() } }).then(function (r) {
+    post({ cls: CLS, num: id, name: v.name, key: KEY, val: { level: v.level, subject: v.subject, q: v.q, best: v.best, tip: v.tip, apply: v.apply, at: new Date().toISOString() } }).then(function (r) {
       if (!r || r.error) throw new Error((r && r.error) || 'no response');
       v.id = id; v.sent = true; mine = v; store(v); showDone();
     }).catch(function () { m.className = 'msg err'; m.textContent = '보내지 못했습니다. 잠시 뒤 다시 눌러 주세요.'; })
@@ -170,7 +172,7 @@
       }).join('') + '</tbody></table>';
       [['best', '가장 인상 깊었던 장면'], ['tip', '조언'], ['apply', '적용하려면 필요한 것 · 궁금한 점']].forEach(function (k) {
         var t = rows.filter(function (x) { return x.val[k[0]]; });
-        h += '<h3 style="margin:18px 0 6px;font-size:16px;color:var(--ink)">' + k[1] + ' (' + t.length + ')</h3>' + (t.length ? '<ul style="margin:0;padding-left:20px;color:var(--ink)">' + t.map(function (x) { return '<li>' + esc(x.val[k[0]]) + ' <small style="color:var(--sub)">· ' + esc(x.val.level) + (x.val.subject ? ' ' + esc(x.val.subject) : '') + '</small></li>'; }).join('') + '</ul>' : '<p class="note">없음</p>');
+        h += '<h3 style="margin:18px 0 6px;font-size:16px;color:var(--ink)">' + k[1] + ' (' + t.length + ')</h3>' + (t.length ? '<ul style="margin:0;padding-left:20px;color:var(--ink)">' + t.map(function (x) { return '<li>' + esc(x.val[k[0]]) + ' <small style="color:var(--sub)">· ' + (x.name ? esc(x.name) + ' · ' : '') + esc(x.val.level) + (x.val.subject ? ' ' + esc(x.val.subject) : '') + '</small></li>'; }).join('') + '</ul>' : '<p class="note">없음</p>');
       });
       box.innerHTML = h;
     }).catch(function (e) { m.className = 'msg err'; m.textContent = /비밀번호/.test(e.message) ? '비밀번호가 다릅니다.' : '불러오지 못했습니다. 잠시 뒤 다시 눌러 주세요.'; });
