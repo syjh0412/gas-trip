@@ -506,3 +506,4 @@ main.teacher.wide { max-width: 1500px; }
 .tgnew { animation: tgflash 2.4s ease-out; } @keyframes tgflash { 0% { box-shadow: 0 0 0 6px #FFD43B; } 100% { box-shadow: 0 0 0 0 rgba(255, 212, 59, 0); } }
 .svols.part-none { display: none; } .spart button { font-size: 15px; }
 .gsub { display: block; margin: 12px 0 6px; font-weight: 700; color: var(--ink); font-size: 15px; }
+.lvid video { display: block; width: 100%; max-width: 820px; margin: 6px auto 0; border-radius: 14px; border: 2px solid var(--ink); background: #DEECFC; }
