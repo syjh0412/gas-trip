@@ -1772,7 +1772,8 @@
     h += '</div>';
     // 우리 반 · 1학년 전체
     var clsSer = gids.map(function (g, j) { var list = [].concat.apply([], groups[g].map(function (m) { return m.rows; })); return { rows: kind === 'vac' ? tgAvg(list) : list, color: GCOL[j % GCOL.length], label: (g ? g + '모둠' : '번호 없음') + ' · ' + groups[g].length + '명' }; });
-    var gg = {}; recs.forEach(function (r) { var id = r.cls + '|' + (r.g || ('#' + r.num)); (gg[id] = gg[id] || { cls: r.cls, list: [] }).list = gg[id].list.concat(r.rows); });
+    var gg = {}; recs.forEach(function (r) { if (!/^([1-9]|1[0-5])$/.test(r.cls)) return; // 시험용 반(0, 99 등)은 학년 그래프에서 뺀다
+      var id = r.cls + '|' + (r.g || ('#' + r.num)); (gg[id] = gg[id] || { cls: r.cls, list: [] }).list = gg[id].list.concat(r.rows); });
     var classes = []; Object.keys(gg).forEach(function (id) { if (classes.indexOf(gg[id].cls) < 0) classes.push(gg[id].cls); }); classes.sort(function (p, q) { return p - q; });
     var grSer = Object.keys(gg).map(function (id) { return { rows: tgAvg(gg[id].list), color: GCOL[classes.indexOf(gg[id].cls) % GCOL.length], label: gg[id].cls + '반' }; });
     var axG = kind === 'boyle' ? axes([].concat.apply([[20, 1]], grSer.map(function (q) { return q.rows; })), 1, 0, 'boyle') : null;
