@@ -917,7 +917,7 @@
       (CFG.API_URL ? '<div class="card gath"><h3>👥 모둠 자료 모으기</h3><p class="tiny" style="margin:0 0 8px">내 기록을 마쳤으면, 모둠원과 <b>같은 모둠 번호</b>를 쓰고 버튼을 눌러요. 모둠원의 기록이 아래에 함께 모여요.</p><div class="vacman"><label>모둠 <input id="vgroup" type="number" min="1" max="12" inputmode="numeric" value="' + esc(String(vacS().group || '')) + '" placeholder="번호"></label><button class="btn sm pri" data-act="vgather">👥 모둠 자료 모으기</button></div><p class="tiny" id="vgmsg" aria-live="polite"></p><div id="vacgrp"></div></div>' : '') +
       '<div id="vacq"></div>';
   };
-  AFTER.vac = function (d, st, i) { drawVac(d, st, i); sPaint(); var gi = $('#vgroup'); if (gi) gi.addEventListener('change', function () { vacS().group = gi.value.trim(); save(); }); };
+  AFTER.vac = function (d, st, i) { drawVac(d, st, i); sPaint(); var gi = $('#vgroup'); if (gi) gi.addEventListener('change', function () { var V = vacS(); V.group = gi.value.trim(); save(); if (V.rows.length && !V.sample) sync('vac', { group: V.group, rows: V.rows }); }); };
   function vacGraph(rows, ser) {
     var W = 560, H = 300, L = 62, R = 20, Tp = 20, B = 50, xm = VMAX, ym = 1.1; (ser || []).concat([{ rows: rows }]).forEach(function (q) { q.rows.forEach(function (r) { xm = Math.max(xm, r[0]); }); });
     var X = function (x) { return L + x / xm * (W - L - R); }, Y = function (y) { return H - B - y / ym * (H - Tp - B); }, s = '';
@@ -1510,7 +1510,7 @@
       for (var ri = 0; ri < SD.rows.length; ri++) if (SD.rows[ri][0] === vv) { SD.rows[ri][1] = pk.toFixed(2); put = true; break; }
       if (!put) { for (ri = 0; ri < SD.rows.length; ri++) if (SD.rows[ri][0] === '' && SD.rows[ri][1] === '') { SD.rows[ri] = [vv, pk.toFixed(2)]; put = true; break; } }
       if (!put) SD.rows.push([vv, pk.toFixed(2)]);
-      save(); drawData(d, st, i); chip(vv + ' mL → ' + pk.toFixed(2) + ' 기압'); var D7 = S.data[st.kind] || {}; if (vv === (D7.part === 'e' ? '8' : '7')) setTimeout(function () { chip('다 쟀어요! 피스톤을 20 mL로 돌리고 ‘내 차례 끝 · 연결 끊기’를 눌러 다음 친구에게 넘겨요'); }, 1600);
+      save(); sync('boyle', { group: SD.group || '', unit: SD.unit, rows: validRows(SD), sample: false }); drawData(d, st, i); chip(vv + ' mL → ' + pk.toFixed(2) + ' 기압'); var D7 = S.data[st.kind] || {}; if (vv === (D7.part === 'e' ? '8' : '7')) setTimeout(function () { chip('다 쟀어요! 피스톤을 20 mL로 돌리고 ‘내 차례 끝 · 연결 끊기’를 눌러 다음 친구에게 넘겨요'); }, 1600);
     }
     else if (act === 'vrec') { var vk = sNow(); if (vk == null) return; vacPush(vk / 101.325); drawVac(d, st, i); check(); }
     else if (act === 'vadd') { var vi = $('#vacin'), vv2 = parseFloat(vi.value); if (!(vv2 > 0 && vv2 < 1.3)) { chip('0에서 1.3 사이의 기압을 써요'); return; } vacPush(vv2); vi.value = ''; drawVac(d, st, i); check(); }
@@ -1637,10 +1637,10 @@
   function viewTeacher() {
     cur = { dest: null, step: 0 };
     var okPin = sessionStorage.getItem('gastrip.tpin') || isG(), GO = isGO();
-    var h = '<header class="dtop" style="--c:#1B1F3B"><a class="back" href="#home">← 학생 화면</a><div class="dhead"><span class="dic">' + (GO ? '🎩' : '🧑‍🏫') + '</span><div><h1>' + (GO ? '참관 · 1학년 ' + GCLS + '반 기록' : '대표님 사무실') + '</h1><p>' + (GO ? '학생 이름은 가운데를 가려서 보여 드려요' : '통통 입자 여행 · 기체 안전 여행사') + '</p></div></div></header><main class="dmain teacher">';
-    if (GO) { TS.cls = GCLS; TS.lcls = GCLS; if (!TS.gInit || ['guide', 'class', 'data', 'lines'].indexOf(TS.tab) < 0) { TS.gInit = 1; TS.tab = 'class'; } }
+    var h = '<header class="dtop" style="--c:#1B1F3B"><a class="back" href="#home">← 학생 화면</a><div class="dhead"><span class="dic">' + (GO ? '🎩' : '🧑‍🏫') + '</span><div><h1>' + (GO ? '참관 · 1학년 ' + GCLS + '반 기록' : '대표님 사무실') + '</h1><p>' + (GO ? '학생 이름은 가운데를 가려서 보여 드려요' : '통통 입자 여행 · 기체 안전 여행사') + '</p></div></div></header><main class="dmain teacher' + (TS.tab === 'graph' ? ' wide' : '') + '">';
+    if (GO) { TS.cls = GCLS; TS.lcls = GCLS; if (!TS.gInit || ['guide', 'graph', 'class', 'data', 'lines'].indexOf(TS.tab) < 0) { TS.gInit = 1; TS.tab = 'graph'; } }
     if (!okPin) { app.innerHTML = h + '<div class="card"><h3>비밀번호</h3><div class="row3"><label>교사 비밀번호<input id="tpin" type="text" class="secret" inputmode="numeric" autocomplete="off" data-lpignore="true" data-1p-ignore></label></div><button class="btn pri" data-act="tlogin">들어가기</button><p class="tiny" id="tmsg">' + (CFG.API_URL ? '구글 스크립트(Code.gs)에 정해 둔 교사 비밀번호예요.' : 'config.js의 TEACHER_PIN 값이에요. 처음 값은 0000입니다.') + '</p></div></main>'; return; }
-    var tabs = GO ? [['class', '반 현황'], ['data', '실험 자료'], ['lines', '학생 글'], ['guide', '수업 안내']] : [['guide', '수업 안내'], ['live', '실시간'], ['class', '반 현황'], ['data', '실험 자료'], ['lines', '학생 글'], ['snorkl', '스노클 과제'], ['setup', '설정 방법']];
+    var tabs = GO ? [['graph', '실험 그래프'], ['class', '반 현황'], ['data', '실험 자료'], ['lines', '학생 글'], ['guide', '수업 안내']] : [['guide', '수업 안내'], ['graph', '실험 그래프'], ['live', '실시간'], ['class', '반 현황'], ['data', '실험 자료'], ['lines', '학생 글'], ['snorkl', '스노클 과제'], ['setup', '설정 방법']];
     h += '<nav class="ttabs">' + tabs.map(function (t) { return '<button data-act="ttab" data-t="' + t[0] + '" class="' + (TS.tab === t[0] ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</nav>';
     if (['live', 'class', 'data'].indexOf(TS.tab) >= 0) {
       h += '<div class="card"><div class="row3"><label>반<input id="tcls" inputmode="numeric" maxlength="2" value="' + esc(TS.cls) + '"' + (GO ? ' readonly' : '') + '></label></div><button class="btn pri" data-act="tload"' + (CFG.API_URL ? '' : ' disabled') + '>불러오기</button><p class="tiny">' + (CFG.API_URL ? esc(TS.msg) : '반 자료를 모으려면 ‘설정 방법’ 탭의 구글 시트 연결이 필요해요. 연결 전에는 학생 기기에만 저장됩니다.') + '</p></div>';
@@ -1650,6 +1650,10 @@
     if (TS.tab === 'lines' && CFG.API_URL && TS.lcls && !TS.lr[TS.lcls] && TS.lBusy !== TS.lcls && !TS.lErr) loadLines(TS.lcls);
     if (GO && (TS.tab === 'class' || TS.tab === 'data') && !TS.rows && !TS.gBusy) { TS.gBusy = 1; TEACH.tload(); }
     clearInterval(LIVE_T); if (TS.tab === 'live' && TS.cls && TS.rows && CFG.API_URL) LIVE_T = setInterval(liveRefresh, 15000);
+    if (TS.tab === 'graph' && CFG.API_URL) {
+      var tci = $('#tgcls'); if (tci) tci.addEventListener('change', function () { TS.cls = tci.value.trim(); TG.prev = {}; var b = $('#tgbox'); if (b) b.innerHTML = tgHTML(); });
+      if (!TG.rows || TG.k !== TG.exp) tgFetch(); LIVE_T = setInterval(tgFetch, 10000);
+    }
   }
   function loadLines(c) { // 고른 반의 글만 불러온다 (모든 반을 한꺼번에 부르면 느리다)
     TS.lBusy = c; TS.lErr = '';
@@ -1729,7 +1733,61 @@
   };
   function byKey(keys) { return TS.rows.filter(function (r) { return keys.indexOf(r.key) >= 0; }); }
   function students(rows) { var m = {}; (rows || TS.rows || []).forEach(function (r) { var id = r.cls + '|' + r.num; m[id] = m[id] || { cls: String(r.cls), num: r.num, name: /[*○]/.test(String(r.name || '')) ? String(r.name) : (isGO() ? maskName(r.name) : String(r.name)), t: 0 }; m[id][r.key] = r.val; if (r.t && r.t > m[id].t && r.key !== 'live') m[id].t = r.t; }); return Object.keys(m).map(function (k) { return m[k]; }).sort(function (a, b) { return (a.cls - b.cls) || (a.num - b.num); }); }
+  /* ---------- 실험 그래프 (선생님 화면): 학생이 측정할 때마다 10초마다 자동으로 늘어난다 ---------- */
+  var TG = { exp: 'boyle', rows: null, k: '', at: 0, busy: 0, err: '', prev: {} };
+  function tgFetch() {
+    if (!CFG.API_URL || TG.busy) return; var k = TG.exp; TG.busy = 1;
+    apiGet({ cls: 'all', key: k }).then(function (res) { if (res.error) throw new Error(res.error); if (k !== TG.exp) return; TG.rows = res.rows || []; TG.k = k; TG.at = Date.now(); TG.err = ''; })
+      .catch(function (e) { TG.err = '갱신하지 못했어요. 다음 주기(10초 뒤)에 다시 시도해요. (' + e.message + ')'; })
+      .then(function () { TG.busy = 0; var b = $('#tgbox'); if (b && TS.tab === 'graph') b.innerHTML = tgHTML(); });
+  }
+  function tgRows(kind, v) { // 주사기는 모두 '기압'으로 맞춰 [부피, 압력], 감압 용기는 [펌프질 횟수, 기압]
+    return (v.rows || []).map(function (r) { var a = +r[0], b = +r[1]; if (kind === 'boyle' && v.unit && v.unit !== '기압' && UF[v.unit]) b = Math.round(b / UF[v.unit] * 100) / 100; return [a, b]; }).filter(function (r) { return isFinite(r[0]) && isFinite(r[1]) && r[1] > 0; });
+  }
+  function tgAvg(list) { var by = {}; list.forEach(function (r) { (by[r[0]] = by[r[0]] || []).push(r[1]); }); return Object.keys(by).map(function (x) { var a = by[x]; return [+x, Math.round(a.reduce(function (t, y) { return t + y; }, 0) / a.length * 1000) / 1000]; }).sort(function (p, q) { return p[0] - q[0]; }); }
+  function tgSVG(kind, ser, a, id) {
+    if (kind === 'vac') return vacGraph([], ser);
+    graphSVG.extra = {}; return graphSVG(a, [], 1, 0, 0, 'boyle', KIND.boyle, ['mL', '기압'], true, ser).replace('id="gsvg"', 'id="' + id + '"');
+  }
+  function tgHTML() {
+    var kind = TG.exp, c = String(TS.cls || '');
+    if (TG.err && !TG.rows) return '<p class="tiny warn">' + esc(TG.err) + '</p>';
+    if (!TG.rows || TG.k !== kind) return '<p class="tiny">불러오는 중…</p>';
+    var recs = TG.rows.filter(function (r) { var v = r.val; return v && v.rows && v.rows.length && !v.sample && !v.avg; }).map(function (r) { return { cls: String(r.cls), num: +r.num, g: gkey(r.val.group), rows: tgRows(kind, r.val) }; }).filter(function (r) { return r.rows.length; });
+    var mine = recs.filter(function (r) { return r.cls === c; }), groups = {};
+    mine.forEach(function (r) { (groups[r.g] = groups[r.g] || []).push(r); });
+    var gids = Object.keys(groups).sort(function (p, q) { return (p === '') - (q === '') || (parseFloat(p) - parseFloat(q)) || (p < q ? -1 : 1); });
+    var head = '<p class="tgstat"><b>1학년 ' + esc(c) + '반</b> · ' + gids.filter(function (g) { return g; }).length + '개 모둠 · ' + mine.length + '명 측정 · 점 ' + mine.reduce(function (t, r) { return t + r.rows.length; }, 0) + '개<span class="tiny"> · 마지막 갱신 ' + new Date(TG.at).toLocaleTimeString('ko-KR') + ' · 10초마다 자동' + (TG.err ? ' · <b class="warn">방금 갱신 실패</b>' : '') + '</span></p>';
+    if (!c) return '<p class="tiny">위에 반 번호를 쓰세요.</p>';
+    if (!mine.length) return head + '<div class="card"><p class="tiny">아직 이 반에서 올라온 ' + (kind === 'vac' ? '감압 용기' : '주사기') + ' 자료가 없어요. 학생이 ' + (kind === 'vac' ? '기압을 기록하면' : '센서로 부피 버튼을 누르면') + ' 10초 안에 나타나요.</p></div>';
+    // 축은 반 전체 점으로 한 번 정해서 모든 모둠 그래프를 같은 눈금으로 비교한다
+    var allc = [].concat.apply([], mine.map(function (r) { return r.rows; })), ax = kind === 'boyle' ? axes(allc.concat([[20, 1]]), 1, 0, 'boyle') : null;
+    var h = head + '<h3 class="tgh">👥 모둠별 그래프 <small>모둠원마다 다른 색' + (kind === 'vac' ? ' · 파란 선은 모둠 평균' : '') + '</small></h3><div class="tggrid">';
+    gids.forEach(function (g, gi) {
+      var mem = groups[g].sort(function (p, q) { return p.num - q.num; }), ser = mem.map(function (m, j) { return { rows: m.rows, color: GCOL[j % GCOL.length], label: m.num + '번' }; });
+      var npt = mem.reduce(function (t, m) { return t + m.rows.length; }, 0), key = c + '|' + g, grew = TG.prev[key] != null && npt > TG.prev[key]; TG.prev[key] = npt;
+      var svg = kind === 'vac' ? vacGraph(tgAvg([].concat.apply([], mem.map(function (m) { return m.rows; }))), ser) : tgSVG(kind, ser, ax, 'tg-' + gi);
+      h += '<div class="tgcard' + (grew ? ' tgnew' : '') + '"><h4><span>' + (g ? esc(g) + '모둠' : '모둠 번호 안 씀') + '</span><small>' + mem.length + '명 · 점 ' + npt + '개</small></h4>' + svg + '<div class="clegend">' + ser.map(function (q, j) { return '<span><i style="background:' + q.color + '"></i>' + q.label + ' (' + mem[j].rows.length + ')</span>'; }).join('') + (kind === 'vac' ? '<span><i style="background:#2F4BD8"></i>평균</span>' : '') + '</div></div>';
+    });
+    h += '</div>';
+    // 우리 반 · 1학년 전체
+    var clsSer = gids.map(function (g, j) { var list = [].concat.apply([], groups[g].map(function (m) { return m.rows; })); return { rows: kind === 'vac' ? tgAvg(list) : list, color: GCOL[j % GCOL.length], label: (g ? g + '모둠' : '번호 없음') + ' · ' + groups[g].length + '명' }; });
+    var gg = {}; recs.forEach(function (r) { var id = r.cls + '|' + (r.g || ('#' + r.num)); (gg[id] = gg[id] || { cls: r.cls, list: [] }).list = gg[id].list.concat(r.rows); });
+    var classes = []; Object.keys(gg).forEach(function (id) { if (classes.indexOf(gg[id].cls) < 0) classes.push(gg[id].cls); }); classes.sort(function (p, q) { return p - q; });
+    var grSer = Object.keys(gg).map(function (id) { return { rows: tgAvg(gg[id].list), color: GCOL[classes.indexOf(gg[id].cls) % GCOL.length], label: gg[id].cls + '반' }; });
+    var axG = kind === 'boyle' ? axes([].concat.apply([[20, 1]], grSer.map(function (q) { return q.rows; })), 1, 0, 'boyle') : null;
+    h += '<div class="tgpair"><div class="tgcard big"><h4><span>🏫 우리 반 그래프</span><small>' + (kind === 'vac' ? '모둠 평균 선' : '모든 학생의 점') + ' · 모둠마다 다른 색</small></h4>' + tgSVG(kind, clsSer, ax, 'tg-cls') + '<div class="clegend">' + clsSer.map(function (q) { return '<span><i style="background:' + q.color + '"></i>' + esc(q.label) + '</span>'; }).join('') + '</div></div>' +
+      '<div class="tgcard big"><h4><span>🎓 1학년 전체 그래프</span><small>모둠 평균 · 반마다 다른 색</small></h4>' + tgSVG(kind, grSer, axG, 'tg-grade') + '<div class="clegend">' + classes.map(function (k2, j) { return '<span><i style="background:' + GCOL[j % GCOL.length] + '"></i>' + esc(k2) + '반 (' + grSer.filter(function (q) { return q.label === k2 + '반'; }).length + '모둠)</span>'; }).join('') + '</div></div></div>';
+    return h;
+  }
+  TEACH.tgexp = function (b) { TG.exp = b.dataset.k; TG.rows = null; TG.prev = {}; viewTeacher(); };
+  TEACH.tgnow = function () { tgFetch(); };
   var TVIEW = {
+    graph: function () {
+      if (!CFG.API_URL) return '<div class="card"><p class="tiny">구글 시트가 연결되어 있어야 학생 자료를 모을 수 있어요.</p></div>';
+      if (!TS.cls) TS.cls = isGO() ? GCLS : '1';
+      return '<div class="card tgbar"><div class="seg tgseg"><button class="' + (TG.exp === 'boyle' ? 'on' : '') + '" data-act="tgexp" data-k="boyle">💉 주사기 실험</button><button class="' + (TG.exp === 'vac' ? 'on' : '') + '" data-act="tgexp" data-k="vac">🎈 감압 용기 실험</button></div><label class="tgcls">반 <input id="tgcls" inputmode="numeric" maxlength="2" value="' + esc(TS.cls) + '"' + (isGO() ? ' readonly' : '') + '></label><button class="btn sm" data-act="tgnow">지금 갱신</button></div><div id="tgbox">' + tgHTML() + '</div>';
+    },
     live: function () { return '<div class="card"><p class="tiny" id="livemsg">(현재 꺼져 있어요: 접속 신호가 서버 부담을 줄 수 있어 config.js의 LIVE_MONITOR를 true로 바꿔야 켜져요.) 반을 쓰고 ‘불러오기’를 누르면 15초마다 자동으로 갱신돼요. 학생 화면 그림이 아니라 ‘지금 어느 여행지·단계에 있는지’를 보여 줘요.</p><div id="livegrid">' + liveHTML() + '</div></div>'; },
     guide: function () {
       var h = '<div class="card"><h3>9차시 흐름</h3><table class="tbl"><thead><tr><th>차시</th><th>여행지</th><th>성취기준</th><th>받는 도장</th></tr></thead><tbody>';

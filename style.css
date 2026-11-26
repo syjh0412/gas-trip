@@ -493,3 +493,14 @@ a.rk { text-decoration: none; }
 .fb.pick { background: #EEF1FD; }
 .tans { margin: 8px 0 0; color: var(--muted); }
 .rpred .rex { display: block; color: var(--muted); font-size: 14px; margin-top: 3px; }
+/* 선생님 화면 · 실험 그래프 */
+main.teacher.wide { max-width: 1500px; }
+.tgbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; } .tgseg { flex: 1 1 360px; } .tgcls { display: flex; align-items: center; gap: 6px; font-weight: 700; } .tgcls input { width: 64px; }
+.tgstat { margin: 4px 0 10px; font-size: 18px; }
+.tgh { margin: 14px 0 8px; } .tgh small { font-weight: 400; font-size: 14px; color: #555; }
+.tggrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 12px; }
+.tgcard { background: #fff; border: 2px solid var(--ink); border-radius: 14px; padding: 10px 12px; }
+.tgcard h4 { margin: 0 0 6px; font-size: 18px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; } .tgcard h4 small { font-weight: 400; font-size: 14px; color: #555; }
+.tgcard svg { width: 100%; height: auto; } .tgcard .clegend { font-size: 13px; margin-top: 6px; }
+.tgpair { display: grid; grid-template-columns: 1fr; gap: 12px; margin-top: 16px; } @media (min-width: 1000px) { .tgpair { grid-template-columns: 1fr 1fr; } }
+.tgnew { animation: tgflash 2.4s ease-out; } @keyframes tgflash { 0% { box-shadow: 0 0 0 6px #FFD43B; } 100% { box-shadow: 0 0 0 0 rgba(255, 212, 59, 0); } }
