@@ -1606,13 +1606,14 @@
   function confirmBox(b, msg) { if (b.dataset.sure) return true; b.dataset.sure = '1'; b.textContent = msg; return false; }
   function readRows(kind) { var D = S.data[kind]; document.querySelectorAll('.tbl.in input').forEach(function (inp) { D.rows[+inp.dataset.r][+inp.dataset.c] = inp.value.trim().replace(',', '.'); }); var g = $('#dgroup'), u = $('#dunit'); if (g) D.group = g.value.trim(); if (u) D.unit = u.value.trim() || D.unit; D.sample = false; save(); }
   function quizScores() { var o = {}; Object.keys(S.ans).forEach(function (k) { if (k.indexOf('p.') === 0) o[k.slice(2)] = S.ans[k].first === T.pool[k.slice(2)].a ? 1 : 0; }); return o; }
+  var PRACTICE = (CFG.PRACTICE_CLS || ['5']).map(String); // 연습용 반: 1학년 전체 그래프에서 뺀다(자기 반으로 볼 때는 보임)
   function classData(kind, scope) {
     var box = $('#cg-' + scope), msg = $('#cmsg'), say = function (t) { var m = box && box.querySelector('.cnote'); if (m) m.textContent = t; else if (box) box.innerHTML = '<p class="tiny cnote">' + t + '</p>'; else if (msg) msg.textContent = t; };
     if (!CFG.API_URL) { say('대표님이 ‘반 자료 모으기’를 켜면 다른 모둠의 점도 함께 볼 수 있어요.'); return; }
     say((scope === 'grade' ? '1학년 전체' : '우리 반') + ' 자료를 불러오는 중…');
     apiGet({ cls: scope === 'grade' ? 'all' : S.profile.cls, key: kind }).then(function (res) {
       var D = S.data[kind], K = KIND[kind], rows = validRows(D), grp = {};
-      (res.rows || []).forEach(function (r) { var v = r.val; if (!recOK(v, D)) return; var c = scope === 'grade' ? String(r.cls) : String(S.profile.cls), g = v.group ? (gkey(v.group) || String(v.group)) : r.num + '번', id = c + '|' + g; (grp[id] = grp[id] || { cls: c, group: g, list: [], n: 0 }); grp[id].list = grp[id].list.concat(normRows(kind, v, D)); grp[id].n++; });
+      (res.rows || []).forEach(function (r) { var v = r.val; if (!recOK(v, D)) return; if (scope === 'grade' && PRACTICE.indexOf(String(r.cls)) >= 0 && String(r.cls) !== String(S.profile.cls)) return; var c = scope === 'grade' ? String(r.cls) : String(S.profile.cls), g = v.group ? (gkey(v.group) || String(v.group)) : r.num + '번', id = c + '|' + g; (grp[id] = grp[id] || { cls: c, group: g, list: [], n: 0 }); grp[id].list = grp[id].list.concat(normRows(kind, v, D)); grp[id].n++; });
       var ids = Object.keys(grp).sort(function (a, b) { var A = grp[a], B = grp[b]; return (A.cls - B.cls) || (parseFloat(A.group) - parseFloat(B.group)) || (A.group < B.group ? -1 : 1); });
       if (!ids.length) { say('아직 올라온 자료가 없어요.'); return; }
       var classes = []; ids.forEach(function (id) { if (classes.indexOf(grp[id].cls) < 0) classes.push(grp[id].cls); });
@@ -1774,7 +1775,7 @@
     h += '</div>';
     // 우리 반 · 1학년 전체
     var clsSer = gids.map(function (g, j) { var list = [].concat.apply([], groups[g].map(function (m) { return m.rows; })); return { rows: kind === 'vac' ? tgAvg(list) : list, color: GCOL[j % GCOL.length], label: (g ? g + '모둠' : '번호 없음') + ' · ' + groups[g].length + '명' }; });
-    var gg = {}; recs.forEach(function (r) { if (!/^([1-9]|1[0-5])$/.test(r.cls)) return; // 시험용 반(0, 99 등)은 학년 그래프에서 뺀다
+    var gg = {}; recs.forEach(function (r) { if (!/^([1-9]|1[0-5])$/.test(r.cls) || (PRACTICE.indexOf(r.cls) >= 0 && r.cls !== c)) return; // 시험용 반(0, 99 등)은 학년 그래프에서 뺀다
       var id = r.cls + '|' + (r.g || ('#' + r.num)); (gg[id] = gg[id] || { cls: r.cls, list: [] }).list = gg[id].list.concat(r.rows); });
     var classes = []; Object.keys(gg).forEach(function (id) { if (classes.indexOf(gg[id].cls) < 0) classes.push(gg[id].cls); }); classes.sort(function (p, q) { return p - q; });
     var grSer = Object.keys(gg).map(function (id) { return { rows: tgAvg(gg[id].list), color: GCOL[classes.indexOf(gg[id].cls) % GCOL.length], label: gg[id].cls + '반' }; });
