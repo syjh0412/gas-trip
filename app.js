@@ -194,7 +194,7 @@
     var p = { inv: 'M22 12 C26 52 46 70 104 76', up: 'M20 80 L104 14', upi: 'M20 58 L104 14', flat: 'M20 44 L104 44', down: 'M20 14 L104 76' }[kind];
     return '<svg viewBox="0 0 120 104" class="fig" role="img" aria-label="그래프 보기"><path d="M18 6V82H112" fill="none" stroke="#1B1F3B" stroke-width="2.5"/><path d="' + p + '" fill="none" stroke="#2F4BD8" stroke-width="4" stroke-linecap="round"/><text x="65" y="99" text-anchor="middle" font-size="11">' + esc(fx) + '</text><text x="9" y="46" text-anchor="middle" font-size="11" transform="rotate(-90 9 46)">' + esc(fy) + '</text><text x="12" y="92" font-size="10">0</text></svg>';
   }
-  function allRight(prefix, items) { return items.every(function (it, i) { var a = S.ans[prefix + i]; return a && a.c === it.a; }); }
+  function allRight(prefix, items) { return items.every(function (it, i) { if (it.skip) return true; var a = S.ans[prefix + i]; return a && a.c === it.a; }); }
   function allAnswered(prefix, items) { return items.every(function (it, i) { return it.skip || S.ans[prefix + i]; }); }
 
   /* ---------- 라우팅 ---------- */
