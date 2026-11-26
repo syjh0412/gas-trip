@@ -474,7 +474,7 @@
   }
   function slideGo(t) {
     var d = cur.dest, sl = cur.slides; if (!d || !sl || t === cur.slide) return;
-    if (!isT()) for (var y = 0; y < t; y++) if (!slideDone(d, sl[y])) { chip('앞 단계를 먼저 마쳐야 갈 수 있어요'); if (y < cur.slide) location.hash = '#d/' + d.id + '/' + y; return; }
+    if (!isT() && !d.open) for (var y = 0; y < t; y++) if (!slideDone(d, sl[y])) { chip('앞 단계를 먼저 마쳐야 갈 수 있어요'); if (y < cur.slide) location.hash = '#d/' + d.id + '/' + y; return; }
     location.hash = '#d/' + d.id + '/' + t;
   }
   function roadGo(j) {
@@ -482,7 +482,7 @@
     var t = -1; for (var x = 0; x < sl.length; x++) if (roadIdx(sl[x], sl[x].si != null ? d.steps[sl[x].si] : null) === j) { t = x; break; }
     if (t < 0) { chip('이번 차시에는 ‘' + ROAD[j] + '’ 단계가 없어요'); return; }
     if (t === cur.slide) return;
-    if (!isT()) for (var y = 0; y < t; y++) if (!slideDone(d, sl[y])) { chip('앞 단계를 먼저 마쳐야 갈 수 있어요'); if (y < cur.slide) location.hash = '#d/' + d.id + '/' + y; return; }
+    if (!isT() && !d.open) for (var y = 0; y < t; y++) if (!slideDone(d, sl[y])) { chip('앞 단계를 먼저 마쳐야 갈 수 있어요'); if (y < cur.slide) location.hash = '#d/' + d.id + '/' + y; return; }
     location.hash = '#d/' + d.id + '/' + t;
   }
   function sumHTML(d) {
@@ -589,17 +589,17 @@
     var d = cur.dest; if (!d) return; var sl = cur.sl, st = sl.si != null ? d.steps[sl.si] : null;
     if (st && DONE[st.type](d, st, sl.si)) markDone(d, sl.si);
     var ok = slideDone(d, sl), hk = $('#hintkey'), nx = $('#next'); if (!hk) return;
-    cur.locked = !ok && !isT() && !(st && st.free && sl.k === 'whole');
+    cur.locked = !ok && !isT() && !d.open && !(st && st.free && sl.k === 'whole');
     cur.why = sl.k === 'card' ? '노란 빈칸을 모두 눌러 확인하세요' : (sl.k === 'q' || sl.k === 'pq') ? '질문에 답하면 넘어갈 수 있어요' : (st ? TODO[st.type] : '');
     if (sl.k === 'expa' || sl.k === 'expb') cur.why = sl.k === 'expa' ? '실험을 마치면 ‘우리 모둠 실험 완료’를 눌러요' : '질문에 답하고, 설명을 끝까지 보고, 빈칸을 눌러요';
-    if (st && !ok && !isT() && (st.type === 'vac' || st.team)) { // 2팀 교대 실험: 한 실험만 끝내도 그 실험의 입자 모형과 '입자로 설명하기'로 갈 수 있다
+    if (st && !ok && !isT() && !d.open && (st.type === 'vac' || st.team)) { // 2팀 교대 실험: 한 실험만 끝내도 그 실험의 입자 모형과 '입자로 설명하기'로 갈 수 있다
       var dd = dataDoneIn(d), vd = vacDoneIn(d), pass = st.type === 'vac' ? (dd ? '주사기 실험을 끝냈으니 넘어가도 돼요. 감압 용기 측정은 실험 바구니를 바꾼 뒤 돌아와서 해요' : '') :
         st.team === 'syr' ? (vd && !dd ? '감압 용기 팀은 넘어가서 펌프 모형부터 해도 돼요. 주사기 쪽 모형과 설명은 주사기 실험을 한 뒤 돌아와서 해요' : '') :
         (dd && !vd ? '주사기 팀은 넘어가도 돼요. 펌프 쪽 모형과 설명은 감압 용기 실험을 한 뒤 돌아와서 해요' : '');
       if (pass) { cur.locked = false; hk.className = 'hintkey lockmsg'; hk.textContent = pass; nx.classList.remove('lock'); nx.setAttribute('aria-disabled', false); return; }
       if (st.type === 'vac') cur.why = '주사기 실험이나 감압 용기 실험 중 하나를 끝내면 넘어갈 수 있어요';
     }
-    if (st && st.free && sl.k === 'whole' && !ok && !isT()) { var hk0 = $('#hintkey'); if (hk0) { hk0.className = 'hintkey lockmsg'; hk0.textContent = '감압 용기 먼저 하는 팀은 넘어가도 돼요. 주사기 측정은 실험 바구니를 바꾼 뒤 꼭 돌아와서 해요'; } nx.classList.remove('lock'); nx.setAttribute('aria-disabled', false); return; }
+    if (st && st.free && sl.k === 'whole' && !ok && !isT() && !d.open) { var hk0 = $('#hintkey'); if (hk0) { hk0.className = 'hintkey lockmsg'; hk0.textContent = '감압 용기 먼저 하는 팀은 넘어가도 돼요. 주사기 측정은 실험 바구니를 바꾼 뒤 꼭 돌아와서 해요'; } nx.classList.remove('lock'); nx.setAttribute('aria-disabled', false); return; }
     nx.classList.toggle('lock', cur.locked); nx.setAttribute('aria-disabled', cur.locked);
     hk.className = 'hintkey' + (cur.locked ? ' lockmsg' : ok && sl.k !== 'hero' && sl.k !== 'clear' && sl.k !== 'ex' && sl.k !== 'labs' ? ' okmsg' : '');
     hk.textContent = cur.locked ? '🔒 ' + cur.why : (hk.className.indexOf('okmsg') > 0 ? '✓ 완료 · ' : '') + '← → 키 · 밀어서 넘기기';
