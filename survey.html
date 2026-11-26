@@ -79,7 +79,6 @@
       <fieldset class="pick"><legend>근무 학교급</legend>
         <label><input type="radio" name="level" value="중"> 중학교</label>
         <label><input type="radio" name="level" value="고"> 고등학교</label>
-        <label><input type="radio" name="level" value="기타"> 기타</label>
       </fieldset>
       <div class="two">
         <div><label for="name">성명 <span class="opt">(선택)</span></label><input id="name" maxlength="20" autocomplete="name"></div>
@@ -164,7 +163,7 @@
     post({ action: 'rows', cls: CLS, pin: $('#tpin').value }).then(function (r) {
       if (!r || r.error) throw new Error((r && r.error) || 'no response');
       var rows = (r.rows || []).filter(function (x) { return x.key === KEY && x.val && x.val.q; }).sort(function (a, b) { return String(a.val.at || '').localeCompare(String(b.val.at || '')); });
-      m.className = 'msg ok'; m.textContent = '참관록 ' + rows.length + '개 · 중 ' + rows.filter(function (x) { return x.val.level === '중'; }).length + ' · 고 ' + rows.filter(function (x) { return x.val.level === '고'; }).length + ' · 기타 ' + rows.filter(function (x) { return x.val.level === '기타'; }).length;
+      m.className = 'msg ok'; m.textContent = '참관록 ' + rows.length + '개 · 중 ' + rows.filter(function (x) { return x.val.level === '중'; }).length + ' · 고 ' + rows.filter(function (x) { return x.val.level === '고'; }).length;
       if (!rows.length) return;
       var h = '<table><thead><tr><th>문항</th><th>평균 (5점)</th><th></th></tr></thead><tbody>' + QS.map(function (q, i) {
         var a = rows.map(function (x) { return +x.val.q[i] || 0; }).filter(Boolean), avg = a.length ? a.reduce(function (s, n) { return s + n; }, 0) / a.length : 0;
