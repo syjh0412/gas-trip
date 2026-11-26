@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>수업 공개 참관록 · 고천중학교 과학</title>
+<meta name="description" content="2026.11.30.(월) 고천중학교 1학년 과학 수업 공개 참관록(설문)">
+<style>
+  :root { --ink: #1B1F3B; --sub: #565C7E; --line: #D5D9EC; --bg: #F4F5FB; --card: #fff; --pri: #2F4BD8; --pri-d: #2238A8; --ok: #1E7B3A; --warn: #B4370F; --tint: #EEF1FF; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.6 "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif; word-break: keep-all; }
+  main { max-width: 720px; margin: 0 auto; padding: 28px 18px 60px; }
+  .eyebrow { margin: 0 0 6px; font-size: 14px; font-weight: 700; color: var(--pri); letter-spacing: .02em; }
+  h1 { margin: 0 0 6px; font-size: 30px; line-height: 1.3; text-wrap: balance; }
+  .lead { margin: 0 0 22px; color: var(--sub); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-bottom: 16px; }
+  h2 { margin: 0 0 12px; font-size: 19px; }
+  dl { margin: 0; display: grid; grid-template-columns: 5.2em 1fr; gap: 8px 14px; }
+  dt { color: var(--sub); font-weight: 700; font-size: 15px; padding-top: 1px; }
+  dd { margin: 0; }
+  dd small { display: block; color: var(--sub); font-size: 15px; }
+  .topic { font-weight: 700; }
+  label { display: block; font-weight: 700; font-size: 15px; margin: 14px 0 6px; }
+  label .opt { font-weight: 400; color: var(--sub); }
+  input, select, textarea { width: 100%; font: inherit; color: inherit; padding: 11px 13px; border: 1.5px solid #B9BFDB; border-radius: 12px; background: #fff; }
+  textarea { resize: vertical; min-height: 84px; }
+  input:focus, select:focus, textarea:focus, button:focus-visible { outline: 3px solid #9FB0FF; outline-offset: 1px; border-color: var(--pri); }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+  @media (max-width: 520px) { .two { grid-template-columns: 1fr; } h1 { font-size: 25px; } }
+  .pick { border: 0; padding: 0; margin: 14px 0 0; } .pick legend { font-weight: 700; font-size: 15px; padding: 0; margin-bottom: 6px; } .pick label { display: inline-flex; align-items: center; gap: 8px; font-weight: 400; font-size: 17px; margin: 0 18px 0 0; } .pick input { width: 20px; height: 20px; }
+  .agree { display: flex; gap: 10px; align-items: flex-start; margin-top: 16px; padding: 12px 14px; background: var(--tint); border-radius: 12px; font-weight: 400; font-size: 15px; }
+  .agree input { width: 20px; height: 20px; margin: 3px 0 0; flex: none; }
+  button { font: inherit; font-weight: 700; border: 0; border-radius: 999px; padding: 13px 26px; cursor: pointer; }
+  .pri { background: var(--pri); color: #fff; margin-top: 18px; width: 100%; font-size: 18px; }
+  .pri:hover { background: var(--pri-d); } .pri:disabled { background: #9AA3C9; cursor: default; }
+  .ghost { background: #fff; color: var(--ink); border: 1.5px solid #B9BFDB; padding: 9px 18px; font-size: 15px; }
+  .msg { margin: 12px 0 0; font-weight: 700; } .msg.err { color: var(--warn); } .msg.ok { color: var(--ok); }
+  .done { border-color: var(--ok); background: #F1FAF3; }
+  .done h2 { color: var(--ok); }
+  .note { color: var(--sub); font-size: 15px; margin: 8px 0 0; }
+  details { margin-top: 26px; color: var(--sub); font-size: 15px; }
+  summary { cursor: pointer; }
+  .trow { display: flex; gap: 8px; margin-top: 10px; } .trow input { max-width: 180px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 15px; color: var(--ink); background: #fff; }
+  th, td { border: 1px solid var(--line); padding: 7px 9px; text-align: left; vertical-align: top; }
+  th { background: var(--tint); white-space: nowrap; }
+  .scroll { overflow-x: auto; }
+  [hidden] { display: none !important; }
+  .scale { border: 0; padding: 14px 0 4px; margin: 0; border-top: 1px solid var(--line); }
+  .scale:first-of-type { border-top: 0; padding-top: 4px; }
+  .scale legend { font-weight: 700; font-size: 16px; padding: 0; margin-bottom: 8px; line-height: 1.5; }
+  .scale legend b { color: var(--pri); margin-right: 4px; }
+  .opts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+  .opts label { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 2px; border: 1.5px solid #B9BFDB; border-radius: 12px; font-weight: 400; font-size: 13px; text-align: center; cursor: pointer; line-height: 1.3; min-height: 44px; }
+  .opts input { width: 20px; height: 20px; margin: 0; accent-color: var(--pri); }
+  .opts label:has(input:checked) { border-color: var(--pri); background: var(--tint); font-weight: 700; }
+  .pick label { margin-right: 14px; } .pick input { width: 20px; height: 20px; margin: 0; accent-color: var(--pri); }
+  .bar { height: 10px; background: var(--tint); border-radius: 99px; overflow: hidden; min-width: 80px; } .bar i { display: block; height: 100%; background: var(--pri); }
+</style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">고천중학교 · 미래형 과학실(기반형) 수업 공개</p>
+  <h1>수업 공개 참관록</h1>
+  <p class="lead">참관해 주셔서 감사합니다. 3분이면 끝납니다. 이름은 받지 않으며, 주신 의견은 수업 개선과 사업 보고에만 씁니다.</p>
+
+  <section class="card" aria-labelledby="h-info">
+    <h2 id="h-info">오늘 수업</h2>
+    <dl>
+      <dt>일시</dt><dd>2026. 11. 30.(월) 6교시 <small>고천중학교 3층 과학실 · 1학년 1반</small></dd>
+      <dt>주제</dt><dd><span class="topic">기체의 부피를 바꾸면 압력은 왜 달라질까?</span><small>무선 압력 센서와 바이브코딩 웹앱 「통통 입자 여행」 활용 탐구</small></dd>
+      <dt>수업 교사</dt><dd>김신연</dd>
+    </dl>
+  </section>
+
+  <section class="card" id="formcard" aria-labelledby="h-form">
+    <h2 id="h-form">참관록</h2>
+    <form id="f" novalidate>
+      <fieldset class="pick"><legend>근무 학교급</legend>
+        <label><input type="radio" name="level" value="중"> 중학교</label>
+        <label><input type="radio" name="level" value="고"> 고등학교</label>
+        <label><input type="radio" name="level" value="기타"> 기타</label>
+      </fieldset>
+      <label for="subject">담당 교과 <span class="opt">(선택)</span></label>
+      <input id="subject" maxlength="20" placeholder="예: 과학">
+
+      <h2 style="margin-top:24px">수업을 보시고 <span class="opt" style="font-weight:400;font-size:15px;color:var(--sub)">5 매우 그렇다 · 1 전혀 아니다</span></h2>
+      <div id="qs"></div>
+
+      <label for="best">가장 인상 깊었던 장면 <span class="opt">(선택)</span></label>
+      <textarea id="best" maxlength="500"></textarea>
+      <label for="tip">더 나은 수업을 위한 조언 <span class="opt">(선택 · 예: 입자 설명을 더 깊게 하려면?)</span></label>
+      <textarea id="tip" maxlength="500"></textarea>
+      <label for="apply">내 수업에 적용하려면 필요한 것, 궁금한 점 <span class="opt">(선택)</span></label>
+      <textarea id="apply" maxlength="500"></textarea>
+      <button class="pri" id="send" type="submit">참관록 보내기</button>
+      <p class="msg" id="msg" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <section class="card done" id="donecard" hidden aria-live="polite">
+    <h2>보내 주셔서 감사합니다</h2>
+    <p>귀한 의견은 수업을 다듬는 데 쓰겠습니다. 7교시 수업 나눔(15:20 ~ 15:50, 3층 과학실)에서도 이야기 나눠요.</p>
+    <button class="ghost" id="edit" type="button">답 고치기</button>
+  </section>
+
+  <details id="tbox">
+    <summary>참관록 모아 보기 (수업 교사용)</summary>
+    <div class="trow"><input id="tpin" type="password" inputmode="numeric" placeholder="교사 비밀번호" aria-label="교사 비밀번호"><button class="ghost" id="tload" type="button">불러오기</button></div>
+    <p class="msg" id="tmsg" role="status" aria-live="polite"></p>
+    <div class="scroll" id="tlist"></div>
+  </details>
+</main>
+<script src="config.js"></script>
+<script>
+(function () {
+  var CFG = window.TRIP_CONFIG || {}, API = CFG.API_URL || '';
+  var CLS = '참관록', KEY = 'survey', LS = 'gastrip.survey';
+  var QS = [
+    '무선 센서와 웹앱이 학생들의 자료 수집과 해석을 도왔다.',
+    '학생들이 입자 모형(벽에 충돌하는 횟수)으로 압력의 변화를 설명하였다.',
+    '실시간 모둠·반·학년 그래프가 교사의 피드백과 학생의 비교에 도움이 되었다.',
+    '두 팀이 실험대를 바꾸는 운영(주사기 · 감압 용기)이 원활하였다.',
+    '미래형 과학실의 환경과 기자재가 탐구 활동에 잘 활용되었다.',
+    '오늘 본 방법(센서 · 웹앱)을 내 수업에 적용해 보고 싶다.'
+  ], LAB = ['', '전혀 아니다', '아니다', '보통이다', '그렇다', '매우 그렇다'];
+  var $ = function (s) { return document.querySelector(s); };
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function post(body) { return fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(body) }).then(function (r) { return r.json(); }); }
+  function load() { try { return JSON.parse(localStorage.getItem(LS)) || null; } catch (e) { return null; } }
+  function store(v) { try { localStorage.setItem(LS, JSON.stringify(v)); } catch (e) { } }
+  $('#qs').innerHTML = QS.map(function (q, i) {
+    return '<fieldset class="scale"><legend><b>' + (i + 1) + '.</b>' + esc(q) + '</legend><div class="opts">' + [5, 4, 3, 2, 1].map(function (n) { return '<label><input type="radio" name="q' + i + '" value="' + n + '">' + n + '<span>' + LAB[n] + '</span></label>'; }).join('') + '</div></fieldset>';
+  }).join('');
+  var mine = load();
+  function fill(v) {
+    var r = document.querySelector('input[name=level][value="' + v.level + '"]'); if (r) r.checked = true;
+    ['subject', 'best', 'tip', 'apply'].forEach(function (k) { $('#' + k).value = v[k] || ''; });
+    (v.q || []).forEach(function (n, i) { var x = document.querySelector('input[name=q' + i + '][value="' + n + '"]'); if (x) x.checked = true; });
+  }
+  function showDone() { $('#formcard').hidden = true; $('#donecard').hidden = false; }
+  if (mine && mine.sent) { fill(mine); showDone(); }
+  $('#edit').addEventListener('click', function () { $('#donecard').hidden = true; $('#formcard').hidden = false; $('#msg').textContent = ''; });
+  $('#f').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var m = $('#msg'); m.className = 'msg err';
+    var lv = document.querySelector('input[name=level]:checked');
+    var v = { level: lv ? lv.value : '', subject: $('#subject').value.trim(), best: $('#best').value.trim(), tip: $('#tip').value.trim(), apply: $('#apply').value.trim(), q: QS.map(function (q, i) { var x = document.querySelector('input[name=q' + i + ']:checked'); return x ? +x.value : 0; }) };
+    if (!v.level) { m.textContent = '근무 학교급을 골라 주세요.'; document.querySelector('input[name=level]').focus(); return; }
+    var miss = v.q.indexOf(0); if (miss >= 0) { m.textContent = (miss + 1) + '번 문항에 답해 주세요.'; document.querySelector('input[name=q' + miss + ']').focus(); return; }
+    if (!API) { m.textContent = '서버가 연결되어 있지 않습니다. 잠시 뒤 다시 시도해 주세요.'; return; }
+    var id = (mine && mine.id) || (Date.now().toString(36) + Math.random().toString(36).slice(2, 6)), btn = $('#send');
+    btn.disabled = true; btn.textContent = '보내는 중…'; m.className = 'msg'; m.textContent = '';
+    post({ cls: CLS, num: id, name: '', key: KEY, val: { level: v.level, subject: v.subject, q: v.q, best: v.best, tip: v.tip, apply: v.apply, at: new Date().toISOString() } }).then(function (r) {
+      if (!r || r.error) throw new Error((r && r.error) || 'no response');
+      v.id = id; v.sent = true; mine = v; store(v); showDone();
+    }).catch(function () { m.className = 'msg err'; m.textContent = '보내지 못했습니다. 잠시 뒤 다시 눌러 주세요.'; })
+      .then(function () { btn.disabled = false; btn.textContent = '참관록 보내기'; });
+  });
+  $('#tload').addEventListener('click', function () {
+    var m = $('#tmsg'), box = $('#tlist'); m.className = 'msg'; m.textContent = '불러오는 중…'; box.innerHTML = '';
+    post({ action: 'rows', cls: CLS, pin: $('#tpin').value }).then(function (r) {
+      if (!r || r.error) throw new Error((r && r.error) || 'no response');
+      var rows = (r.rows || []).filter(function (x) { return x.key === KEY && x.val && x.val.q; }).sort(function (a, b) { return String(a.val.at || '').localeCompare(String(b.val.at || '')); });
+      m.className = 'msg ok'; m.textContent = '참관록 ' + rows.length + '개 · 중 ' + rows.filter(function (x) { return x.val.level === '중'; }).length + ' · 고 ' + rows.filter(function (x) { return x.val.level === '고'; }).length + ' · 기타 ' + rows.filter(function (x) { return x.val.level === '기타'; }).length;
+      if (!rows.length) return;
+      var h = '<table><thead><tr><th>문항</th><th>평균 (5점)</th><th></th></tr></thead><tbody>' + QS.map(function (q, i) {
+        var a = rows.map(function (x) { return +x.val.q[i] || 0; }).filter(Boolean), avg = a.length ? a.reduce(function (s, n) { return s + n; }, 0) / a.length : 0;
+        return '<tr><td>' + (i + 1) + '. ' + esc(q) + '</td><td>' + avg.toFixed(2) + '</td><td><div class="bar"><i style="width:' + (avg / 5 * 100) + '%"></i></div></td></tr>';
+      }).join('') + '</tbody></table>';
+      [['best', '가장 인상 깊었던 장면'], ['tip', '조언'], ['apply', '적용하려면 필요한 것 · 궁금한 점']].forEach(function (k) {
+        var t = rows.filter(function (x) { return x.val[k[0]]; });
+        h += '<h3 style="margin:18px 0 6px;font-size:16px;color:var(--ink)">' + k[1] + ' (' + t.length + ')</h3>' + (t.length ? '<ul style="margin:0;padding-left:20px;color:var(--ink)">' + t.map(function (x) { return '<li>' + esc(x.val[k[0]]) + ' <small style="color:var(--sub)">· ' + esc(x.val.level) + (x.val.subject ? ' ' + esc(x.val.subject) : '') + '</small></li>'; }).join('') + '</ul>' : '<p class="note">없음</p>');
+      });
+      box.innerHTML = h;
+    }).catch(function (e) { m.className = 'msg err'; m.textContent = /비밀번호/.test(e.message) ? '비밀번호가 다릅니다.' : '불러오지 못했습니다. 잠시 뒤 다시 눌러 주세요.'; });
+  });
+})();
+</script>
+</body>
+</html>
