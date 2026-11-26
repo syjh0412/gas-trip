@@ -102,38 +102,68 @@ function login_(d) {
   return { ok: true, state: state, name: String(d.name || row[3] || '') };
 }
 
+/** 실시간 현황판: 무거운 시트 쓰기·잠금을 쓰지 않고 가벼운 캐시에만 접속 신호를 잠깐(10분) 저장한다.
+ * data 시트(실험·글 등 무거운 기록)와 완전히 분리돼 있어, 학생 수가 많아 시트 쓰기가 밀려도 접속 신호는 영향을 받지 않는다.
+ * 캐시는 자리를 다투지 않는 저장소라 잠금이 필요 없다(아주 드물게 동시에 처음 접속한 두 학생 중 한 명이 목록에 한 번 늦게 들어갈 수 있지만, 다음 신호 때 바로 채워진다). */
+function liveSave_(d) {
+  var cache = CacheService.getScriptCache();
+  var cls = String(d.cls), num = String(d.num);
+  cache.put('live:' + cls + '|' + num, JSON.stringify({ name: String(d.name || ''), val: d.val }), 600);
+  var idxKey = 'live:ids:' + cls, ids = (cache.get(idxKey) || '').split(',').filter(function (x) { return x; });
+  if (ids.indexOf(num) < 0) { ids.push(num); cache.put(idxKey, ids.join(','), 600); }
+  return { ok: true };
+}
+function liveRows_(cls) {
+  var cache = CacheService.getScriptCache(), idxKey = 'live:ids:' + String(cls);
+  var ids = (cache.get(idxKey) || '').split(',').filter(function (x) { return x; });
+  if (!ids.length) return [];
+  var got = cache.getAll(ids.map(function (n) { return 'live:' + cls + '|' + n; })), out = [];
+  ids.forEach(function (n) {
+    var raw = got['live:' + cls + '|' + n]; if (!raw) return;
+    try { var o = JSON.parse(raw); out.push({ cls: String(cls), num: Number(n), name: o.name, key: 'live', val: o.val, t: null }); } catch (x) {}
+  });
+  return out;
+}
+
 function doPost(e) {
-  var lock = LockService.getScriptLock();
   try {
     var d = JSON.parse(e.postData.contents);
-    lock.waitLock(10000);
+    // 교사·참관 현황판 읽기와 '접속 신호' 쓰기는 시트 잠금과 자리를 다투지 않도록 잠금 밖에서 처리한다 (학생 수가 많을 때 서로 밀리지 않게)
     if (d.action === 'rows') { // 교사용: 비밀번호가 맞아야 반 전체 기록을 돌려준다
       if (String(d.pin) !== String(TEACHER_PIN)) return out_({ error: '비밀번호가 다릅니다' });
       if (String(d.cls) === APPLY_CLS) return out_({ rows: applyRows_().concat(rows_(APPLY_CLS, null, true)) }); // 예전 방식으로 data 탭에 들어온 신청도 함께
-      return out_({ rows: d.cls ? rows_(d.cls, null, true) : [] });
+      return out_({ rows: d.cls ? rows_(d.cls, null, true).concat(liveRows_(d.cls)) : [] });
     }
     if (d.action === 'grows') { // 참관용: 정해진 반만, 이름은 가려서
       if (!GUEST_HASH || sha256_('gastrip-guest:' + String(d.gpin || '')) !== GUEST_HASH) return out_({ error: '참관 비밀번호가 다릅니다' });
       if (new Date() >= new Date(GUEST_UNTIL)) return out_({ error: '참관 기간이 끝났습니다' });
       return out_({ cls: GUEST_CLS, rows: rows_(GUEST_CLS, null, true).filter(function (r) { return r.key !== 'live'; }).map(function (r) { r.name = mask_(r.name); return r; }) });
     }
-    if (d.action === 'login') {
-      if (!d.cls || !d.num || !d.code) return out_({ error: 'bad request' });
-      return out_(login_(d));
+    if (d.key === 'live') { // 접속 신호: 시트에 쓰지 않는다
+      if (!d.cls || !d.num) return out_({ error: 'bad request' });
+      return out_(liveSave_(d));
     }
-    if (!d.cls || !d.num || !d.key) return out_({ error: 'bad request' });
-    if (String(d.cls) === APPLY_CLS && d.key === 'apply') { applySave_(d); return out_({ ok: true }); }
-    var id = [d.cls, d.num, d.key].join('|');
-    var row = [id, new Date(), String(d.cls), String(d.num), String(d.name || ''), String(d.key), JSON.stringify(d.val)];
-    var sh = sheet_();
-    var found = find_(sh, id);
-    if (found) sh.getRange(found.getRow(), 1, 1, row.length).setValues([row]);
-    else sh.appendRow(row);
-    return out_({ ok: true });
+    var lock = LockService.getScriptLock();
+    try {
+      lock.waitLock(10000);
+      if (d.action === 'login') {
+        if (!d.cls || !d.num || !d.code) return out_({ error: 'bad request' });
+        return out_(login_(d));
+      }
+      if (!d.cls || !d.num || !d.key) return out_({ error: 'bad request' });
+      if (String(d.cls) === APPLY_CLS && d.key === 'apply') { applySave_(d); return out_({ ok: true }); }
+      var id = [d.cls, d.num, d.key].join('|');
+      var row = [id, new Date(), String(d.cls), String(d.num), String(d.name || ''), String(d.key), JSON.stringify(d.val)];
+      var sh = sheet_();
+      var found = find_(sh, id);
+      if (found) sh.getRange(found.getRow(), 1, 1, row.length).setValues([row]);
+      else sh.appendRow(row);
+      return out_({ ok: true });
+    } finally {
+      try { lock.releaseLock(); } catch (x) {}
+    }
   } catch (err) {
     return out_({ error: String(err) });
-  } finally {
-    try { lock.releaseLock(); } catch (x) {}
   }
 }
 

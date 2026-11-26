@@ -27,12 +27,20 @@
 
   /* ---------- 서버 연동 (선택) ---------- */
   var timers = {};
+  function syncSend_(body, retry) {
+    return fetch(CFG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body }).then(function (r) { return r.json(); }).then(function (res) {
+      if (res && res.error) throw new Error(res.error);
+    }).catch(function () {
+      // 구글 시트 쓰기가 몰려 실패했을 수 있어, 조금 있다 한 번만 다시 보낸다 (그래도 안 되면 포기)
+      if (retry) setTimeout(function () { syncSend_(body, false); }, 4000);
+    });
+  }
   function sync(key, val) {
     if (!CFG.API_URL || !S.profile || isT()) return;
     clearTimeout(timers[key]);
     timers[key] = setTimeout(function () {
       var body = JSON.stringify({ cls: S.profile.cls, num: S.profile.num, name: S.profile.name, key: key, val: val });
-      fetch(CFG.API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body }).catch(function () { });
+      syncSend_(body, true);
     }, 800);
   }
   function apiGet(params) {
@@ -1683,7 +1691,7 @@
   function liveHTML() {
     var now = Date.now(), L = students().filter(function (x) { return x.live && x.live.t; }), cnt = { on: 0, idle: 0, off: 0, away: 0 }, place = {};
     var cards = L.map(function (x) {
-      var v = x.live, age = now - v.t, st = age > 300000 ? 'off' : (v.v === 0 ? 'away' : age > 100000 ? 'idle' : 'on'), dwell = Math.floor((now - (v.since || v.t)) / 60000), long = st === 'on' && dwell >= 5;
+      var v = x.live, age = now - v.t, st = age > 360000 ? 'off' : (v.v === 0 ? 'away' : age > 120000 ? 'idle' : 'on'), dwell = Math.floor((now - (v.since || v.t)) / 60000), long = st === 'on' && dwell >= 5;
       cnt[st]++; if (st === 'on') { var pl = String(v.w).split(' · ')[0]; place[pl] = (place[pl] || 0) + 1; }
       var lab = { on: long ? '⏳ ' + dwell + '분째 이 화면' : '🟢 진행 중' + (dwell >= 1 ? ' · ' + dwell + '분째' : ''), idle: '🟡 ' + Math.floor(age / 60000) + '분 전부터 조용', away: '🌙 화면이 꺼짐·다른 앱', off: '⚪ 연결 끊김 (' + Math.floor(age / 60000) + '분 전)' }[st];
       return '<div class="lc ' + st + (long ? ' long' : '') + '"><b>' + esc(x.num) + ' ' + esc(x.name) + '</b><span>' + esc(v.w) + '</span><small>' + lab + ' · ' + (v.m || 0) + '마일</small></div>';
