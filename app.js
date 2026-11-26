@@ -519,9 +519,24 @@
     if (sl.k === 'expb') return expbDone(d, st, sl.si);
     return true;
   }
+  function teacherResetDest(d) { // 교사 모드: 그 여행지를 다시 들어오면(목록에서 새로 클릭) 방금 눌러 본 기록을 지운다
+    delete S.done[d.id]; delete S.refl[d.id]; delete S.deb[d.id]; delete S.gen[d.id]; delete S.lines[d.id];
+    Object.keys(S.seen).forEach(function (k) { if (k.indexOf(d.id + '.') === 0 || k === 'sum.' + d.id) delete S.seen[k]; });
+    Object.keys(S.ans).forEach(function (k) { if (k.indexOf(d.id + '.') === 0) delete S.ans[k]; });
+    Object.keys(S.chain).forEach(function (k) { if (k === d.id || k.indexOf(d.id + '.') === 0) delete S.chain[k]; });
+    d.steps.forEach(function (st) {
+      if (st.type === 'presslab') delete S.lab.press;
+      else if (st.type === 'vac') delete S.lab.vac;
+      else if (st.type === 'pumpsim') delete S.lab.pump;
+      else if (st.type === 'data') delete S.data[st.kind];
+      else if (st.type === 'quiz') st.ids.forEach(function (id) { delete S.ans['p.' + id]; });
+      else if (st.type === 'bigidea') S.bigtxt = '';
+    });
+  }
   function viewDest(d, k) {
     S.pos = S.pos || {}; S.seen = S.seen || {};
     var slides = buildSlides(d);
+    if (k < 0 && isT()) teacherResetDest(d);
     if (k < 0) k = isT() ? 0 : (S.pos[d.id] || 0);
     if (k >= slides.length) k = slides.length - 1;
     S.pos[d.id] = k; save();
