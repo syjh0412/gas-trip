@@ -113,6 +113,24 @@ function liveSave_(d) {
   if (ids.indexOf(num) < 0) { ids.push(num); cache.put(idxKey, ids.join(','), 600); }
   return { ok: true };
 }
+/** 실험 자료(주사기·감압 용기)도 캐시에 먼저 올려 둔다: 선생님 '실험 그래프'가 시트 잠금을 기다리지 않고 몇 초 안에 본다. 시트에도 그대로 저장한다. */
+var EXP_KEYS = ['boyle', 'vac'];
+function expSave_(d) {
+  var cache = CacheService.getScriptCache(), k = String(d.key), id = String(d.cls) + '|' + String(d.num);
+  cache.put('exp:' + k + ':' + id, JSON.stringify({ name: String(d.name || ''), val: d.val }), 21600);
+  var idxKey = 'exp:ids:' + k, ids = (cache.get(idxKey) || '').split(',').filter(function (x) { return x; });
+  if (ids.indexOf(id) < 0) { ids.push(id); cache.put(idxKey, ids.join(','), 21600); }
+}
+function expRows_(k) {
+  var cache = CacheService.getScriptCache(), ids = (cache.get('exp:ids:' + k) || '').split(',').filter(function (x) { return x; });
+  if (!ids.length) return [];
+  var got = cache.getAll(ids.map(function (id) { return 'exp:' + k + ':' + id; })), out = [];
+  ids.forEach(function (id) {
+    var raw = got['exp:' + k + ':' + id]; if (!raw) return;
+    try { var o = JSON.parse(raw), c = id.split('|'); out.push({ cls: c[0], num: Number(c[1]), name: o.name, key: k, val: o.val }); } catch (x) {}
+  });
+  return out;
+}
 function liveRows_(cls) {
   var cache = CacheService.getScriptCache(), idxKey = 'live:ids:' + String(cls);
   var ids = (cache.get(idxKey) || '').split(',').filter(function (x) { return x; });
@@ -139,6 +157,15 @@ function doPost(e) {
       if (new Date() >= new Date(GUEST_UNTIL)) return out_({ error: '참관 기간이 끝났습니다' });
       return out_({ cls: GUEST_CLS, rows: rows_(GUEST_CLS, null, true).filter(function (r) { return r.key !== 'live'; }).map(function (r) { r.name = mask_(r.name); return r; }) });
     }
+    if (d.action === 'expc') { // 실험 그래프 빠른 갱신: 캐시만 읽는다 (학생 화면에서도 반 자료를 볼 수 있는 자료라 비밀번호 없음)
+      if (EXP_KEYS.indexOf(String(d.key)) < 0) return out_({ error: 'not allowed' });
+      return out_({ rows: expRows_(String(d.key)) });
+    }
+    if (d.action === 'livec') { // 실시간 현황판 빠른 갱신: 접속 신호만
+      if (String(d.pin) !== String(TEACHER_PIN)) return out_({ error: '비밀번호가 다릅니다' });
+      return out_({ rows: liveRows_(d.cls) });
+    }
+    if (d.key && EXP_KEYS.indexOf(String(d.key)) >= 0 && d.cls && d.num) { try { expSave_(d); } catch (x) {} }
     if (d.key === 'live') { // 접속 신호: 시트에 쓰지 않는다
       if (!d.cls || !d.num) return out_({ error: 'bad request' });
       return out_(liveSave_(d));

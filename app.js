@@ -225,12 +225,12 @@
     if (!CFG.LIVE_MONITOR || !CFG.API_URL || !S.profile || isT() || !sessionStorage.getItem('gastrip.in')) return;
     var lb = liveLabel(), now = Date.now(), vis = document.visibilityState !== 'hidden';
     if (lb !== LIVE.last) { LIVE.last = lb; LIVE.since = now; }
-    var key = lb + '|' + vis, due = key !== LIVE.key ? now - LIVE.sent > 15000 : now - LIVE.sent > 60000;
+    var key = lb + '|' + vis, due = key !== LIVE.key ? now - LIVE.sent > 3000 : now - LIVE.sent > 60000;
     if (!due) return;
     LIVE.key = key; LIVE.sent = now;
     sync('live', { w: lb, since: LIVE.since, t: now, v: vis ? 1 : 0, m: S.miles });
   }
-  setInterval(liveTick, 5000); document.addEventListener('visibilitychange', liveTick);
+  setInterval(liveTick, 2000); document.addEventListener('visibilitychange', liveTick);
 
   /* ---------- 등록 ---------- */
   var SCENE = '<svg class="skyscene" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' +
@@ -1652,10 +1652,10 @@
     app.innerHTML = h + '</main>';
     if (TS.tab === 'lines' && CFG.API_URL && TS.lcls && !TS.lr[TS.lcls] && TS.lBusy !== TS.lcls && !TS.lErr) loadLines(TS.lcls);
     if (GO && (TS.tab === 'class' || TS.tab === 'data') && !TS.rows && !TS.gBusy) { TS.gBusy = 1; TEACH.tload(); }
-    clearInterval(LIVE_T); if (TS.tab === 'live' && TS.cls && TS.rows && CFG.API_URL) LIVE_T = setInterval(liveRefresh, 15000);
+    clearInterval(LIVE_T); if (TS.tab === 'live' && TS.cls && TS.rows && CFG.API_URL) { LIVE_R.full = Date.now(); LIVE_T = setInterval(liveRefresh, 4000); }
     if (TS.tab === 'graph' && CFG.API_URL) {
       var tci = $('#tgcls'); if (tci) tci.addEventListener('change', function () { TS.cls = tci.value.trim(); TG.prev = {}; var b = $('#tgbox'); if (b) b.innerHTML = tgHTML(); });
-      if (!TG.rows || TG.k !== TG.exp) tgFetch(); LIVE_T = setInterval(tgFetch, 10000);
+      if (!TG.rows || TG.k !== TG.exp) tgFetch(); LIVE_T = setInterval(tgFetch, 3000);
     }
   }
   function loadLines(c) { // 고른 반의 글만 불러온다 (모든 반을 한꺼번에 부르면 느리다)
@@ -1706,10 +1706,20 @@
     });
     return h + '<div class="lcols" style="--n:' + cols.length + '">' + cols.join('') + '</div>';
   }
-  function liveRefresh() {
+  function liveRefresh() { // 4초마다 접속 신호만 빠르게(캐시), 1분마다 전체 자료
     if (!$('#livegrid')) { clearInterval(LIVE_T); return; }
-    rowsReq(TS.cls).then(function (res) { if (res.error) throw new Error(res.error); TS.rows = res.rows || []; if (!$('#livegrid')) return; $('#livegrid').innerHTML = liveHTML(); $('#livemsg').textContent = '마지막 갱신 ' + new Date().toLocaleTimeString('ko-KR') + ' · 15초마다 자동으로 바뀌어요'; }).catch(function () { var m = $('#livemsg'); if (m) m.textContent = '갱신하지 못했어요. 다음 주기에 다시 시도해요.'; });
+    if (LIVE_R.busy) return; LIVE_R.busy = 1;
+    var full = Date.now() - LIVE_R.full > 60000, c = TS.cls;
+    var req = full ? rowsReq(c) : tpost({ action: 'livec', cls: c, pin: sessionStorage.getItem('gastrip.tpin') });
+    req.then(function (res) {
+      if (res.error) throw new Error(res.error); if (c !== TS.cls) return;
+      if (full) { TS.rows = res.rows || []; LIVE_R.full = Date.now(); }
+      else TS.rows = (TS.rows || []).filter(function (r) { return r.key !== 'live'; }).concat(res.rows || []);
+      if (!$('#livegrid')) return; $('#livegrid').innerHTML = liveHTML(); $('#livemsg').textContent = '마지막 갱신 ' + new Date().toLocaleTimeString('ko-KR') + ' · 4초마다 자동으로 바뀌어요';
+    }).catch(function () { var m = $('#livemsg'); if (m) m.textContent = '갱신하지 못했어요. 곧 다시 시도해요.'; })
+      .then(function () { LIVE_R.busy = 0; });
   }
+  var LIVE_R = { busy: 0, full: Date.now() };
   function liveHTML() {
     var now = Date.now(), L = students().filter(function (x) { return x.live && x.live.t; }), cnt = { on: 0, idle: 0, off: 0, away: 0 }, place = {};
     var cards = L.map(function (x) {
@@ -1736,12 +1746,17 @@
   };
   function byKey(keys) { return TS.rows.filter(function (r) { return keys.indexOf(r.key) >= 0; }); }
   function students(rows) { var m = {}; (rows || TS.rows || []).forEach(function (r) { var id = r.cls + '|' + r.num; m[id] = m[id] || { cls: String(r.cls), num: r.num, name: /[*○]/.test(String(r.name || '')) ? String(r.name) : (isGO() ? maskName(r.name) : String(r.name)), t: 0 }; m[id][r.key] = r.val; if (r.t && r.t > m[id].t && r.key !== 'live') m[id].t = r.t; }); return Object.keys(m).map(function (k) { return m[k]; }).sort(function (a, b) { return (a.cls - b.cls) || (a.num - b.num); }); }
-  /* ---------- 실험 그래프 (선생님 화면): 학생이 측정할 때마다 10초마다 자동으로 늘어난다 ---------- */
-  var TG = { exp: 'boyle', rows: null, k: '', at: 0, busy: 0, err: '', prev: {} };
-  function tgFetch() {
+  /* ---------- 실험 그래프 (선생님 화면): 학생이 측정하면 몇 초 안에 늘어난다 ---------- */
+  var TG = { exp: 'boyle', rows: null, k: '', at: 0, full: 0, busy: 0, err: '', prev: {} };
+  function tgFetch() { // 처음과 1분마다는 시트 전체, 그 사이에는 3초마다 캐시에서 방금 들어온 자료만
     if (!CFG.API_URL || TG.busy) return; var k = TG.exp; TG.busy = 1;
-    apiGet({ cls: 'all', key: k }).then(function (res) { if (res.error) throw new Error(res.error); if (k !== TG.exp) return; TG.rows = res.rows || []; TG.k = k; TG.at = Date.now(); TG.err = ''; })
-      .catch(function (e) { TG.err = '갱신하지 못했어요. 다음 주기(10초 뒤)에 다시 시도해요. (' + e.message + ')'; })
+    var full = !TG.rows || TG.k !== k || Date.now() - TG.full > 60000;
+    (full ? apiGet({ cls: 'all', key: k }) : tpost({ action: 'expc', key: k })).then(function (res) {
+      if (res.error) throw new Error(res.error); if (k !== TG.exp) return;
+      if (full) { TG.rows = res.rows || []; TG.full = Date.now(); }
+      else { var by = {}; TG.rows.forEach(function (r) { by[r.cls + '|' + r.num] = r; }); (res.rows || []).forEach(function (r) { by[r.cls + '|' + r.num] = r; }); TG.rows = Object.keys(by).map(function (id) { return by[id]; }); }
+      TG.k = k; TG.at = Date.now(); TG.err = '';
+    }).catch(function (e) { TG.err = '갱신하지 못했어요. 곧 다시 시도해요. (' + e.message + ')'; })
       .then(function () { TG.busy = 0; var b = $('#tgbox'); if (b && TS.tab === 'graph') b.innerHTML = tgHTML(); });
   }
   function tgRows(kind, v) { // 주사기는 모두 '기압'으로 맞춰 [부피, 압력], 감압 용기는 [펌프질 횟수, 기압]
@@ -1760,9 +1775,9 @@
     var mine = recs.filter(function (r) { return r.cls === c; }), groups = {};
     mine.forEach(function (r) { (groups[r.g] = groups[r.g] || []).push(r); });
     var gids = Object.keys(groups).sort(function (p, q) { return (p === '') - (q === '') || (parseFloat(p) - parseFloat(q)) || (p < q ? -1 : 1); });
-    var head = '<p class="tgstat"><b>1학년 ' + esc(c) + '반</b> · ' + gids.filter(function (g) { return g; }).length + '개 모둠 · ' + mine.length + '명 측정 · 점 ' + mine.reduce(function (t, r) { return t + r.rows.length; }, 0) + '개<span class="tiny"> · 마지막 갱신 ' + new Date(TG.at).toLocaleTimeString('ko-KR') + ' · 10초마다 자동' + (TG.err ? ' · <b class="warn">방금 갱신 실패</b>' : '') + '</span></p>';
+    var head = '<p class="tgstat"><b>1학년 ' + esc(c) + '반</b> · ' + gids.filter(function (g) { return g; }).length + '개 모둠 · ' + mine.length + '명 측정 · 점 ' + mine.reduce(function (t, r) { return t + r.rows.length; }, 0) + '개<span class="tiny"> · 마지막 갱신 ' + new Date(TG.at).toLocaleTimeString('ko-KR') + ' · 3초마다 자동' + (TG.err ? ' · <b class="warn">방금 갱신 실패</b>' : '') + '</span></p>';
     if (!c) return '<p class="tiny">위에 반 번호를 쓰세요.</p>';
-    if (!mine.length) return head + '<div class="card"><p class="tiny">아직 이 반에서 올라온 ' + (kind === 'vac' ? '감압 용기' : '주사기') + ' 자료가 없어요. 학생이 ' + (kind === 'vac' ? '기압을 기록하면' : '센서로 부피 버튼을 누르면') + ' 10초 안에 나타나요.</p></div>';
+    if (!mine.length) return head + '<div class="card"><p class="tiny">아직 이 반에서 올라온 ' + (kind === 'vac' ? '감압 용기' : '주사기') + ' 자료가 없어요. 학생이 ' + (kind === 'vac' ? '기압을 기록하면' : '센서로 부피 버튼을 누르면') + ' 몇 초 안에 나타나요.</p></div>';
     // 축은 반 전체 점으로 한 번 정해서 모든 모둠 그래프를 같은 눈금으로 비교한다
     var allc = [].concat.apply([], mine.map(function (r) { return r.rows; })), ax = kind === 'boyle' ? axes(allc.concat([[20, 1]]), 1, 0, 'boyle') : null;
     var h = head + '<h3 class="tgh">👥 모둠별 그래프 <small>모둠원마다 다른 색' + (kind === 'vac' ? ' · 파란 선은 모둠 평균' : '') + '</small></h3><div class="tggrid">';
