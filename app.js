@@ -1807,7 +1807,7 @@
       if (!TS.cls) TS.cls = isGO() ? GCLS : '1';
       return '<div class="card tgbar"><div class="seg tgseg"><button class="' + (TG.exp === 'boyle' ? 'on' : '') + '" data-act="tgexp" data-k="boyle">💉 주사기 실험</button><button class="' + (TG.exp === 'vac' ? 'on' : '') + '" data-act="tgexp" data-k="vac">🎈 감압 용기 실험</button></div><label class="tgcls">반 <input id="tgcls" inputmode="numeric" maxlength="2" value="' + esc(TS.cls) + '"' + (isGO() ? ' readonly' : '') + '></label><button class="btn sm" data-act="tgnow">지금 갱신</button></div><div id="tgbox">' + tgHTML() + '</div>';
     },
-    live: function () { return '<div class="card"><p class="tiny" id="livemsg">(현재 꺼져 있어요: 접속 신호가 서버 부담을 줄 수 있어 config.js의 LIVE_MONITOR를 true로 바꿔야 켜져요.) 반을 쓰고 ‘불러오기’를 누르면 15초마다 자동으로 갱신돼요. 학생 화면 그림이 아니라 ‘지금 어느 여행지·단계에 있는지’를 보여 줘요.</p><div id="livegrid">' + liveHTML() + '</div></div>'; },
+    live: function () { return '<div class="card"><p class="tiny" id="livemsg">' + (CFG.LIVE_MONITOR ? '' : '(현재 꺼져 있어요: config.js의 LIVE_MONITOR를 true로 바꿔야 켜져요.) ') + '반을 쓰고 ‘불러오기’를 누르면 4초마다 자동으로 갱신돼요. 학생 화면 그림이 아니라 ‘지금 어느 여행지·단계에 있는지’를 보여 줘요.</p><div id="livegrid">' + liveHTML() + '</div></div>'; },
     guide: function () {
       var h = '<div class="card"><h3>9차시 흐름</h3><table class="tbl"><thead><tr><th>차시</th><th>여행지</th><th>성취기준</th><th>받는 도장</th></tr></thead><tbody>';
       T.dests.forEach(function (d) { var st = d.steps.filter(function (s) { return s.stamp; }).map(function (s) { return T.kinds[s.stamp].name; }).join(', '); h += '<tr><td>' + d.period + '</td><td>' + d.icon + ' ' + d.place + '<br><small>' + d.title + '</small></td><td>' + (d.std ? T.stds[d.std].code : '전체') + '</td><td>' + (st || '–') + '</td></tr>'; });

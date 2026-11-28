@@ -11,8 +11,8 @@ window.TRIP_CONFIG = {
   GUEST_OPEN: null,
   // 참관 비밀번호를 암호화한 값(SHA-256). 비밀번호 자체는 이 파일에 적지 않습니다. 비워 두면 비밀번호 없이 둘러볼 수 있습니다.
   GUEST_HASH: "a30f20f75b2136455cf46af20eb1d12bf5389e072195c5a3b700fefcb0247a53",
-  // 실시간 현황판용 접속 신호. 학생 수가 많으면 구글 시트 쓰기가 몰려 입장이 막힐 수 있어 기본은 꺼 둡니다.
-  LIVE_MONITOR: false,
+  // 실시간 현황판용 접속 신호. 시트가 아니라 캐시에 가볍게 저장하므로 켜 두어도 됩니다.
+  LIVE_MONITOR: true,
   // 부스 웹앱 주소. 선택한 구성 링크(…/gas-booth/?s=B2.B3.C1)를 넣으면 그 실험만 열립니다.
   BOOTH_URL: "https://syjh0412.github.io/gas-booth/",
   // 스노클 과제 주소. 여행지별로 넣으면 '여행 안내 한 줄' 단계에 버튼이 생깁니다.
